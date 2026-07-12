@@ -102,6 +102,16 @@
         }
       },
       "includes": ["src/routes/__root.tsx"]
+    },
+    {
+      "includes": ["src/routes/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useComponentExportOnlyModules": "off"
+          }
+        }
+      }
     }
   ]
 }

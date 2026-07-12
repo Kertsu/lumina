@@ -6,7 +6,7 @@
   "scripts": {
     "dev:vite": "vite dev --port 3000",
     "build:vite": "vite build",
-    "preview": "vite preview",
+    "preview:vite": "vite preview",
     "test": "vitest run",
     "tauri": "tauri",
     "format": "biome format",
