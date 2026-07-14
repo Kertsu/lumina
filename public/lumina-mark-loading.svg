@@ -1,0 +1,17 @@
+<svg width="100%" viewBox="194 170 636 636" xmlns="http://www.w3.org/2000/svg" role="img" style="max-width: 636px; display: block; margin-inline: auto;">
+<title>Lumina loading animation concept</title>
+<desc>The Lumina mark with the open book held static and the three light rays above it growing and shrinking in a staggered left-to-right wave, looping continuously.</desc>
+<style>
+.ray{fill:none;stroke:#4B7EB4;stroke-linecap:round;animation:pulse 1.4s ease-in-out infinite;}
+.ray-l{stroke-width:38;stroke-dasharray:176;animation-delay:0s;}
+.ray-c{stroke-width:46;stroke-dasharray:163;animation-delay:0.15s;}
+.ray-r{stroke-width:38;stroke-dasharray:176;animation-delay:0.3s;}
+@keyframes pulse{0%{stroke-dashoffset:var(--len);}50%{stroke-dashoffset:0;}100%{stroke-dashoffset:var(--len);}}
+</style>
+<path d="M 512 756 C 343 658 244 558 244 442 C 244 373 343 398 512 536" fill="none" stroke="#4B7EB4" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M 512 756 C 681 658 780 558 780 442 C 780 373 681 398 512 536" fill="none" stroke="#4B7EB4" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"></path>
+<line x1="512" y1="536" x2="512" y2="756" stroke="#4B7EB4" stroke-width="46" stroke-linecap="round"></line>
+<line class="ray ray-c" style="--len:163" x1="512" y1="384" x2="512" y2="221"></line>
+<line class="ray ray-l" style="--len:176" x1="373" y1="429" x2="275" y2="283"></line>
+<line class="ray ray-r" style="--len:176;" x1="651" y1="429" x2="749" y2="283"></line>
+</svg>
