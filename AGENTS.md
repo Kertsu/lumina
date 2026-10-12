@@ -11,3 +11,7 @@ The default five canonical triage labels are used. See `docs/agents/triage-label
 ### Domain docs
 
 This is a single-context repo with `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
+
+### Contributing
+
+Follow `CONTRIBUTING.md` for code formatting, implementation branch naming, and commit messages.
