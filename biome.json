@@ -1,117 +1,117 @@
 {
-  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": {
-    "enabled": false,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "ignoreUnknown": false,
-    "includes": [
-      "**/*.json",
-      "**/*.js",
-      "**/*.ts",
-      "**/*.jsx",
-      "**/*.tsx",
-      "**/*.mts",
-      "**/*.mjs",
-      "!!dist",
-      "!!src-tauri",
-      "!!node_modules",
-      "!!.output",
-      "!!.tanstack",
-      "!src/routeTree.gen.ts"
-    ]
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf"
-  },
-  "assist": {
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "domains": {
-      "project": "all",
-      "react": "all"
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+    "vcs": {
+        "enabled": false,
+        "clientKind": "git",
+        "useIgnoreFile": true
     },
-    "rules": {
-      "recommended": true,
-      "correctness": {
-        "useHookAtTopLevel": "error",
-        "useImportExtensions": "off",
-        "noUnresolvedImports": "off"
-      },
-      "nursery": {
-        "noFloatingPromises": "error",
-        "useAwaitThenable": "error"
-      },
-      "suspicious": {
-        "useGoogleFontDisplay": "error",
-        "noDocumentImportInPage": "error",
-        "noHeadImportInDocument": "error",
-        "noExplicitAny": "warn",
-        "noConsole": "warn",
-        "noAlert": "warn"
-      },
-      "style": {
-        "noHeadElement": "error",
-        "useComponentExportOnlyModules": {
-          "level": "error",
-          "options": {
-            "allowExportNames": ["Route"]
-          }
+    "files": {
+        "ignoreUnknown": false,
+        "includes": [
+            "**/*.json",
+            "**/*.js",
+            "**/*.ts",
+            "**/*.jsx",
+            "**/*.tsx",
+            "**/*.mts",
+            "**/*.mjs",
+            "!!dist",
+            "!!src-tauri",
+            "!!node_modules",
+            "!!.output",
+            "!!.tanstack",
+            "!src/routeTree.gen.ts"
+        ]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineEnding": "lf"
+    },
+    "assist": {
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    },
+    "linter": {
+        "enabled": true,
+        "domains": {
+            "project": "all",
+            "react": "all"
         },
-        "useImportType": "error"
-      },
-      "performance": {
-        "noImgElement": "off"
-      }
-    }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    },
-    "formatter": {
-      "quoteStyle": "double"
-    }
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "trailingCommas": "es5",
-      "semicolons": "always"
-    },
-    "globals": []
-  },
-  "overrides": [
-    {
-      "linter": {
         "rules": {
-          "style": {
-            "noHeadElement": "off"
-          }
+            "recommended": true,
+            "correctness": {
+                "useHookAtTopLevel": "error",
+                "useImportExtensions": "off",
+                "noUnresolvedImports": "off"
+            },
+            "nursery": {
+                "noFloatingPromises": "error",
+                "useAwaitThenable": "error"
+            },
+            "suspicious": {
+                "useGoogleFontDisplay": "error",
+                "noDocumentImportInPage": "error",
+                "noHeadImportInDocument": "error",
+                "noExplicitAny": "warn",
+                "noConsole": "warn",
+                "noAlert": "warn"
+            },
+            "style": {
+                "noHeadElement": "error",
+                "useComponentExportOnlyModules": {
+                    "level": "error",
+                    "options": {
+                        "allowExportNames": ["Route"]
+                    }
+                },
+                "useImportType": "error"
+            },
+            "performance": {
+                "noImgElement": "off"
+            }
         }
-      },
-      "includes": ["src/routes/__root.tsx"]
     },
-    {
-      "includes": ["src/routes/**/*.tsx"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useComponentExportOnlyModules": "off"
-          }
+    "css": {
+        "parser": {
+            "tailwindDirectives": true
+        },
+        "formatter": {
+            "quoteStyle": "double"
         }
-      }
-    }
-  ]
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "double",
+            "trailingCommas": "es5",
+            "semicolons": "always"
+        },
+        "globals": []
+    },
+    "overrides": [
+        {
+            "linter": {
+                "rules": {
+                    "style": {
+                        "noHeadElement": "off"
+                    }
+                }
+            },
+            "includes": ["src/routes/__root.tsx"]
+        },
+        {
+            "includes": ["src/routes/**/*.tsx"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "useComponentExportOnlyModules": "off"
+                    }
+                }
+            }
+        }
+    ]
 }
