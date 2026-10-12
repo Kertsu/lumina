@@ -31,3 +31,6 @@ todos.json
 *.njsproj
 *.sln
 *.sw?
+
+# Local manual verification guides
+/docs/manual-verification/

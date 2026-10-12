@@ -15,3 +15,7 @@ This is a single-context repo with `GLOSSARY.md` and `docs/adr/` at the root. Se
 ### Contributing
 
 Follow `CONTRIBUTING.md` for code formatting, implementation branch naming, and commit messages.
+
+### Verification
+
+For features, bug fixes, specs, tickets, and reviews, follow `docs/agents/verification.md`. It overrides skill requirements for automated tests. Save manual verification guides in the main/master checkout, including when working in another worktree.
