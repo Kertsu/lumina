@@ -13,14 +13,14 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
  * DO NOT COMMIT THIS IF MODIFIED.
  */
 export const Route = createFileRoute("/playground")({
-  component: RouteComponent,
-  beforeLoad: () => {
-    if (!import.meta.env.DEV) {
-      throw notFound();
-    }
-  },
+    component: RouteComponent,
+    beforeLoad: () => {
+        if (!import.meta.env.DEV) {
+            throw notFound();
+        }
+    },
 });
 
 function RouteComponent() {
-  return <div>Hello "/playground"!</div>;
+    return <div>Hello "/playground"!</div>;
 }
