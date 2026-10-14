@@ -1,0 +1,24 @@
+{
+  "publisher": "eBible.org",
+  "edition": "World English Bible Protestant, engwebp; American spelling, LORD/GOD, 66 books",
+  "sourceUrl": "https://ebible.org/Scriptures/engwebp_vpl.zip",
+  "catalogUrl": "https://ebible.org/details.php?id=engwebp",
+  "noticeUrl": "https://ebible.org/engwebp/copyright.htm",
+  "acquiredDate": "2026-10-14",
+  "sourceArchiveSha256": "9a815410397e508764b9e51464dd95140a0fb4bbe71baa410bb18dd1c94e1d3b",
+  "verseSource": "engwebp_vpl.txt",
+  "verseSourceSha256": "bd5f4ac05c5742338b3b17086d5731cb2ca005f3ba5025f71494643eb7799833",
+  "publisherMemberTimestamp": [
+    2026,
+    10,
+    12,
+    21,
+    27,
+    4
+  ],
+  "generatedArtifactSha256": "7832fea2628efd3a42fb43d1e7cd68f1d8558b0d5034da952b31273a9c6681bf",
+  "books": 66,
+  "verses": 31103,
+  "terms": "Bible text public domain. World English Bible is an eBible.org trademark. Preserve the name only for unchanged Scripture text.",
+  "conversion": "Remove VPL book/chapter/verse prefix and line separator; preserve remaining text exactly. Publisher VPL already excludes notes, layout, and noncanonical headings."
+}
