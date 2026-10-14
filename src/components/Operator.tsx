@@ -30,6 +30,7 @@ import {
 } from "../lib/storage";
 import type {
     Appearance,
+    Background,
     ImportChoice,
     ImportReview,
     SearchMode,
@@ -110,7 +111,12 @@ export function Operator() {
     const [library, setLibrary] = useState<Translation[]>([]);
     const [workspace, setWorkspace] = useState<Workspace>(initialWorkspace);
     const [ready, setReady] = useState(false);
-    const [preview, setPreview] = useState<Selection | null>(null);
+    const [previewSelection, setPreviewSelection] = useState<Selection | null>(
+        null
+    );
+    const [previewSource, setPreviewSource] = useState<"current" | "history">(
+        "current"
+    );
     const [live, setLive] = useState<Selection | null>(null);
     const [audienceOpen, setAudienceOpen] = useState(false);
     const [blank, setBlank] = useState(true);
@@ -172,6 +178,13 @@ export function Operator() {
             ),
         [library]
     );
+    const preview = useMemo(
+        () =>
+            previewSource === "history"
+                ? previewSelection
+                : previewSelection && resolveQueue(previewSelection, library),
+        [previewSelection, previewSource, library]
+    );
     const history = workspace.history.filter(
         (item) => !sentOnly || item.action === "live"
     );
@@ -214,7 +227,7 @@ export function Operator() {
                 if (translation) {
                     restored.selectedTranslationId = translation.id;
                     const bible = bibleIndex(translation);
-                    setPreview(
+                    setPreviewSelection(
                         bible.selectVerse(43, 3, 16) ??
                             (translation.verses[0]
                                 ? bible.selectVerse(
@@ -284,13 +297,26 @@ export function Operator() {
             stop?.();
         };
     }, [attempt]);
-    function prepare(selection: Selection) {
-        setPreview(selection);
+    function prepare(
+        selection: Selection,
+        source: "current" | "history" = "current"
+    ) {
+        setPreviewSelection(selection);
+        setPreviewSource(source);
         setWorkspace((current) => recordHistory(current, selection, "preview"));
     }
-    async function send(selection: Selection | null = preview) {
+    async function send(requested?: Selection | null) {
+        const candidate = requested === undefined ? preview : requested;
+        const selection =
+            requested === undefined && previewSource === "history"
+                ? candidate
+                : candidate && resolveQueue(candidate, library);
         if (!selection) {
-            throw new Error("Select a verse to preview first.");
+            throw new Error(
+                previewSelection
+                    ? "Verse unavailable in its current translation. Select a history entry to use its saved copy."
+                    : "Select a verse to preview first."
+            );
         }
         if (!audienceOpen) {
             throw new Error("Open Audience before sending a verse live.");
@@ -480,6 +506,30 @@ export function Operator() {
         } finally {
             setBusy(false);
         }
+    }
+    function updateBackground(changes: Partial<Background>) {
+        if (!preview) return;
+        const translationId = preview.translationId;
+        setDraft((current) =>
+            current
+                ? {
+                      ...current,
+                      backgrounds: {
+                          ...current.backgrounds,
+                          [translationId]: {
+                              ...current.backgrounds[translationId],
+                              color:
+                                  current.backgrounds[translationId]?.color ??
+                                  "#111820",
+                              fit:
+                                  current.backgrounds[translationId]?.fit ??
+                                  "fill",
+                              ...changes,
+                          },
+                      },
+                  }
+                : current
+        );
     }
     async function applyAppearance() {
         if (!draft) return;
@@ -693,21 +743,27 @@ export function Operator() {
                             <div className="eyebrow">
                                 <Icon name="eye" size={14} />
                                 PRIVATE PREVIEW{" "}
-                                {preview && isSavedCopy(preview, library) && (
-                                    <span className="saved-copy">
-                                        Saved copy
-                                    </span>
-                                )}
+                                {previewSource === "history" &&
+                                    preview &&
+                                    isSavedCopy(preview, library) && (
+                                        <span className="saved-copy">
+                                            Saved copy
+                                        </span>
+                                    )}
                             </div>
                             <h2>
                                 {preview
                                     ? referenceLabel(preview)
-                                    : "Select a verse"}
+                                    : previewSelection
+                                      ? "Verse unavailable"
+                                      : "Select a verse"}
                                 <span>{preview?.abbreviation}</span>
                             </h2>
                             <p>
                                 {preview?.text ??
-                                    "Search, choose an adjacent verse, or select a queue entry."}
+                                    (previewSelection
+                                        ? `${referenceLabel(previewSelection)} · ${previewSelection.translationTitle} is unavailable. Restore this translation or select a history saved copy.`
+                                        : "Search, choose an adjacent verse, or select a queue entry.")}
                             </p>
                             <div className="private-meta">
                                 {preview
@@ -1186,7 +1242,10 @@ export function Operator() {
                                             type="button"
                                             className="result-preview"
                                             onClick={() =>
-                                                prepare(entry.selection)
+                                                prepare(
+                                                    entry.selection,
+                                                    "history"
+                                                )
                                             }
                                         >
                                             <strong>
@@ -1597,80 +1656,41 @@ export function Operator() {
                                             </div>
                                         ))}
                                         <h3>
-                                            {selected?.abbreviation} background
+                                            {preview?.translationTitle ??
+                                                "Select a verse"}{" "}
+                                            background
                                         </h3>
                                         <label>
                                             Background color
                                             <input
                                                 type="color"
+                                                disabled={!preview}
                                                 value={
                                                     draft.backgrounds[
-                                                        selected?.id ?? ""
+                                                        preview?.translationId ??
+                                                            ""
                                                     ]?.color ?? "#111820"
                                                 }
-                                                onChange={(event) => {
-                                                    if (selected)
-                                                        setDraft({
-                                                            ...draft,
-                                                            backgrounds: {
-                                                                ...draft.backgrounds,
-                                                                [selected.id]: {
-                                                                    ...draft
-                                                                        .backgrounds[
-                                                                        selected
-                                                                            .id
-                                                                    ],
-                                                                    color: event
-                                                                        .target
-                                                                        .value,
-                                                                    fit:
-                                                                        draft
-                                                                            .backgrounds[
-                                                                            selected
-                                                                                .id
-                                                                        ]
-                                                                            ?.fit ??
-                                                                        "fill",
-                                                                },
-                                                            },
-                                                        });
-                                                }}
+                                                onChange={(event) =>
+                                                    updateBackground({
+                                                        color: event.target
+                                                            .value,
+                                                    })
+                                                }
                                             />
                                         </label>
                                         <div className="background-tools">
                                             <button
                                                 type="button"
                                                 className="button"
+                                                disabled={!preview}
                                                 onClick={() =>
                                                     void attempt(async () => {
                                                         const image =
                                                             await pickBackground();
-                                                        if (image && selected)
-                                                            setDraft({
-                                                                ...draft,
-                                                                backgrounds: {
-                                                                    ...draft.backgrounds,
-                                                                    [selected.id]:
-                                                                        {
-                                                                            color:
-                                                                                draft
-                                                                                    .backgrounds[
-                                                                                    selected
-                                                                                        .id
-                                                                                ]
-                                                                                    ?.color ??
-                                                                                "#111820",
-                                                                            fit:
-                                                                                draft
-                                                                                    .backgrounds[
-                                                                                    selected
-                                                                                        .id
-                                                                                ]
-                                                                                    ?.fit ??
-                                                                                "fill",
-                                                                            image,
-                                                                        },
-                                                                },
+                                                        if (image)
+                                                            updateBackground({
+                                                                image,
                                                             });
                                                     })
                                                 }
@@ -1679,40 +1699,21 @@ export function Operator() {
                                             </button>
                                             <select
                                                 aria-label="Background fit"
+                                                disabled={!preview}
                                                 value={
                                                     draft.backgrounds[
-                                                        selected?.id ?? ""
+                                                        preview?.translationId ??
+                                                            ""
                                                     ]?.fit ?? "fill"
                                                 }
-                                                onChange={(event) => {
-                                                    if (selected)
-                                                        setDraft({
-                                                            ...draft,
-                                                            backgrounds: {
-                                                                ...draft.backgrounds,
-                                                                [selected.id]: {
-                                                                    ...draft
-                                                                        .backgrounds[
-                                                                        selected
-                                                                            .id
-                                                                    ],
-                                                                    color:
-                                                                        draft
-                                                                            .backgrounds[
-                                                                            selected
-                                                                                .id
-                                                                        ]
-                                                                            ?.color ??
-                                                                        "#111820",
-                                                                    fit: event
-                                                                        .target
-                                                                        .value as
-                                                                        | "fill"
-                                                                        | "fit",
-                                                                },
-                                                            },
-                                                        });
-                                                }}
+                                                onChange={(event) =>
+                                                    updateBackground({
+                                                        fit: event.target
+                                                            .value as
+                                                            | "fill"
+                                                            | "fit",
+                                                    })
+                                                }
                                             >
                                                 <option value="fill">
                                                     Fill / crop
@@ -1723,25 +1724,13 @@ export function Operator() {
                                         <button
                                             type="button"
                                             className="text-button"
-                                            onClick={() => {
-                                                if (selected)
-                                                    setDraft({
-                                                        ...draft,
-                                                        backgrounds: {
-                                                            ...draft.backgrounds,
-                                                            [selected.id]: {
-                                                                color:
-                                                                    draft
-                                                                        .backgrounds[
-                                                                        selected
-                                                                            .id
-                                                                    ]?.color ??
-                                                                    "#111820",
-                                                                fit: "fill",
-                                                            },
-                                                        },
-                                                    });
-                                            }}
+                                            disabled={!preview}
+                                            onClick={() =>
+                                                updateBackground({
+                                                    image: undefined,
+                                                    fit: "fill",
+                                                })
+                                            }
                                         >
                                             Remove image
                                         </button>

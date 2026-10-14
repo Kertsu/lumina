@@ -86,7 +86,7 @@ export function recordHistory(
 }
 
 export function resolveQueue(
-    entry: QueueEntry,
+    entry: Pick<QueueEntry, "translationId" | "book" | "chapter" | "verse">,
     library: Translation[]
 ): Selection | null {
     const translation = library.find(

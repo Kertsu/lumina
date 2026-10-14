@@ -14,6 +14,7 @@ use tauri::Manager;
 const WEB: &str = include_str!("../../public/bibles/web.json");
 const MAX_IMPORT_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
+const BACKGROUND_REFERENCE: &str = "managed-background:";
 pub(crate) static MAINTENANCE: Mutex<()> = Mutex::new(());
 static REVIEWS: OnceLock<Mutex<HashMap<PathBuf, String>>> = OnceLock::new();
 
@@ -608,6 +609,167 @@ pub fn remove_translation(
   library(&db)
 }
 
+// Runtime rendering uses data URLs; the workspace stores only managed asset names.
+fn image_format(bytes: &[u8]) -> Result<(&'static str, &'static str), String> {
+  match image::guess_format(bytes).map_err(message)? {
+    image::ImageFormat::Jpeg => Ok(("image/jpeg", "jpg")),
+    image::ImageFormat::Png => Ok(("image/png", "png")),
+    image::ImageFormat::Bmp => Ok(("image/bmp", "bmp")),
+    _ => Err("Choose a JPEG, PNG, or BMP image.".into()),
+  }
+}
+
+fn validate_image(bytes: &[u8]) -> Result<(&'static str, &'static str), String> {
+  if bytes.len() as u64 > MAX_IMAGE_BYTES {
+    return Err("Background must be at most 20 MiB.".into());
+  }
+  let (mime, extension) = image_format(bytes)?;
+  let format = image::guess_format(bytes).map_err(message)?;
+  let mut reader = image::ImageReader::with_format(std::io::Cursor::new(bytes), format);
+  let mut limits = image::Limits::default();
+  limits.max_image_width = Some(8192);
+  limits.max_image_height = Some(8192);
+  limits.max_alloc = Some(256 * 1024 * 1024);
+  reader.limits(limits);
+  let decoded = reader.decode().map_err(message)?;
+  if u64::from(decoded.width()) * u64::from(decoded.height()) > 32_000_000 {
+    return Err("Background must be at most 32 megapixels.".into());
+  }
+  Ok((mime, extension))
+}
+
+fn background_directory(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  Ok(
+    app
+      .path()
+      .app_data_dir()
+      .map_err(message)?
+      .join("backgrounds"),
+  )
+}
+
+fn store_background(
+  app: &tauri::AppHandle,
+  bytes: &[u8],
+  extension: &str,
+) -> Result<String, String> {
+  let directory = background_directory(app)?;
+  fs::create_dir_all(&directory).map_err(message)?;
+  let name = format!(
+    "{}.{}",
+    digest(bytes).trim_start_matches("sha256:"),
+    extension
+  );
+  let target = directory.join(&name);
+  if !target.exists() {
+    let temporary = directory.join(format!("{}.tmp", uuid::Uuid::new_v4()));
+    fs::write(&temporary, bytes).map_err(message)?;
+    if let Err(error) = fs::rename(&temporary, target) {
+      let _ = fs::remove_file(&temporary);
+      return Err(message(error));
+    }
+  }
+  Ok(format!("{BACKGROUND_REFERENCE}{name}"))
+}
+
+fn background_data_url(app: &tauri::AppHandle, reference: &str) -> Result<String, String> {
+  let name = reference
+    .strip_prefix(BACKGROUND_REFERENCE)
+    .ok_or("Invalid managed background reference.")?;
+  let (hash, extension) = name
+    .split_once('.')
+    .ok_or("Invalid managed background name.")?;
+  if hash.len() != 64
+    || !hash.bytes().all(|value| value.is_ascii_hexdigit())
+    || !matches!(extension, "jpg" | "png" | "bmp")
+  {
+    return Err("Invalid managed background name.".into());
+  }
+  let path = background_directory(app)?.join(name);
+  let metadata = fs::metadata(&path).map_err(message)?;
+  if !metadata.is_file() || metadata.len() > MAX_IMAGE_BYTES {
+    return Err("Managed background exceeds the image limit.".into());
+  }
+  let bytes = fs::read(path).map_err(message)?;
+  let (mime, actual_extension) = image_format(&bytes)?;
+  if bytes.len() as u64 > MAX_IMAGE_BYTES
+    || digest(&bytes) != format!("sha256:{hash}")
+    || extension != actual_extension
+  {
+    return Err("Managed background has changed.".into());
+  }
+  Ok(format!(
+    "data:{mime};base64,{}",
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+  ))
+}
+
+fn persist_backgrounds(
+  app: &tauri::AppHandle,
+  workspace: &mut serde_json::Value,
+) -> Result<(), String> {
+  let Some(backgrounds) = workspace
+    .pointer_mut("/appearance/backgrounds")
+    .and_then(serde_json::Value::as_object_mut)
+  else {
+    return Ok(());
+  };
+  for background in backgrounds.values_mut() {
+    let Some(image) = background.get_mut("image") else {
+      continue;
+    };
+    let Some(url) = image.as_str() else {
+      continue;
+    };
+    if url.starts_with(BACKGROUND_REFERENCE) {
+      // Validate references supplied to the command without accepting arbitrary paths.
+      background_data_url(app, url)?;
+      continue;
+    }
+    let (header, encoded) = url.split_once(',').ok_or("Invalid background data URL.")?;
+    if !matches!(
+      header,
+      "data:image/jpeg;base64" | "data:image/png;base64" | "data:image/bmp;base64"
+    ) || encoded.len() > (MAX_IMAGE_BYTES as usize).div_ceil(3) * 4
+    {
+      return Err("Choose a JPEG, PNG, or BMP image of at most 20 MiB.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+      .decode(encoded)
+      .map_err(message)?;
+    let (mime, extension) = validate_image(&bytes)?;
+    if header != format!("data:{mime};base64") {
+      return Err("Background format does not match its data URL.".into());
+    }
+    *image = serde_json::Value::String(store_background(app, &bytes, extension)?);
+  }
+  Ok(())
+}
+
+fn hydrate_backgrounds(app: &tauri::AppHandle, workspace: &mut serde_json::Value) {
+  let Some(backgrounds) = workspace
+    .pointer_mut("/appearance/backgrounds")
+    .and_then(serde_json::Value::as_object_mut)
+  else {
+    return;
+  };
+  for background in backgrounds.values_mut() {
+    let Some(image) = background.get_mut("image") else {
+      continue;
+    };
+    let Some(reference) = image
+      .as_str()
+      .filter(|value| value.starts_with(BACKGROUND_REFERENCE))
+    else {
+      continue;
+    };
+    // An absent/corrupt image falls back to its translation color; preparation survives.
+    *image = background_data_url(app, reference)
+      .map(serde_json::Value::String)
+      .unwrap_or(serde_json::Value::Null);
+  }
+}
+
 #[tauri::command]
 pub fn load_workspace(
   app: tauri::AppHandle,
@@ -628,19 +790,24 @@ pub fn load_workspace(
       }
     })
     .map_err(message)?;
-  payload
+  let mut workspace = payload
     .map(|value| serde_json::from_str(&value))
     .transpose()
-    .map_err(message)
+    .map_err(message)?;
+  if let Some(value) = &mut workspace {
+    hydrate_backgrounds(&app, value);
+  }
+  Ok(workspace)
 }
 
 #[tauri::command]
 pub fn save_workspace(
   app: tauri::AppHandle,
   window: tauri::WebviewWindow,
-  workspace: serde_json::Value,
+  mut workspace: serde_json::Value,
 ) -> Result<(), String> {
   operator(&window)?;
+  persist_backgrounds(&app, &mut workspace)?;
   let payload = serde_json::to_string(&workspace).map_err(message)?;
   if payload.len() > 32 * 1024 * 1024 {
     return Err("Workspace exceeds the 32 MiB storage limit.".into());
@@ -683,38 +850,8 @@ pub async fn pick_background(
       return Err("Background must be at most 20 MiB.".into());
     }
     let bytes = fs::read(path).map_err(message)?;
-    let format = image::guess_format(&bytes).map_err(message)?;
-    let (mime, extension) = match format {
-      image::ImageFormat::Jpeg => ("image/jpeg", "jpg"),
-      image::ImageFormat::Png => ("image/png", "png"),
-      image::ImageFormat::Bmp => ("image/bmp", "bmp"),
-      _ => return Err("Choose a JPEG, PNG, or BMP image.".into()),
-    };
-    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(&bytes), format);
-    let mut limits = image::Limits::default();
-    limits.max_image_width = Some(8192);
-    limits.max_image_height = Some(8192);
-    limits.max_alloc = Some(256 * 1024 * 1024);
-    reader.limits(limits);
-    let decoded = reader.decode().map_err(message)?;
-    if u64::from(decoded.width()) * u64::from(decoded.height()) > 32_000_000 {
-      return Err("Background must be at most 32 megapixels.".into());
-    }
-    let directory = app
-      .path()
-      .app_data_dir()
-      .map_err(message)?
-      .join("backgrounds");
-    fs::create_dir_all(&directory).map_err(message)?;
-    fs::write(
-      directory.join(format!(
-        "{}.{}",
-        digest(&bytes).trim_start_matches("sha256:"),
-        extension
-      )),
-      &bytes,
-    )
-    .map_err(message)?;
+    let (mime, extension) = validate_image(&bytes)?;
+    store_background(&app, &bytes, extension)?;
     Ok(Some(format!(
       "data:{mime};base64,{}",
       base64::engine::general_purpose::STANDARD.encode(&bytes)
