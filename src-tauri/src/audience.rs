@@ -75,17 +75,20 @@ pub async fn open_audience(app: AppHandle, window: WebviewWindow) -> Result<(), 
     .map_err(|error| error.to_string())?;
   let handle = app.clone();
   audience.on_window_event(move |event| {
-    if matches!(event, WindowEvent::Destroyed) {
+    if matches!(event, WindowEvent::Destroyed) && handle.get_webview_window(AUDIENCE).is_none() {
       clear(&handle);
     }
   });
-  audience
+  if let Err(error) = audience
     .set_cursor_visible(false)
-    .map_err(|error| error.to_string())?;
-  audience.show().map_err(|error| error.to_string())?;
-  app
-    .emit_to("main", "lumina:audience-open", true)
-    .map_err(|error| error.to_string())
+    .and_then(|()| audience.show())
+    .and_then(|()| app.emit_to("main", "lumina:audience-open", true))
+  {
+    let _ = audience.destroy();
+    clear(&app);
+    return Err(error.to_string());
+  }
+  Ok(())
 }
 
 #[tauri::command]
