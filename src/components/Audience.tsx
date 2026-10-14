@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backgroundStyle, verseStyle } from "../lib/appearance";
 import {
     type AudiencePayload,
     isDesktop,
@@ -45,13 +46,6 @@ export function Audience() {
     const appearance = payload?.appearance;
     const visible = selection && appearance && !payload.blank;
     const scale = width / 1920;
-    const band =
-        appearance?.bands.find(
-            (item) => (selection?.text.length ?? 0) <= item.max
-        ) ?? appearance?.bands.at(-1);
-    const background = selection
-        ? appearance?.backgrounds[selection.translationId]
-        : undefined;
 
     const enterFullscreen = async () => {
         try {
@@ -69,16 +63,11 @@ export function Audience() {
             style={{
                 position: "fixed",
                 inset: 0,
-                backgroundColor: visible
-                    ? (background?.color ?? "#111827")
-                    : "#000000",
-                backgroundImage:
-                    visible && background?.image
-                        ? `url("${background.image}")`
-                        : undefined,
-                backgroundSize: background?.fit === "fit" ? "contain" : "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
+                ...(visible
+                    ? backgroundStyle(selection.translationId, appearance)
+                    : {
+                          backgroundColor: "#000000",
+                      }),
                 cursor: "none",
                 overflow: "hidden",
                 color: appearance?.color ?? "#ffffff",
@@ -94,17 +83,7 @@ export function Audience() {
                     <p
                         style={{
                             margin: 0,
-                            fontFamily: appearance.family,
-                            fontSize: (band?.size ?? 64) * scale,
-                            fontWeight: appearance.bold ? 700 : 400,
-                            fontStyle: appearance.italic ? "italic" : "normal",
-                            textDecoration: [
-                                appearance.underline ? "underline" : "",
-                                appearance.strikeout ? "line-through" : "",
-                            ]
-                                .filter(Boolean)
-                                .join(" "),
-                            lineHeight: 1.35,
+                            ...verseStyle(selection.text, appearance, scale),
                             whiteSpace: "pre-wrap",
                             overflowWrap: "break-word",
                             textAlign: "center",
