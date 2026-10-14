@@ -97,8 +97,10 @@ An imported edition is SHA-256 of deterministic JSON containing title,
 abbreviation, description, language, sorted canonical books/metadata/aliases,
 and sorted canonical verse coordinates/original text. Source row IDs and SQLite
 layout do not affect comparison. Alias order and metadata changes do affect it.
-Identical installed editions are skipped during Add, including when local source
-IDs differ. Different text sharing a title requires an explicit Add or Replace
+Identical installed content is skipped during Add, including when local source
+IDs differ or when the same data matches the bundled starter. The starter keeps
+its publisher artifact edition identity; duplicate comparison uses the common
+canonical content digest. Different text sharing a title requires an explicit Add or Replace
 choice in review; backend never silently chooses Replace.
 
 Each source needs one Add, Replace, Restore, or Skip choice. Every non-skipped
@@ -129,6 +131,13 @@ cannot import SQLite or claim native/offline package verification.
 The native picker accepts decoded JPEG/PNG/BMP, at most 20 MiB, 8,192 pixels per
 axis and 32 megapixels, with a 256 MiB decoder allocation limit. It copies the
 original bytes into application-data `backgrounds/<sha256>.<extension>` and
-returns an embedded data URL for persisted appearance. Removing/changing the
+returns an embedded data URL for runtime preview. Removing/changing the
 original file does not affect the managed copy. Invalid formats, oversized
 images, and decode failures return a visible error without applying an image.
+
+Workspace persistence stores background images as content-addressed managed
+asset references, rather than embedding their base64 bytes in the SQLite JSON
+record. Runtime loading resolves those references to renderable image data.
+Missing or changed managed files fall back to the translation's background
+color without discarding queue/history preparation. The 32 MiB workspace limit
+applies after replacing image bytes with references.

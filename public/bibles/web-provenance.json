@@ -9,9 +9,37 @@
     "verseSource": "engwebp_vpl.txt",
     "verseSourceSha256": "bd5f4ac05c5742338b3b17086d5731cb2ca005f3ba5025f71494643eb7799833",
     "publisherMemberTimestamp": [2026, 10, 12, 21, 27, 4],
-    "generatedArtifactSha256": "7832fea2628efd3a42fb43d1e7cd68f1d8558b0d5034da952b31273a9c6681bf",
+    "generatedArtifactSha256": "710509ecc3ba9bfaf278a1f538ecd32f584c85fdbf8e092093663662da18d27b",
     "books": 66,
-    "verses": 31103,
+    "verses": 31098,
     "terms": "Bible text public domain. World English Bible is an eBible.org trademark. Preserve the name only for unchanged Scripture text.",
-    "conversion": "Remove VPL book/chapter/verse prefix and line separator; preserve remaining text exactly. Publisher VPL already excludes notes, layout, and noncanonical headings."
+    "conversion": "Remove VPL reference prefixes and line separators; preserve every nonempty verse exactly. Five empty source coordinates have no Scripture wording and remain unavailable; notes, layout, and headings are excluded by the publisher VPL.",
+    "sourceVerseRows": 31103,
+    "omittedEmptyCoordinates": [
+        {
+            "book": 42,
+            "chapter": 17,
+            "verse": 36
+        },
+        {
+            "book": 44,
+            "chapter": 8,
+            "verse": 37
+        },
+        {
+            "book": 44,
+            "chapter": 15,
+            "verse": 34
+        },
+        {
+            "book": 44,
+            "chapter": 24,
+            "verse": 7
+        },
+        {
+            "book": 45,
+            "chapter": 16,
+            "verse": 25
+        }
+    ]
 }

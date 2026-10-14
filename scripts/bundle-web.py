@@ -17,20 +17,65 @@ archive_path = pathlib.Path(sys.argv[1])
 archive = zipfile.ZipFile(archive_path)
 source = archive.read('engwebp_vpl.txt')
 verses = []
+omitted_empty_coordinates = []
 for line in source.decode('utf-8-sig').splitlines():
     match = re.fullmatch(r'(\S+) (\d+):(\d+) (.*)', line)
     if not match:
         raise ValueError('Unsupported publisher VPL line')
     code, chapter, verse, text = match.groups()
-    verses.append({'book': codes.index(code) + 1, 'chapter': int(chapter), 'verse': int(verse), 'text': text})
+    coordinate = {
+        'book': codes.index(code) + 1,
+        'chapter': int(chapter),
+        'verse': int(verse),
+    }
+    if not text.strip():
+        omitted_empty_coordinates.append(coordinate)
+        continue
+    verses.append({
+        **coordinate,
+        'text': text,
+    })
 coordinates = {(v['book'], v['chapter'], v['verse']) for v in verses}
 if len(coordinates) != len(verses) or len({v['book'] for v in verses}) != 66:
     raise ValueError('Invalid publisher coverage')
 edition = 'sha256:' + hashlib.sha256(source).hexdigest()
-translation = {'id': 'bundled-web', 'edition': edition, 'title': 'World English Bible', 'abbreviation': 'WEB', 'description': 'Publisher WEB Protestant edition (engwebp), American spelling, LORD/GOD; acquired 2026-10-14.', 'language': 'en', 'bundled': True, 'available': True, 'books': [{'number': n + 1, 'name': name, 'aliases': [codes[n]]} for n, name in enumerate(names)], 'verses': verses}
+translation = {
+    'id': 'bundled-web',
+    'edition': edition,
+    'title': 'World English Bible',
+    'abbreviation': 'WEB',
+    'description': 'Publisher WEB Protestant edition (engwebp), American spelling, LORD/GOD; acquired 2026-10-14.',
+    'language': 'en',
+    'bundled': True,
+    'available': True,
+    'books': [{
+        'number': n + 1,
+        'name': name,
+        'aliases': [codes[n]],
+    } for n, name in enumerate(names)],
+    'verses': verses,
+}
 root = pathlib.Path(__file__).resolve().parents[1]
 output = root / 'public/bibles/web.json'
 output.write_text(json.dumps(translation, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
-provenance = {'publisher': 'eBible.org', 'edition': 'World English Bible Protestant, engwebp; American spelling, LORD/GOD, 66 books', 'sourceUrl': 'https://ebible.org/Scriptures/engwebp_vpl.zip', 'catalogUrl': 'https://ebible.org/details.php?id=engwebp', 'noticeUrl': 'https://ebible.org/engwebp/copyright.htm', 'acquiredDate': '2026-10-14', 'sourceArchiveSha256': hashlib.sha256(archive_path.read_bytes()).hexdigest(), 'verseSource': 'engwebp_vpl.txt', 'verseSourceSha256': hashlib.sha256(source).hexdigest(), 'publisherMemberTimestamp': list(archive.getinfo('engwebp_vpl.txt').date_time), 'generatedArtifactSha256': hashlib.sha256(output.read_bytes()).hexdigest(), 'books': 66, 'verses': len(verses), 'terms': 'Bible text public domain. World English Bible is an eBible.org trademark. Preserve the name only for unchanged Scripture text.', 'conversion': 'Remove VPL book/chapter/verse prefix and line separator; preserve remaining text exactly. Publisher VPL already excludes notes, layout, and noncanonical headings.'}
+provenance = {
+    'publisher': 'eBible.org',
+    'edition': 'World English Bible Protestant, engwebp; American spelling, LORD/GOD, 66 books',
+    'sourceUrl': 'https://ebible.org/Scriptures/engwebp_vpl.zip',
+    'catalogUrl': 'https://ebible.org/details.php?id=engwebp',
+    'noticeUrl': 'https://ebible.org/engwebp/copyright.htm',
+    'acquiredDate': '2026-10-14',
+    'sourceArchiveSha256': hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+    'verseSource': 'engwebp_vpl.txt',
+    'verseSourceSha256': hashlib.sha256(source).hexdigest(),
+    'publisherMemberTimestamp': list(archive.getinfo('engwebp_vpl.txt').date_time),
+    'generatedArtifactSha256': hashlib.sha256(output.read_bytes()).hexdigest(),
+    'books': 66,
+    'verses': len(verses),
+    'sourceVerseRows': len(verses) + len(omitted_empty_coordinates),
+    'omittedEmptyCoordinates': omitted_empty_coordinates,
+    'terms': 'Bible text public domain. World English Bible is an eBible.org trademark. Preserve the name only for unchanged Scripture text.',
+    'conversion': 'Remove VPL reference prefixes and line separators; preserve every nonempty verse exactly. Five empty source coordinates have no Scripture wording and remain unavailable; notes, layout, and headings are excluded by the publisher VPL.',
+}
 (root / 'public/bibles/web-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(provenance, indent=2))

@@ -1,7 +1,7 @@
 # Bundled World English Bible
 
 The starter is the publisher's **World English Bible Protestant** (`engwebp`):
-66 books, American spelling, LORD/GOD. It contains 31,103 verse rows from the
+66 books, American spelling, LORD/GOD. It contains 31,098 nonempty verses from the
 publisher's BibleWorks verse-per-line archive, acquired **14 October 2026**.
 The full JSON is `public/bibles/web.json`, embedded at native compile time;
 browser builds serve the identical file. First use does not fetch Bible assets.
@@ -16,6 +16,9 @@ source URLs, and conversion details are recorded in
 publisher `engwebp_vpl.txt` bytes by SHA-256. `scripts/bundle-web.py` converts an
 already downloaded archive reproducibly; it strips only the reference prefix
 and line separator, keeping each verse's remaining Unicode text unchanged.
+The publisher VPL has 31,103 coordinates; five have empty text. Lumina keeps
+those five coordinates unavailable, records them in provenance, and adds no
+Scripture wording. All 31,098 nonempty texts remain byte-for-byte unchanged.
 The publisher's VPL excludes footnotes, paragraph formatting, and noncanonical
 section headings; Lumina does not manufacture those omitted features.
 

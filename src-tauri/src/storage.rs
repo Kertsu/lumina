@@ -146,6 +146,18 @@ fn digest(bytes: &[u8]) -> String {
   format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
+fn content_digest(translation: &Translation) -> Result<String, String> {
+  let normalized = (
+    &translation.title,
+    &translation.abbreviation,
+    &translation.description,
+    &translation.language,
+    &translation.books,
+    &translation.verses,
+  );
+  Ok(digest(&serde_json::to_vec(&normalized).map_err(message)?))
+}
+
 fn bounded_text(value: &str, label: &str, max: usize) -> Result<(), String> {
   if value.trim().is_empty() || value.len() > max || value.contains('\0') {
     return Err(format!(
@@ -404,15 +416,7 @@ fn read_import(path: &Path) -> Result<(Vec<Translation>, String), String> {
       return Err("Each translation and every listed book must contain at least one verse.".into());
     }
     // Edition excludes local row IDs and installed identity; metadata changes count.
-    let normalized = (
-      &translation.title,
-      &translation.abbreviation,
-      &translation.description,
-      &translation.language,
-      &translation.books,
-      &translation.verses,
-    );
-    translation.edition = digest(&serde_json::to_vec(&normalized).map_err(message)?);
+    translation.edition = content_digest(&translation)?;
     result.push(translation);
   }
   if result.is_empty() {
@@ -480,9 +484,16 @@ fn install_review(
   if reviewed.as_deref() != Some(&hash) {
     return Err("Source must be reviewed again before acceptance.".into());
   }
-  let mut db = managed(&app)?;
+  let mut db = managed(app)?;
   let transaction = db.transaction().map_err(message)?;
   let mut installed = library(&transaction)?;
+  // The starter retains its publisher-artifact edition identity. Compare its
+  // canonical content using the same digest as imports, independent of packaging.
+  let starter_digest = installed
+    .iter()
+    .find(|item| item.bundled)
+    .map(content_digest)
+    .transpose()?;
   let mut seen_sources = HashSet::new();
   let mut seen_targets = HashSet::new();
   let mut replacing = false;
@@ -498,9 +509,11 @@ fn install_review(
     if matches!(choice.action, ImportAction::Skip) {
       continue;
     }
-    let duplicate = installed
-      .iter()
-      .any(|item| item.available && item.edition == incoming.edition);
+    let duplicate = installed.iter().any(|item| {
+      item.available
+        && (item.edition == incoming.edition
+          || (item.bundled && starter_digest.as_deref() == Some(incoming.edition.as_str())))
+    });
     match choice.action {
       ImportAction::Add => {
         if duplicate {
@@ -513,7 +526,7 @@ fn install_review(
           return Err("Confirm the maintenance action before accepting.".into());
         }
         if matches!(choice.action, ImportAction::Replace) {
-          closed_audience(&app)?;
+          closed_audience(app)?;
           replacing = true;
         }
         let target_id = choice
@@ -556,7 +569,7 @@ fn install_review(
   }
   // Check again immediately before commit, after source validation and copying.
   if replacing {
-    closed_audience(&app)?;
+    closed_audience(app)?;
   }
   transaction.commit().map_err(message)?;
   library(&db)

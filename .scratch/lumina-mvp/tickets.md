@@ -1,13 +1,21 @@
 # Implementation graph
 
 Integration: `1st-prototype-Kurtd-Daniel-Bigtas`; base: `472b371`.
-Local tracking follows the spec's local Markdown preference.
+Local tracking follows the supplied spec's local Markdown preference.
 
-1. Storage: publisher WEB artifact, native SQLite import contract, validation/review, managed translation identity and transactional maintenance. Ready.
-2. Core: TypeScript reference/search, independent workspace/history/queue, appearance and persistence adapters. Ready.
-3. Audience: native audience lifecycle/display controls and frontend audience transport. Ready.
-4. Operator: reference-inspired interface, integrate 1–3, manual app checks. Blocked by 1–3.
-5. Review: parallel standards/spec review, fix findings, release qualification record. Blocked by 4.
+1. Storage — implemented: full publisher WEB, native SQLite validation/review,
+   managed translation identity, transactional maintenance, managed images.
+2. Core — implemented: reference/search indexes, independent queue/history,
+   appearance and workspace persistence adapters.
+3. Audience — implemented lifecycle/transport/fullscreen/top controls;
+   cursor restriction remains incomplete. Physical-display qualification pending.
+4. Operator — implemented reference-inspired workspace and integration;
+   final UI/default appearance approval remains pending.
+5. Review — independent standards/spec reviews completed; actionable defects
+   fixed. See `docs/implementation/review.md` for unresolved acceptance work.
 
-No automated test files: docs/agents/verification.md overrides TDD.
-No production compatibility claims without physical display/offline rehearsal.
+Manual app checks saved locally in `docs/manual-verification/`, in this worktree
+by explicit maintainer instruction. No automated test files added/modified.
+No supported production configuration claimed without its physical-display and
+packaged offline rehearsal. The full MVP remains incomplete while the above
+accepted requirements are outstanding.

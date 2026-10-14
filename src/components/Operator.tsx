@@ -147,6 +147,8 @@ export function Operator() {
         "appearance" | "library" | "information" | "help" | null
     >(null);
     const [draft, setDraft] = useState<Appearance | null>(null);
+    const [backgroundBusy, setBackgroundBusy] = useState(false);
+    const appearanceRevision = useRef(0);
     const [review, setReview] = useState<ImportReview | null>(null);
     const [choices, setChoices] = useState<ImportChoice[]>([]);
     const [busy, setBusy] = useState(false);
@@ -531,8 +533,28 @@ export function Operator() {
                 : current
         );
     }
+    function closeDialog() {
+        appearanceRevision.current += 1;
+        setBackgroundBusy(false);
+        setDraft(null);
+        setModal(null);
+    }
+    async function chooseBackground() {
+        const revision = appearanceRevision.current;
+        setBackgroundBusy(true);
+        try {
+            const image = await pickBackground();
+            if (image && revision === appearanceRevision.current)
+                updateBackground({
+                    image,
+                });
+        } finally {
+            if (revision === appearanceRevision.current)
+                setBackgroundBusy(false);
+        }
+    }
     async function applyAppearance() {
-        if (!draft) return;
+        if (!draft || backgroundBusy) return;
         if (audienceOpen)
             await publishAudience({
                 selection: live,
@@ -543,8 +565,7 @@ export function Operator() {
             ...current,
             appearance: draft,
         }));
-        setDraft(null);
-        setModal(null);
+        closeDialog();
     }
     function scopeLabel(value: SearchScope) {
         return (
@@ -613,6 +634,8 @@ export function Operator() {
                     title="Appearance"
                     aria-label="Appearance"
                     onClick={() => {
+                        appearanceRevision.current += 1;
+                        setBackgroundBusy(false);
                         setDraft(structuredClone(workspace.appearance));
                         setModal("appearance");
                     }}
@@ -1503,10 +1526,7 @@ export function Operator() {
                                 type="button"
                                 className="icon-button"
                                 aria-label="Close dialog"
-                                onClick={() => {
-                                    setModal(null);
-                                    setDraft(null);
-                                }}
+                                onClick={closeDialog}
                             >
                                 <Icon name="close" />
                             </button>
@@ -1683,19 +1703,18 @@ export function Operator() {
                                             <button
                                                 type="button"
                                                 className="button"
-                                                disabled={!preview}
+                                                disabled={
+                                                    !preview || backgroundBusy
+                                                }
                                                 onClick={() =>
-                                                    void attempt(async () => {
-                                                        const image =
-                                                            await pickBackground();
-                                                        if (image)
-                                                            updateBackground({
-                                                                image,
-                                                            });
-                                                    })
+                                                    void attempt(
+                                                        chooseBackground
+                                                    )
                                                 }
                                             >
-                                                Choose image
+                                                {backgroundBusy
+                                                    ? "Loading image…"
+                                                    : "Choose image"}
                                             </button>
                                             <select
                                                 aria-label="Background fit"
@@ -1750,16 +1769,14 @@ export function Operator() {
                                     <button
                                         type="button"
                                         className="button"
-                                        onClick={() => {
-                                            setDraft(null);
-                                            setModal(null);
-                                        }}
+                                        onClick={closeDialog}
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="button"
                                         className="button primary"
+                                        disabled={backgroundBusy}
                                         onClick={() => {
                                             if (
                                                 draft.bands.some(
