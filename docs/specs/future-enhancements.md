@@ -4,12 +4,15 @@ Record scope reductions here as decisions settle. Reconsideration criteria guide
 
 ## Confirmed deferrals
 
-Recorded during the MVP interview through October 14, 2026.
+Recorded during the MVP interview and multi-window discussion through October 15, 2026.
 
 | Feature | Current decision | Reason | Reconsider when |
 | --- | --- | --- | --- |
 | Dedicated reading mode | Deferred beyond MVP | Focus the first release on the operator's projection workflow | Users need a distinct personal reading workflow after projection is reliable |
-| Multiple audience windows | One audience window in MVP | Keep output setup and control manageable | A concrete service workflow needs independently controlled displays |
+| Multiple audience windows | Original MVP has one audience; v2 decisions Q63-Q83 are settled: independent persisted tabs, shared Bible library/maintenance rules, individual controls, and no application-imposed count cap | Keep historical scope explicit while specifying independent operation | Review the [cumulative v2 spec](../../.scratch/lumina-mvp/spec-v2.md) and UI; implement and qualify the native workflow at published counts/configurations |
+| Detached operator windows | One tabbed operator window accepted for the multi-window extension (Q67) | Keep workspace selection and audience identity in one control surface | Operators need controls simultaneously available on separate local displays |
+| Bulk projection controls and linked navigation | Individual audience control in the multi-window extension; Blank All, Resume All, Send All, and linked navigation deferred (Q77) | Preserve independent output targeting | A concrete workflow requires coordinated actions across audiences |
+| Dedicated cross-workspace copying/cloning | Fresh workspaces; dedicated copy/clone controls deferred (Q72/Q77). Existing clipboard Copy remains available | Keep workspace creation and preparation ownership straightforward | Operators repeatedly rebuild the same preparation across workspaces |
 | Multi-slot presentation | Deferred beyond MVP | Keep presentation to one verse and translation at a time | Users need simultaneous translations or other independently arranged content |
 | Reference ranges | Single-verse references and navigation in MVP (Q8) | Keep selection and projection behavior simple | Operators need multi-verse selections; evaluate queue, slide grouping, and navigation together |
 | Auto-fit | Defaults and manual size reduction in MVP (Q27) | The maintainer reports the existing sizing workflow has been sufficient | Actual verses or display setups repeatedly require manual correction; evaluate readability and operator control |
@@ -62,6 +65,16 @@ Q48: Editable global size bands accepted. Manual size changes affect every verse
 Q52: A 60-minute packaged-app offline rehearsal accepted before publishing supported builds. The duration is a chosen sustained-use check, not a guarantee of reliability; actual workflow results and platform qualifications must still be recorded.
 
 Q56-Q62: Translation lifecycle, partial imports, group membership, and protected bundled WEB accepted. Missing references receive inline feedback when someone tries to use an unloaded verse; there is no separate missing-reference report. Queue references follow installed text and become unavailable when their data is absent; history retains original saved copies.
+
+Q67-Q71: The multi-window extension accepts one operator window with independent workspace tabs, including closed-audience preparation workspaces. The initial five-workspace cap was subsequently removed under Q82. Each owns search, selected translation, private/live content, queue, history, and appearance; fonts and size bands are shared only within that workspace. Bible installation is shared across workspaces. Switching tabs preserves other outputs, and projection/navigation shortcuts target the active workspace. These extension rules override the baseline's application-global appearance scope without changing the original single-audience spec.
+
+Q72-Q79: Fresh renameable workspaces, confirmed tab removal, restoration with every audience closed, isolated display-failure handling, all-audiences-closed shared Bible maintenance, individual presentation controls, and tab output identification accepted. Q79 rejects the proposed global cursor-restriction switch: each workspace has its own initially-off toggle, and enabled restrictions compose without one toggle changing another. Q80 settles scoped activation/release; Q81 settles maintenance effects in the [cumulative v2 spec](../../.scratch/lumina-mvp/spec-v2.md).
+
+Q80: Cursor activation/release accepted per workspace: closing/disconnecting one audience resets only its restriction off; reopening starts off. Tab/fullscreen/application switches preserve choices, and app restart starts all restrictions off. Other enabled restrictions remain effective.
+
+Q81: Replacement updates the same installed Bible entry from a reviewed SQLite import, preserving identity/selection. Removal switches affected selections to WEB for future lookups. Clear obsolete results but retain typed queries/modes/scopes. Captured preview/history retain original wording/labels; queued references resolve updated text or become Unavailable. Saved copies can be explicitly projected; adjacent navigation requires the original edition.
+
+Q82-Q83: Remove the application-imposed workspace/audience count cap and retain cross-restart workspace persistence. Practical capacity depends on hardware/OS resources; measured qualification counts are published separately. Fresh-session startup discarding saved workspaces was considered and rejected. All product decisions from this discussion are settled; maintainer/UI review and native qualification remain.
 
 ## Removed from scope
 

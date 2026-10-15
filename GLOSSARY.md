@@ -9,26 +9,38 @@ The person selecting Bible content and controlling what the audience sees.
 _Avoid_: Presenter, when referring to the person operating Lumina
 
 **Operator window**:
-The operator's private workspace for finding Bible content and controlling projection.
+The application window containing the operator's controls for finding Bible content and managing projection.
 _Avoid_: Main screen, control screen
+
+**Operator workspace**:
+An independent Bible preparation and projection context associated with one audience window.
+_Avoid_: Operator window, when referring to the context rather than its application window
+
+**Operator tab**:
+The selectable representation of one operator workspace within the operator window.
+_Avoid_: Audience window, when referring to the workspace's controls
 
 **Audience window**:
 The presentation surface containing the Bible content intended for the audience.
 _Avoid_: Operator screen, reading window
 
 **Cursor restriction**:
-Preventing the mouse pointer from entering the audience window.
+Preventing the mouse pointer from entering an audience window for which restriction is enabled.
 _Avoid_: Cursor hiding, when referring to restricting movement
 
 **Translation**:
 A named Bible text used for searching and projection.
 _Avoid_: Version, when it could mean an application release
 
+**Bible library**:
+The installed Bible translations available to all operator workspaces.
+_Avoid_: Selected translation, when referring to the shared collection
+
 **Translation edition**:
 A particular text of a translation, distinguished from a later replacement.
 
 **Saved copy**:
-A verse's original recorded wording and translation label retained in verse history.
+A verse's captured wording and translation label retained in private preview or verse history when its source edition is no longer available.
 _Avoid_: Current text, when referring to an earlier recorded edition
 
 **Book identity**:
