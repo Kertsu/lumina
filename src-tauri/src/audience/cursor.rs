@@ -315,7 +315,7 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
   })
 }
 
-fn refresh_geometry(geometry: &Mutex<Geometry>) -> Result<(), String> {
+fn refresh_geometry(geometry: &Mutex<Geometry>, move_pointer: bool) -> Result<(), String> {
   let enabled = geometry
     .lock()
     .map_err(|error| error.to_string())?
@@ -326,20 +326,33 @@ fn refresh_geometry(geometry: &Mutex<Geometry>) -> Result<(), String> {
   }
   // Window-server calls and rectangle subtraction never hold the input lock.
   let updated = visible_geometry(&enabled)?;
-  let mut geometry = geometry.lock().map_err(|error| error.to_string())?;
-  if geometry.enabled == enabled {
-    *geometry = updated;
+  let applied = {
+    let mut geometry = geometry.lock().map_err(|error| error.to_string())?;
+    if geometry.enabled == enabled {
+      *geometry = updated;
+      true
+    } else {
+      false
+    }
+  };
+  if applied && move_pointer {
+    // An occluder can disappear without any pointer event (for example Cmd-H).
+    // Inspect the physical pointer outside the geometry lock, then choose its
+    // permitted destination from the latest state, never the stale scan above.
+    move_outside(geometry)?;
   }
   Ok(())
 }
 
-fn move_outside(geometry: &Geometry) -> Result<(), String> {
+fn move_outside(geometry: &Mutex<Geometry>) -> Result<(), String> {
   let source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
     .map_err(|()| "Could not inspect the pointer's current position.".to_string())?;
   let event = CGEvent::new(source)
     .map_err(|()| "Could not inspect the pointer's current position.".to_string())?;
   let point = event.location();
   let target = geometry
+    .lock()
+    .map_err(|error| error.to_string())?
     .nearest(point)
     .ok_or("Restriction has no usable desktop area.")?;
   if target.x != point.x || target.y != point.y {
@@ -443,7 +456,7 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
             }
             if last_refresh.elapsed() >= Duration::from_millis(40) {
               last_refresh = Instant::now();
-              if let Err(error) = refresh_geometry(&geometry) {
+              if let Err(error) = refresh_geometry(&geometry, true) {
                 fail_all(&handle, &geometry, &format!("{error} Restrictions are off; enable them again explicitly."));
                 worker_stop.store(true, Ordering::Release);
                 break;
@@ -526,7 +539,7 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
     let mut geometry = state.geometry.lock().map_err(|error| error.to_string())?;
     geometry.enabled.insert(workspace_id.to_string(), window_id);
   }
-  if let Err(error) = refresh_geometry(&state.geometry) {
+  if let Err(error) = refresh_geometry(&state.geometry, false) {
     release(app, workspace_id, Some(error.clone()));
     return Err(error);
   }
@@ -545,10 +558,7 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
     }
   }
   drop(worker);
-  let moved = {
-    let geometry = state.geometry.lock().map_err(|error| error.to_string())?;
-    move_outside(&geometry)
-  };
+  let moved = move_outside(&state.geometry);
   if let Err(error) = moved {
     release(app, workspace_id, Some(error.clone()));
     return Err(error);
@@ -559,7 +569,7 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
 
 pub fn refresh(app: &AppHandle, workspace_id: &str) {
   if enabled(app, workspace_id).unwrap_or(false) {
-    if let Err(error) = refresh_geometry(&app.state::<CursorState>().geometry) {
+    if let Err(error) = refresh_geometry(&app.state::<CursorState>().geometry, true) {
       release(app, workspace_id, Some(error));
     }
   }
