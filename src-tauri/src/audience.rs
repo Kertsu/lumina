@@ -352,16 +352,47 @@ pub fn cursor_restriction_enabled(
   }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 struct MonitorKey {
+  display_id: Option<u32>,
   name: Option<String>,
   position: (i32, i32),
   size: (u32, u32),
 }
 
+impl PartialEq for MonitorKey {
+  fn eq(&self, other: &Self) -> bool {
+    match (self.display_id, other.display_id) {
+      (Some(left), Some(right)) => left == right,
+      _ => self.name == other.name && self.position == other.position && self.size == other.size,
+    }
+  }
+}
+
 impl From<&Monitor> for MonitorKey {
   fn from(monitor: &Monitor) -> Self {
+    // Tao exposes scaled Quartz display origins through Tauri. Recover the
+    // session display ID so rearranging surviving displays is not a disconnect.
+    #[cfg(target_os = "macos")]
+    let display_id = core_graphics::display::CGDisplay::active_displays()
+      .ok()
+      .and_then(|ids| {
+        let scale = monitor.scale_factor();
+        let x = f64::from(monitor.position().x) / scale;
+        let y = f64::from(monitor.position().y) / scale;
+        let matching = ids
+          .into_iter()
+          .filter(|id| {
+            let bounds = core_graphics::display::CGDisplay::new(*id).bounds();
+            (bounds.origin.x - x).abs() < 1.0 && (bounds.origin.y - y).abs() < 1.0
+          })
+          .collect::<Vec<_>>();
+        (matching.len() == 1).then(|| matching[0])
+      });
+    #[cfg(not(target_os = "macos"))]
+    let display_id = None;
     Self {
+      display_id,
       name: monitor.name().cloned(),
       position: (monitor.position().x, monitor.position().y),
       size: (monitor.size().width, monitor.size().height),
