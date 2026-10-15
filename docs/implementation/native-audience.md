@@ -53,7 +53,12 @@ excluded. Window positions, display bounds and pointer events all use Quartz
 global top-left logical points; no Tao/backing-scale conversion is mixed in.
 Window-server calls and rectangle subtraction happen outside the input callback
 and geometry lock; the completed snapshot replaces geometry only if its enabled
-identities are still current. Refresh also runs after audience geometry changes.
+identities are still current. Refresh also runs after audience geometry changes. After a completed refresh,
+the worker inspects and moves a stationary pointer out of newly exposed audience
+content (for example after the covering application is hidden from the keyboard).
+It chooses the destination from the latest geometry rather than the scan's old
+snapshot; pointer inspection/warping does not hold the geometry lock. Initial
+activation defers pointer movement until the event tap has been accepted.
 Polling has a bounded refresh interval, not a zero-frame transition guarantee;
 window shapes, translucent click-through overlays, Spaces transitions and mixed
 scaling require physical qualification.
