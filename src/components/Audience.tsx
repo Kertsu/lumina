@@ -13,7 +13,10 @@ export function Audience() {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        document.title = "Lumina — Audience";
+        const workspaceId = new URL(window.location.href).searchParams.get(
+            "workspaceId"
+        );
+        document.title = `Lumina — Audience ${workspaceId ?? "unknown"}`;
         let disposed = false;
         let stop: (() => void) | undefined;
         void receiveAudience(setPayload, (value) => {

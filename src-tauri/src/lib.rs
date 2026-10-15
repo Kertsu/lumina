@@ -28,6 +28,7 @@ pub fn run() {
       audience::set_audience_fullscreen,
       audience::set_operator_on_top,
       audience::set_cursor_restriction,
+      audience::cursor_restriction_enabled,
     ])
     .run(tauri::generate_context!());
   if let Err(error) = result {
