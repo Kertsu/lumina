@@ -207,3 +207,21 @@ input[type=color] { padding: 3px; width: 45px; height: 29px; }
 @media (max-width: 1100px) { .workspace-layout { grid-template-columns: minmax(0,1fr) 315px; } .topbar { padding: 0 17px; gap: 8px; } .brand { min-width: 135px; } .translation-picker select { width: 175px; } .presentation-column { padding: 17px 18px 0; } .quick-hint { display: none; } .live-stage { padding: 12px 15px 0; } .stage-footer { margin: 0; } .private-preview { gap: 15px; padding: 13px; } .section-heading .subtle { display: none; } }
 
 @media (max-height: 800px) { .topbar { height: 58px; min-height: 58px; } .private-preview { min-height: 130px; } .adjacent-strip { min-height: 91px; } .adjacent-card { height: 75px; } .queue-section { min-height: 99px; padding-top: 10px; } .queue-strip { min-height: 48px; } .live-stage { min-height: 160px; } .quick-bar { min-height: 54px; padding-top: 8px; padding-bottom: 8px; } }
+
+/* Workspace controllers remain mounted; hidden tabs retain preparation. */
+.operator-app { height: 100dvh; display: flex; flex-direction: column; min-width: 940px; }
+.workspace-tabs { display: flex; align-items: center; gap: 10px; min-height: 47px; padding: 5px 14px; border-bottom: 1px solid var(--line); background: #101215; }
+.workspace-tab-list { flex: 1; min-width: 0; display: flex; gap: 5px; overflow-x: auto; }
+.workspace-tab { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; max-width: 250px; border: 1px solid var(--line); border-radius: 6px; background: #191c21; padding: 9px 12px; }
+.workspace-tab.active { border-color: #78573a; background: #372a20; color: #eabb86; }
+.workspace-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-status { font-size: 9px; color: #969ca6; }
+.tab-status.live { color: #dba265; }
+.workspace-controller { flex: 1; min-height: 0; }
+.workspace-controller[hidden], .operator-shell[hidden] { display: none; }
+.workspace-controller .operator-shell { height: 100%; min-height: 630px; }
+.active-workspace-name { max-width: 170px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; color: var(--amber); font-size: 12px; }
+.workspace-dialog { width: 450px; padding: 24px; }
+.workspace-dialog label { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.workspace-dialog p { margin-top: 20px; line-height: 1.6; }
+.shell-message { position: fixed; bottom: 10px; left: 20px; right: 20px; z-index: 100; padding: 14px; background: #422d20; border: 1px solid var(--amber); display: flex; justify-content: space-between; }

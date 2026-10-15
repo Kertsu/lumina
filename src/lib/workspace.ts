@@ -8,13 +8,15 @@ import type {
     Selection,
     Translation,
     Workspace,
+    WorkspaceCollection,
+    WorkspaceEntry,
 } from "./types";
 
 export function initialWorkspace(): Workspace {
     return {
         queue: [],
         history: [],
-        selectedTranslationId: "",
+        selectedTranslationId: "bundled-web",
         appearance: defaultAppearance(),
     };
 }
@@ -257,5 +259,74 @@ export function restoreWorkspace(value: unknown): Workspace {
                 ? value.selectedTranslationId
                 : "",
         appearance: restoreAppearance(value.appearance),
+    };
+}
+
+export function createWorkspaceEntry(name: string): WorkspaceEntry {
+    return {
+        id: crypto.randomUUID(),
+        name,
+        state: initialWorkspace(),
+    };
+}
+
+export function initialWorkspaces(legacy?: unknown): WorkspaceCollection {
+    const entry = createWorkspaceEntry("Audience 1");
+    if (legacy !== undefined) {
+        if (!object(legacy))
+            throw new Error(
+                "Legacy workspace is invalid; existing data was preserved."
+            );
+        entry.state = restoreWorkspace(legacy);
+    }
+    return {
+        version: 2,
+        activeWorkspaceId: entry.id,
+        workspaces: [entry],
+    };
+}
+
+export function restoreWorkspaces(value: unknown): WorkspaceCollection {
+    if (
+        !object(value) ||
+        value.version !== 2 ||
+        typeof value.activeWorkspaceId !== "string" ||
+        !Array.isArray(value.workspaces) ||
+        !value.workspaces.length
+    )
+        throw new Error(
+            "Saved workspace collection is invalid; existing data was preserved."
+        );
+    const ids = new Set<string>();
+    const workspaces = value.workspaces.map((entry): WorkspaceEntry => {
+        if (
+            !object(entry) ||
+            typeof entry.id !== "string" ||
+            !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                entry.id
+            ) ||
+            ids.has(entry.id) ||
+            typeof entry.name !== "string" ||
+            !entry.name.trim() ||
+            !object(entry.state)
+        )
+            throw new Error(
+                "Saved workspace identity is invalid; existing data was preserved."
+            );
+        ids.add(entry.id);
+        return {
+            id: entry.id,
+            name: entry.name,
+            state: restoreWorkspace(entry.state),
+        };
+    });
+    if (!ids.has(value.activeWorkspaceId))
+        throw new Error(
+            "Saved active workspace is missing; existing data was preserved."
+        );
+    return {
+        version: 2,
+        activeWorkspaceId: value.activeWorkspaceId,
+        workspaces,
     };
 }

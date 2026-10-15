@@ -1,4 +1,6 @@
 import {
+    type Dispatch,
+    type SetStateAction,
     useCallback,
     useEffect,
     useId,
@@ -9,24 +11,21 @@ import {
 import { characterCount, sizeBand } from "../lib/appearance";
 import {
     closeAudience,
-    isDesktop,
     openAudience,
     publishAudience,
     setAudienceFullscreen,
     setCursorRestriction,
     setOperatorOnTop,
     watchAudience,
+    watchCursorRestriction,
 } from "../lib/audience";
 import { bibleIndex, referenceLabel } from "../lib/bible";
 import {
     acceptImport,
-    loadLibrary,
-    loadWorkspace,
     pickBackground,
     pickImport,
     removeTranslation,
     reviewImport,
-    saveWorkspace,
 } from "../lib/storage";
 import type {
     Appearance,
@@ -45,7 +44,6 @@ import {
     addQueue,
     copyText,
     historyCsv,
-    initialWorkspace,
     isSavedCopy,
     moveQueue,
     recordHistory,
@@ -105,17 +103,39 @@ const scopes = [
     },
 ];
 
-export function Operator() {
+interface OperatorProps {
+    workspaceId: string;
+    name: string;
+    active: boolean;
+    shortcutsEnabled: boolean;
+    workspace: Workspace;
+    setWorkspace: Dispatch<SetStateAction<Workspace>>;
+    library: Translation[];
+    setLibrary: Dispatch<SetStateAction<Translation[]>>;
+    anyAudienceOpen: boolean;
+    reportStatus: (id: string, status: "Live" | "Blank" | "Closed") => void;
+    top: boolean;
+    setTop: Dispatch<SetStateAction<boolean>>;
+}
+
+export function Operator({
+    workspaceId,
+    name,
+    active,
+    shortcutsEnabled,
+    workspace,
+    setWorkspace,
+    library,
+    setLibrary,
+    anyAudienceOpen,
+    reportStatus,
+    top,
+    setTop,
+}: OperatorProps) {
     const quickId = useId();
     const bandKeys = useRef(["short", "medium", "long", "extended"]);
-    const [library, setLibrary] = useState<Translation[]>([]);
-    const [workspace, setWorkspace] = useState<Workspace>(initialWorkspace);
-    const [ready, setReady] = useState(false);
     const [previewSelection, setPreviewSelection] = useState<Selection | null>(
         null
-    );
-    const [previewSource, setPreviewSource] = useState<"current" | "history">(
-        "current"
     );
     const [live, setLive] = useState<Selection | null>(null);
     const [audienceOpen, setAudienceOpen] = useState(false);
@@ -156,12 +176,10 @@ export function Operator() {
         text: string;
         run: () => Promise<void> | void;
     } | null>(null);
-    const [top, setTop] = useState(false);
+    const [restricted, setRestricted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
     const translationRef = useRef<HTMLSelectElement>(null);
-    const workspaceRef = useRef(workspace);
-    workspaceRef.current = workspace;
     const selected =
         library.find(
             (item) =>
@@ -180,13 +198,7 @@ export function Operator() {
             ),
         [library]
     );
-    const preview = useMemo(
-        () =>
-            previewSource === "history"
-                ? previewSelection
-                : previewSelection && resolveQueue(previewSelection, library),
-        [previewSelection, previewSource, library]
-    );
+    const preview = previewSelection;
     const history = workspace.history.filter(
         (item) => !sentOnly || item.action === "live"
     );
@@ -214,55 +226,41 @@ export function Operator() {
         }
     }, []);
     useEffect(() => {
-        let cancelled = false;
-        void Promise.all([loadLibrary(), loadWorkspace()])
-            .then(([loaded, saved]) => {
-                if (cancelled) return;
-                setLibrary(loaded);
-                const restored = saved ?? initialWorkspace();
-                const translation =
-                    loaded.find(
-                        (item) =>
-                            item.id === restored.selectedTranslationId &&
-                            item.available
-                    ) ?? loaded.find((item) => item.available);
-                if (translation) {
-                    restored.selectedTranslationId = translation.id;
-                    const bible = bibleIndex(translation);
-                    setPreviewSelection(
-                        bible.selectVerse(43, 3, 16) ??
-                            (translation.verses[0]
-                                ? bible.selectVerse(
-                                      translation.verses[0].book,
-                                      translation.verses[0].chapter,
-                                      translation.verses[0].verse
-                                  )
-                                : null)
-                    );
-                }
-                setWorkspace(restored);
-                setReady(true);
-            })
-            .catch((error: unknown) => setMessage(String(error)));
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-    useEffect(() => {
-        if (!ready) return;
-        void saveWorkspace(workspace).catch((error: unknown) =>
-            setMessage(`Workspace could not be saved: ${String(error)}`)
+        const available = library.find(
+            (item) =>
+                item.id === workspace.selectedTranslationId && item.available
         );
-    }, [workspace, ready]);
+        if (!available) {
+            const fallback = library.find(
+                (item) => item.bundled && item.available
+            );
+            if (fallback)
+                setWorkspace((current) => ({
+                    ...current,
+                    selectedTranslationId: fallback.id,
+                }));
+        }
+        setResults([]);
+        setSubmitted(null);
+        setPage(1);
+        setCandidates([]);
+    }, [library, workspace.selectedTranslationId, setWorkspace]);
+    useEffect(() => {
+        reportStatus(
+            workspaceId,
+            audienceOpen ? (blank ? "Blank" : "Live") : "Closed"
+        );
+    }, [workspaceId, audienceOpen, blank, reportStatus]);
     useEffect(() => {
         let stop: (() => void) | undefined;
         let cancelled = false;
-        void watchAudience((open) => {
+        void watchAudience(workspaceId, (open) => {
             setAudienceOpen(open);
             if (!open) {
                 setBlank(true);
                 setLive(null);
                 setFullscreen(false);
+                setRestricted(false);
             }
         })
             .then((cleanup) => {
@@ -274,22 +272,15 @@ export function Operator() {
             cancelled = true;
             stop?.();
         };
-    }, []);
+    }, [workspaceId]);
     useEffect(() => {
-        if (!isDesktop()) return;
         let stop: (() => void) | undefined;
         let cancelled = false;
-        void import("@tauri-apps/api/window")
-            .then(async ({ getCurrentWindow }) => {
-                const win = getCurrentWindow();
-                const cleanup = await win.onCloseRequested((event) => {
-                    event.preventDefault();
-                    void attempt(async () => {
-                        await saveWorkspace(workspaceRef.current);
-                        await closeAudience();
-                        await win.destroy();
-                    });
-                });
+        void watchCursorRestriction(workspaceId, (enabled, feedback) => {
+            setRestricted(enabled);
+            if (feedback) setMessage(feedback);
+        })
+            .then((cleanup) => {
                 if (cancelled) cleanup();
                 else stop = cleanup;
             })
@@ -298,32 +289,28 @@ export function Operator() {
             cancelled = true;
             stop?.();
         };
-    }, [attempt]);
-    function prepare(
-        selection: Selection,
-        source: "current" | "history" = "current"
-    ) {
+    }, [workspaceId]);
+    function prepare(selection: Selection) {
         setPreviewSelection(selection);
-        setPreviewSource(source);
         setWorkspace((current) => recordHistory(current, selection, "preview"));
     }
     async function send(requested?: Selection | null) {
         const candidate = requested === undefined ? preview : requested;
         const selection =
-            requested === undefined && previewSource === "history"
+            requested === undefined
                 ? candidate
                 : candidate && resolveQueue(candidate, library);
         if (!selection) {
             throw new Error(
                 previewSelection
-                    ? "Verse unavailable in its current translation. Select a history entry to use its saved copy."
+                    ? "Verse unavailable. Select a verse or a saved copy first."
                     : "Select a verse to preview first."
             );
         }
         if (!audienceOpen) {
             throw new Error("Open Audience before sending a verse live.");
         }
-        await publishAudience({
+        await publishAudience(workspaceId, {
             selection,
             appearance: workspace.appearance,
             blank: false,
@@ -391,6 +378,7 @@ export function Operator() {
     }
     useEffect(() => {
         function keyboard(event: KeyboardEvent) {
+            if (!active || !shortcutsEnabled) return;
             if (event.key === "F1") {
                 event.preventDefault();
                 translationRef.current?.focus();
@@ -418,9 +406,9 @@ export function Operator() {
         return () => window.removeEventListener("keydown", keyboard);
     });
     async function toggleAudience() {
-        if (audienceOpen) await closeAudience();
+        if (audienceOpen) await closeAudience(workspaceId);
         else {
-            await openAudience();
+            await openAudience(workspaceId);
             setAudienceOpen(true);
             setBlank(true);
             setLive(null);
@@ -432,7 +420,7 @@ export function Operator() {
             return;
         }
         const next = !blank;
-        await publishAudience({
+        await publishAudience(workspaceId, {
             selection: live,
             appearance: workspace.appearance,
             blank: next,
@@ -456,7 +444,7 @@ export function Operator() {
         link.click();
         URL.revokeObjectURL(url);
     }
-    async function startImport() {
+    async function startImport(targetId?: string) {
         setBusy(true);
         try {
             const path = await pickImport();
@@ -464,9 +452,10 @@ export function Operator() {
             const incoming = await reviewImport(path);
             setReview(incoming);
             setChoices(
-                incoming.translations.map((item) => ({
+                incoming.translations.map((item, i) => ({
                     sourceId: item.id,
-                    action: "skip",
+                    action: targetId && i === 0 ? "replace" : "skip",
+                    targetId: i === 0 ? targetId : undefined,
                     confirmed: false,
                 }))
             );
@@ -556,7 +545,7 @@ export function Operator() {
     async function applyAppearance() {
         if (!draft || backgroundBusy) return;
         if (audienceOpen)
-            await publishAudience({
+            await publishAudience(workspaceId, {
                 selection: live,
                 appearance: draft,
                 blank,
@@ -581,7 +570,7 @@ export function Operator() {
             ?.books.find((book) => book.number === preview.book);
 
     return (
-        <main className="operator-shell">
+        <main className="operator-shell" hidden={!active}>
             <header className="topbar">
                 <div className="brand">
                     <img src="/lumina-mark-loading.svg" alt="" />
@@ -611,6 +600,9 @@ export function Operator() {
                     <kbd>F1</kbd>
                 </label>
                 <div className="header-spacer" />
+                <strong className="active-workspace-name" title={name}>
+                    {name}
+                </strong>
                 <button
                     type="button"
                     className={`button audience-button ${audienceOpen ? "active" : "primary"}`}
@@ -766,13 +758,11 @@ export function Operator() {
                             <div className="eyebrow">
                                 <Icon name="eye" size={14} />
                                 PRIVATE PREVIEW{" "}
-                                {previewSource === "history" &&
-                                    preview &&
-                                    isSavedCopy(preview, library) && (
-                                        <span className="saved-copy">
-                                            Saved copy
-                                        </span>
-                                    )}
+                                {preview && isSavedCopy(preview, library) && (
+                                    <span className="saved-copy">
+                                        Saved copy
+                                    </span>
+                                )}
                             </div>
                             <h2>
                                 {preview
@@ -1265,10 +1255,7 @@ export function Operator() {
                                             type="button"
                                             className="result-preview"
                                             onClick={() =>
-                                                prepare(
-                                                    entry.selection,
-                                                    "history"
-                                                )
+                                                prepare(entry.selection)
                                             }
                                         >
                                             <strong>
@@ -1848,7 +1835,29 @@ export function Operator() {
                                                     <button
                                                         type="button"
                                                         className="text-button"
-                                                        disabled={audienceOpen}
+                                                        disabled={
+                                                            anyAudienceOpen ||
+                                                            busy
+                                                        }
+                                                        onClick={() =>
+                                                            void attempt(() =>
+                                                                startImport(
+                                                                    item.id
+                                                                )
+                                                            )
+                                                        }
+                                                    >
+                                                        Replace
+                                                    </button>
+                                                )}
+                                            {!item.bundled &&
+                                                item.available && (
+                                                    <button
+                                                        type="button"
+                                                        className="text-button"
+                                                        disabled={
+                                                            anyAudienceOpen
+                                                        }
                                                         onClick={() =>
                                                             setConfirmation({
                                                                 text: `Remove ${item.title}? Queue references remain unavailable until explicit restoration. History saved copies stay usable.`,
@@ -1879,17 +1888,20 @@ export function Operator() {
                                     type="button"
                                     className="button primary"
                                     disabled={busy}
-                                    onClick={() => void attempt(startImport)}
+                                    onClick={() =>
+                                        void attempt(() => startImport())
+                                    }
                                 >
                                     <Icon name="plus" size={16} />
                                     {busy
                                         ? "Validating…"
                                         : "Import SQLite Bible"}
                                 </button>
-                                {audienceOpen && (
+                                {anyAudienceOpen && (
                                     <p className="subtle">
-                                        Add is available. Close Audience before
-                                        replacing or removing translations.
+                                        Add is available. Close every audience
+                                        before replacing or removing
+                                        translations.
                                     </p>
                                 )}
                                 {review && (
@@ -1937,9 +1949,7 @@ export function Operator() {
                                                         .filter(
                                                             (existing) =>
                                                                 !existing.bundled &&
-                                                                existing.available &&
-                                                                existing.title ===
-                                                                    item.title
+                                                                existing.available
                                                         )
                                                         .map((existing) => (
                                                             <option
@@ -1948,13 +1958,16 @@ export function Operator() {
                                                                 }
                                                                 value={`replace:${existing.id}`}
                                                                 disabled={
-                                                                    audienceOpen
+                                                                    anyAudienceOpen
                                                                 }
                                                             >
                                                                 Replace{" "}
+                                                                {existing.title}{" "}
+                                                                (
                                                                 {
                                                                     existing.abbreviation
                                                                 }
+                                                                )
                                                             </option>
                                                         ))}
                                                     {library
@@ -1969,6 +1982,9 @@ export function Operator() {
                                                                     existing.id
                                                                 }
                                                                 value={`restore:${existing.id}`}
+                                                                disabled={
+                                                                    anyAudienceOpen
+                                                                }
                                                             >
                                                                 Restore{" "}
                                                                 {existing.title}
@@ -1988,7 +2004,17 @@ export function Operator() {
                                             <button
                                                 type="button"
                                                 className="button primary"
-                                                disabled={busy}
+                                                disabled={
+                                                    busy ||
+                                                    (anyAudienceOpen &&
+                                                        choices.some(
+                                                            (choice) =>
+                                                                choice.action ===
+                                                                    "replace" ||
+                                                                choice.action ===
+                                                                    "restore"
+                                                        ))
+                                                }
                                                 onClick={() => {
                                                     if (
                                                         choices.some(
@@ -2000,7 +2026,7 @@ export function Operator() {
                                                         )
                                                     )
                                                         setConfirmation({
-                                                            text: "Confirm the selected replacements/restorations? Queue references will resolve against the newly installed edition; history retains original wording.",
+                                                            text: "Confirm the reviewed replacements/restorations? Installed entry identities stay the same. Queue references use the new edition; captured preview and history retain their original wording. Every audience must be closed.",
                                                             run: install,
                                                         });
                                                     else void attempt(install);
@@ -2073,6 +2099,7 @@ export function Operator() {
                                                     event.target.checked;
                                                 void attempt(async () => {
                                                     await setAudienceFullscreen(
+                                                        workspaceId,
                                                         value
                                                     );
                                                     setFullscreen(value);
@@ -2104,12 +2131,19 @@ export function Operator() {
                                         disabled={!audienceOpen}
                                         onClick={() =>
                                             void attempt(() =>
-                                                setCursorRestriction(true)
+                                                setCursorRestriction(
+                                                    workspaceId,
+                                                    !restricted
+                                                ).then(() =>
+                                                    setRestricted(!restricted)
+                                                )
                                             )
                                         }
                                     >
                                         <Icon name="pointer" size={15} />
-                                        Restrict cursor
+                                        {restricted
+                                            ? "Release cursor"
+                                            : "Restrict cursor"}
                                     </button>
                                     <p className="subtle">
                                         Move Audience with your operating
@@ -2167,12 +2201,6 @@ export function Operator() {
                             </button>
                         </div>
                     </section>
-                </div>
-            )}
-            {!ready && !message && (
-                <div className="loading-overlay">
-                    <img src="/lumina-mark-loading.svg" alt="" />
-                    <span>Opening your local Bible…</span>
                 </div>
             )}
         </main>
