@@ -63,15 +63,25 @@ Polling has a bounded refresh interval, not a zero-frame transition guarantee;
 window shapes, translucent click-through overlays, Spaces transitions and mixed
 scaling require physical qualification.
 
-Connected-display regions minus the visible forbidden pieces form permitted
-regions. Incoming pointer movement, drags, mouse buttons and scrolling remain
-unchanged outside those pieces. Inside, the filter chooses the nearest permitted
-point and forwards a replaced event while keeping physical pointer position at
-that point. An initial pointer inside an audience is moved out on activation. A
-configuration leaving no permitted desktop region is rejected. No keyboard
-events are intercepted. This engineering design still needs direct physical
-pointer qualification; compilation and an enabled toggle do not prove prevention
-of visible entry.
+Incoming pointer movement, drags, mouse buttons and scrolling remain unchanged
+outside the visible forbidden pieces, including within covering applications.
+When a point needs correction, its destination is the nearest desktop point
+outside **all enabled onscreen audiences' full outer bounds**. Those destinations
+exclude isolated occluder islands inside an audience: choosing the nearest such
+island previously trapped a pointer there as each subsequent movement hit
+surrounding restricted audience content. Leaving a covering application's island
+now relocates outside the full audience boundary; normal interaction within the
+covering application remains unchanged.
+
+An initial pointer inside visible audience content is moved out on activation.
+After uncovering, the refresh also relocates a stationary pointer to an exterior
+destination. Minimized/off-desktop audiences contribute no outer bounds while
+their choices remain enabled. A configuration leaving no exterior desktop region
+is rejected on enable; if geometry changes to remove every exterior destination,
+restrictions turn off with explicit feedback. Interior islands are never used as
+fallback destinations. No keyboard events are intercepted. This engineering
+design still needs direct physical pointer qualification; compilation and an
+enabled toggle do not prove prevention of visible entry.
 
 Tab/app switches preserve enabled choices, while z-order changes recompute what
 is actually visible. Manual release/closure removes only that workspace's
@@ -119,3 +129,13 @@ Window metadata contracts: [onscreen front-to-back order](https://developer.appl
 [required metadata keys](https://developer.apple.com/documentation/coregraphics/required-window-list-keys),
 and [Apple's window-metadata privacy explanation](https://developer.apple.com/videos/play/wwdc2019/701/?time=1460).
 No window image or screen capture API is used by the filter.
+
+A subsequent physical trace confirmed the island failure: on uncover, a pointer
+at (725.2,386.1) was successfully warped to (606.5,549), inside an isolated
+126-point covering-window region. Further trackpad movement clamped to that
+region's edges; switching applications removed the exclusion and freed it.
+Both HID/session positions followed the targets, with no warp errors or lock
+contention drops. The targeted correction changes relocation destinations while
+preserving visible-region hit testing. Temporary debug instrumentation was
+removed; the trace and repeatable checks remain local verification artifacts.
+The corrected packaged physical sequence remains unverified until rerun.

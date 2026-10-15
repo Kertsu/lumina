@@ -106,6 +106,7 @@ impl Rect {
 struct Geometry {
   enabled: HashMap<String, u32>,
   blocked: HashMap<String, Vec<Rect>>,
+  outer: HashMap<String, Vec<Rect>>,
   displays: Vec<Rect>,
   allowed: Vec<Rect>,
 }
@@ -267,6 +268,7 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
     return Err("macOS did not expose a usable desktop.".into());
   }
   let mut blocked = HashMap::new();
+  let mut outer = HashMap::new();
   let mut above = Vec::new();
   // Quartz returns front-to-back order and point coordinates for both windows
   // and pointer events. No backing-scale conversion or foreign title is used.
@@ -288,6 +290,7 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
     let number = u32::try_from(window_number(&window, "kCGWindowNumber")?)
       .map_err(|_| "macOS returned an invalid window identity.")?;
     if let Some((workspace_id, _)) = enabled.iter().find(|(_, id)| **id == number) {
+      outer.insert(workspace_id.clone(), vec![rect]);
       let mut visible = vec![rect];
       for occluder in &above {
         visible = visible
@@ -303,13 +306,17 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
     // even when its content is translucent. Fully transparent windows are skipped.
     above.push(rect);
   }
-  let allowed = permitted_regions(&displays, &blocked);
+  // Visible occluders remain usable, but they can form isolated islands inside
+  // an audience. Correction must escape every enabled audience's full bounds,
+  // otherwise repeated trackpad deltas clamp the pointer inside such an island.
+  let allowed = permitted_regions(&displays, &outer);
   if allowed.is_empty() {
-    return Err("Restriction would leave no usable desktop area; restrictions are off.".into());
+    return Err("Restriction would leave no usable desktop area outside the audience windows. Restrictions are off.".into());
   }
   Ok(Geometry {
     enabled: enabled.clone(),
     blocked,
+    outer,
     displays,
     allowed,
   })
@@ -356,10 +363,8 @@ fn move_outside(geometry: &Mutex<Geometry>) -> Result<(), String> {
     .nearest(point)
     .ok_or("Restriction has no usable desktop area.")?;
   if target.x != point.x || target.y != point.y {
-    let result = CGDisplay::warp_mouse_cursor_position(target);
-    #[cfg(debug_assertions)]
-    debug_trace::warp(point, target, true, result.is_err());
-    result.map_err(|error| format!("Could not move the pointer outside the audience: {error}"))?;
+    CGDisplay::warp_mouse_cursor_position(target)
+      .map_err(|error| format!("Could not move the pointer outside the audience: {error}"))?;
   }
   Ok(())
 }
@@ -369,6 +374,7 @@ fn fail_all(app: &AppHandle, geometry: &Mutex<Geometry>, reason: &str) {
     let affected = geometry.enabled.keys().cloned().collect::<Vec<_>>();
     geometry.enabled.clear();
     geometry.blocked.clear();
+    geometry.outer.clear();
     geometry.allowed.clear();
     affected
   } else {
@@ -376,214 +382,6 @@ fn fail_all(app: &AppHandle, geometry: &Mutex<Geometry>, reason: &str) {
   };
   for workspace_id in affected {
     announce(app, &workspace_id, false, Some(reason.to_string()));
-  }
-}
-
-// TEMPORARY [DEBUG-cursor-occlusion]: remove after the physical regression.
-// The callback records only atomics. No files, window-server calls or foreign
-// application metadata are added to the system input callback.
-#[cfg(debug_assertions)]
-mod debug_trace {
-  use super::{CGPoint, Geometry};
-  use core_graphics::{
-    event::CGEvent,
-    event_source::{CGEventSource, CGEventSourceStateID},
-  };
-  use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-    sync::{
-      atomic::{AtomicU64, Ordering},
-      Mutex,
-    },
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
-  };
-
-  struct Point {
-    x: AtomicU64,
-    y: AtomicU64,
-  }
-
-  impl Point {
-    const fn new() -> Self {
-      Self {
-        x: AtomicU64::new(0),
-        y: AtomicU64::new(0),
-      }
-    }
-
-    fn store(&self, point: CGPoint) {
-      self.x.store(point.x.to_bits(), Ordering::Relaxed);
-      self.y.store(point.y.to_bits(), Ordering::Relaxed);
-    }
-
-    fn load(&self) -> [f64; 2] {
-      [
-        f64::from_bits(self.x.load(Ordering::Relaxed)),
-        f64::from_bits(self.y.load(Ordering::Relaxed)),
-      ]
-    }
-  }
-
-  static EVENT_FROM: Point = Point::new();
-  static EVENT_TO: Point = Point::new();
-  static REFRESH_FROM: Point = Point::new();
-  static REFRESH_TO: Point = Point::new();
-  static EVENT_KIND: AtomicU64 = AtomicU64::new(0);
-  static EVENTS: AtomicU64 = AtomicU64::new(0);
-  static EVENT_WARPS: AtomicU64 = AtomicU64::new(0);
-  static REFRESH_WARPS: AtomicU64 = AtomicU64::new(0);
-  static WARP_ERRORS: AtomicU64 = AtomicU64::new(0);
-  static LOCK_DROPS: AtomicU64 = AtomicU64::new(0);
-
-  pub fn input(kind: u32, from: CGPoint, to: CGPoint) {
-    EVENT_FROM.store(from);
-    EVENT_TO.store(to);
-    EVENT_KIND.store(u64::from(kind), Ordering::Relaxed);
-    EVENTS.fetch_add(1, Ordering::Release);
-  }
-
-  pub fn warp(from: CGPoint, to: CGPoint, refresh: bool, failed: bool) {
-    if refresh {
-      REFRESH_FROM.store(from);
-      REFRESH_TO.store(to);
-      REFRESH_WARPS.fetch_add(1, Ordering::Release);
-    } else {
-      EVENT_WARPS.fetch_add(1, Ordering::Release);
-    }
-    if failed {
-      WARP_ERRORS.fetch_add(1, Ordering::Release);
-    }
-  }
-
-  pub fn lock_drop() {
-    LOCK_DROPS.fetch_add(1, Ordering::Relaxed);
-  }
-
-  fn location(state: CGEventSourceStateID) -> Option<[f64; 2]> {
-    let source = CGEventSource::new(state).ok()?;
-    let point = CGEvent::new(source).ok()?.location();
-    Some([point.x, point.y])
-  }
-
-  pub struct Trace {
-    file: Option<File>,
-    started: Instant,
-    sampled: Instant,
-    lines: usize,
-    bytes: u64,
-  }
-
-  impl Trace {
-    pub fn new() -> Self {
-      let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/private/tmp/lumina-cursor-trace.log")
-        .ok();
-      let bytes = file
-        .as_ref()
-        .and_then(|file| file.metadata().ok())
-        .map_or(0, |meta| meta.len());
-      if bytes >= 8 * 1024 * 1024 {
-        file = None;
-      }
-      if let Some(file) = &mut file {
-        let timestamp = SystemTime::now()
-          .duration_since(UNIX_EPOCH)
-          .map_or(0, |time| time.as_millis());
-        let _ = writeln!(file, "[DEBUG-cursor-occlusion] worker-start unixMs={timestamp} pid={} maxSeconds=180 maxSamples=1800", std::process::id());
-      }
-      Self {
-        file,
-        started: Instant::now(),
-        sampled: Instant::now(),
-        lines: 0,
-        bytes,
-      }
-    }
-
-    pub fn sample(&mut self, geometry: &Mutex<Geometry>) {
-      if self.file.is_none()
-        || self.lines >= 1800
-        || self.started.elapsed() >= Duration::from_secs(180)
-        || self.sampled.elapsed() < Duration::from_millis(100)
-      {
-        return;
-      }
-      self.sampled = Instant::now();
-      let combined = location(CGEventSourceStateID::CombinedSessionState);
-      let hid = location(CGEventSourceStateID::HIDSystemState);
-      let before = EVENTS.load(Ordering::Acquire);
-      let event_from = EVENT_FROM.load();
-      let event_to = EVENT_TO.load();
-      let event_kind = EVENT_KIND.load(Ordering::Relaxed);
-      let after = EVENTS.load(Ordering::Acquire);
-      let snapshot = match geometry.lock() {
-        Ok(geometry) => {
-          let blocked = geometry
-            .blocked
-            .iter()
-            .map(|(id, rects)| {
-              (
-                id.clone(),
-                rects
-                  .iter()
-                  .map(|r| [r.left, r.top, r.right, r.bottom])
-                  .collect::<Vec<_>>(),
-              )
-            })
-            .collect::<std::collections::HashMap<_, _>>();
-          let allowed = geometry
-            .allowed
-            .iter()
-            .map(|r| [r.left, r.top, r.right, r.bottom])
-            .collect::<Vec<_>>();
-          serde_json::json!({
-            "enabled": geometry.enabled,
-            "blocked": blocked,
-            "allowed": allowed,
-            "nearestCombined": combined.and_then(|p| geometry.nearest(CGPoint::new(p[0], p[1]))).map(|p| [p.x, p.y]),
-          })
-        }
-        Err(_) => serde_json::json!({
-          "error": "geometry-lock-poisoned",
-        }),
-      };
-      let record = serde_json::json!({
-        "elapsedMs": self.started.elapsed().as_millis(),
-        "combined": combined,
-        "hid": hid,
-        "event": {
-          "sequenceBefore": before,
-          "sequenceAfter": after,
-          "kind": event_kind,
-          "from": event_from,
-          "to": event_to,
-          "warps": EVENT_WARPS.load(Ordering::Acquire),
-          "lockDrops": LOCK_DROPS.load(Ordering::Relaxed),
-        },
-        "refresh": {
-          "from": REFRESH_FROM.load(),
-          "to": REFRESH_TO.load(),
-          "warps": REFRESH_WARPS.load(Ordering::Acquire),
-        },
-        "warpErrors": WARP_ERRORS.load(Ordering::Acquire),
-        "geometry": snapshot,
-      });
-      let line = format!("[DEBUG-cursor-occlusion] {record}\n");
-      self.bytes += u64::try_from(line.len()).unwrap_or(u64::MAX);
-      if self.bytes > 8 * 1024 * 1024 {
-        self.file = None;
-        return;
-      }
-      if let Some(file) = &mut self.file {
-        if file.write_all(line.as_bytes()).is_err() {
-          self.file = None;
-        }
-      }
-      self.lines += 1;
-    }
   }
 }
 
@@ -629,8 +427,6 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
             return CallbackResult::Keep;
           }
           let Ok(geometry) = callback_geometry.try_lock() else {
-            #[cfg(debug_assertions)]
-            debug_trace::lock_drop();
             // Never block the system input stream behind a UI/geometry update.
             // Drop this pointer event rather than let it enter a restricted area.
             return CallbackResult::Drop;
@@ -640,8 +436,6 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
             callback_failed.store(2, Ordering::Release);
             return CallbackResult::Keep;
           };
-          #[cfg(debug_assertions)]
-          debug_trace::input(kind as u32, point, target);
           if target.x == point.x && target.y == point.y {
             return CallbackResult::Keep;
           }
@@ -649,10 +443,7 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
           replacement.set_location(target);
           // Keep the visible physical pointer and the forwarded event together.
           // No new synthetic event is posted, so this cannot recurse into the tap.
-          let warped = CGDisplay::warp_mouse_cursor_position(target);
-          #[cfg(debug_assertions)]
-          debug_trace::warp(point, target, false, warped.is_err());
-          if warped.is_err() {
+          if CGDisplay::warp_mouse_cursor_position(target).is_err() {
             callback_failed.store(2, Ordering::Release);
             return CallbackResult::Keep;
           }
@@ -662,8 +453,6 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
           let _ = ready.send(Ok(()));
           let mode = CFString::new("kCFRunLoopDefaultMode");
           let mut last_refresh = Instant::now();
-          #[cfg(debug_assertions)]
-          let mut trace = debug_trace::Trace::new();
           while !worker_stop.load(Ordering::Acquire) {
             let result = CFRunLoop::run_in_mode(
               mode.as_concrete_TypeRef(),
@@ -681,8 +470,6 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
                 break;
               }
             }
-            #[cfg(debug_assertions)]
-            trace.sample(&geometry);
             let failure = failed.load(Ordering::Acquire);
             if failure != 0 || result == CFRunLoopRunResult::Finished {
               let reason = if failure == 1 {
@@ -731,9 +518,10 @@ pub fn release(app: &AppHandle, workspace_id: &str, message: Option<String>) {
   let empty = if let Ok(mut geometry) = state.geometry.lock() {
     geometry.enabled.remove(workspace_id);
     geometry.blocked.remove(workspace_id);
+    geometry.outer.remove(workspace_id);
     // Existing permitted regions remain safe after removal; recompute so the
     // newly released area is immediately available to the other applications.
-    geometry.allowed = permitted_regions(&geometry.displays, &geometry.blocked);
+    geometry.allowed = permitted_regions(&geometry.displays, &geometry.outer);
     geometry.enabled.is_empty()
   } else {
     true
