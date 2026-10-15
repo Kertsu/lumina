@@ -16,6 +16,7 @@ const MAX_IMPORT_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 const BACKGROUND_REFERENCE: &str = "managed-background:";
 pub(crate) static MAINTENANCE: Mutex<()> = Mutex::new(());
+static WORKSPACE_STORAGE: Mutex<()> = Mutex::new(());
 static REVIEWS: OnceLock<Mutex<HashMap<PathBuf, String>>> = OnceLock::new();
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -97,15 +98,19 @@ fn message(error: impl std::fmt::Display) -> String {
 }
 
 fn operator(window: &tauri::WebviewWindow) -> Result<(), String> {
-  if window.label() == "audience" {
-    return Err("Bible maintenance is available only in the operator window.".into());
+  if window.label() != "main" {
+    return Err("This operation is available only in the operator window.".into());
   }
   Ok(())
 }
 
 fn closed_audience(app: &tauri::AppHandle) -> Result<(), String> {
-  if app.get_webview_window("audience").is_some() {
-    return Err("Close the audience window before replacing or removing a translation.".into());
+  if app
+    .webview_windows()
+    .keys()
+    .any(|label| label == "audience" || label.starts_with("audience-"))
+  {
+    return Err("Close every audience window before replacing or removing a translation.".into());
   }
   Ok(())
 }
@@ -119,7 +124,9 @@ fn managed(app: &tauri::AppHandle) -> Result<Connection, String> {
   db.execute_batch(
         "PRAGMA foreign_keys=ON;
          CREATE TABLE IF NOT EXISTS installed (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
-         CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);",
+         CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
+         CREATE TABLE IF NOT EXISTS workspace_entries (id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL UNIQUE, payload TEXT NOT NULL);
+         CREATE TABLE IF NOT EXISTS workspace_collection (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, active_id TEXT NOT NULL);",
     ).map_err(message)?;
   Ok(db)
 }
@@ -827,6 +834,203 @@ pub fn save_workspace(
   }
   managed(&app)?.execute("INSERT INTO workspace(id,payload) VALUES(1,?1) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", [payload]).map_err(message)?;
   Ok(())
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceEntry {
+  id: String,
+  name: String,
+  state: serde_json::Value,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WorkspaceCollection {
+  version: u8,
+  active_workspace_id: String,
+  workspaces: Vec<WorkspaceEntry>,
+}
+
+fn validate_collection(collection: &WorkspaceCollection) -> Result<(), String> {
+  if collection.version != 2 || collection.workspaces.is_empty() {
+    return Err("A version 2 collection must retain at least one workspace.".into());
+  }
+  let mut ids = HashSet::new();
+  for entry in &collection.workspaces {
+    let id = uuid::Uuid::parse_str(&entry.id).map_err(|_| "Workspace identity must be a UUID.")?;
+    if id.hyphenated().to_string() != entry.id.to_ascii_lowercase()
+      || !ids.insert(entry.id.to_ascii_lowercase())
+      || entry.name.trim().is_empty()
+      || !entry.state.is_object()
+    {
+      return Err("Workspace identities, names, and state must be valid and unique.".into());
+    }
+  }
+  if !collection
+    .workspaces
+    .iter()
+    .any(|entry| entry.id == collection.active_workspace_id)
+  {
+    return Err("The active workspace must exist in the collection.".into());
+  }
+  Ok(())
+}
+
+fn write_collection(
+  app: &tauri::AppHandle,
+  db: &mut Connection,
+  collection: &mut WorkspaceCollection,
+) -> Result<(), String> {
+  validate_collection(collection)?;
+  // Store each preparation record independently. Count and aggregate snapshot size
+  // are not product limits; individual malformed records still have a byte guard.
+  let transaction = db.transaction().map_err(message)?;
+  transaction
+    .execute("DELETE FROM workspace_entries", [])
+    .map_err(message)?;
+  for (position, entry) in collection.workspaces.iter_mut().enumerate() {
+    persist_backgrounds(app, &mut entry.state)?;
+    let payload = serde_json::to_string(&entry.state).map_err(message)?;
+    if payload.len() > 32 * 1024 * 1024 {
+      return Err(format!(
+        "Workspace {} exceeds the individual 32 MiB storage limit.",
+        entry.name
+      ));
+    }
+    let position = i64::try_from(position).map_err(message)?;
+    transaction
+      .execute(
+        "INSERT INTO workspace_entries(id,name,position,payload) VALUES(?1,?2,?3,?4)",
+        params![entry.id, entry.name, position, payload],
+      )
+      .map_err(message)?;
+  }
+  transaction.execute(
+    "INSERT INTO workspace_collection(id,version,active_id) VALUES(1,2,?1) ON CONFLICT(id) DO UPDATE SET version=2,active_id=excluded.active_id",
+    [&collection.active_workspace_id],
+  ).map_err(message)?;
+  // The old singleton remains a recovery copy; failed transactions never remove it.
+  transaction.commit().map_err(message)
+}
+
+fn read_collection(db: &Connection) -> Result<Option<WorkspaceCollection>, String> {
+  use rusqlite::OptionalExtension;
+  let metadata: Option<(u8, String)> = db
+    .query_row(
+      "SELECT version,active_id FROM workspace_collection WHERE id=1",
+      [],
+      |row| Ok((row.get(0)?, row.get(1)?)),
+    )
+    .optional()
+    .map_err(message)?;
+  let Some((version, active_workspace_id)) = metadata else {
+    let count: i64 = db
+      .query_row("SELECT COUNT(*) FROM workspace_entries", [], |row| {
+        row.get(0)
+      })
+      .map_err(message)?;
+    if count != 0 {
+      return Err("Workspace metadata is missing; existing data was preserved.".into());
+    }
+    return Ok(None);
+  };
+  let mut statement = db
+    .prepare("SELECT id,name,payload FROM workspace_entries ORDER BY position")
+    .map_err(message)?;
+  let rows = statement
+    .query_map([], |row| {
+      Ok((
+        row.get::<_, String>(0)?,
+        row.get::<_, String>(1)?,
+        row.get::<_, String>(2)?,
+      ))
+    })
+    .map_err(message)?;
+  let mut workspaces = Vec::new();
+  for row in rows {
+    let (id, name, payload) = row.map_err(message)?;
+    workspaces.push(WorkspaceEntry {
+      id,
+      name,
+      state: serde_json::from_str(&payload).map_err(message)?,
+    });
+  }
+  let collection = WorkspaceCollection {
+    version,
+    active_workspace_id,
+    workspaces,
+  };
+  validate_collection(&collection)?;
+  Ok(Some(collection))
+}
+
+fn migrate_workspace(db: &Connection) -> Result<WorkspaceCollection, String> {
+  use rusqlite::OptionalExtension;
+  let legacy: Option<String> = db
+    .query_row("SELECT payload FROM workspace WHERE id=1", [], |row| {
+      row.get(0)
+    })
+    .optional()
+    .map_err(message)?;
+  let state = match legacy {
+    Some(payload) => {
+      let state: serde_json::Value = serde_json::from_str(&payload).map_err(message)?;
+      if !state.is_object() {
+        return Err("Legacy workspace is invalid; existing data was preserved.".into());
+      }
+      state
+    }
+    None => serde_json::json!({
+      "queue": [],
+      "history": [],
+      "selectedTranslationId": "bundled-web",
+      "appearance": {}
+    }),
+  };
+  let id = uuid::Uuid::new_v4().to_string();
+  Ok(WorkspaceCollection {
+    version: 2,
+    active_workspace_id: id.clone(),
+    workspaces: vec![WorkspaceEntry {
+      id,
+      name: "Audience 1".into(),
+      state,
+    }],
+  })
+}
+
+#[tauri::command]
+pub fn load_workspaces(
+  app: tauri::AppHandle,
+  window: tauri::WebviewWindow,
+) -> Result<WorkspaceCollection, String> {
+  operator(&window)?;
+  let _lock = WORKSPACE_STORAGE.lock().map_err(message)?;
+  let mut db = managed(&app)?;
+  let mut collection = match read_collection(&db)? {
+    Some(collection) => collection,
+    None => {
+      let mut collection = migrate_workspace(&db)?;
+      write_collection(&app, &mut db, &mut collection)?;
+      collection
+    }
+  };
+  for entry in &mut collection.workspaces {
+    hydrate_backgrounds(&app, &mut entry.state);
+  }
+  Ok(collection)
+}
+
+#[tauri::command]
+pub fn save_workspaces(
+  app: tauri::AppHandle,
+  window: tauri::WebviewWindow,
+  mut collection: WorkspaceCollection,
+) -> Result<(), String> {
+  operator(&window)?;
+  let _lock = WORKSPACE_STORAGE.lock().map_err(message)?;
+  write_collection(&app, &mut managed(&app)?, &mut collection)
 }
 
 #[tauri::command]

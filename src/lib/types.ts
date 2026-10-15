@@ -119,6 +119,18 @@ export interface Workspace {
     appearance: Appearance;
 }
 
+export interface WorkspaceEntry {
+    id: string;
+    name: string;
+    state: Workspace;
+}
+
+export interface WorkspaceCollection {
+    version: 2;
+    activeWorkspaceId: string;
+    workspaces: WorkspaceEntry[];
+}
+
 export interface ImportReview {
     path: string;
     translations: Translation[];

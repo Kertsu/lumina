@@ -14,6 +14,8 @@ pub fn run() {
       storage::review_import,
       storage::accept_import,
       storage::remove_translation,
+      storage::load_workspaces,
+      storage::save_workspaces,
       storage::load_workspace,
       storage::save_workspace,
       storage::pick_import,
