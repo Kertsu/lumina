@@ -220,6 +220,50 @@ export async function setCursorRestriction(
     });
 }
 
+// Subscribe before reading the snapshot; an event always wins over an older read.
+async function watchNativeWorkspace<Message extends { workspaceId: string }>(
+    workspaceId: string,
+    eventName: string,
+    callback: (message: Message) => void,
+    snapshot?: () => Promise<Message>
+): Promise<() => void> {
+    let receivedEvent = false;
+    let active = true;
+    const unlisten = await listen<Message>(eventName, (event) => {
+        if (!active || event.payload.workspaceId !== workspaceId) return;
+        receivedEvent = true;
+        callback(event.payload);
+    });
+    const stop = () => {
+        active = false;
+        unlisten();
+    };
+    try {
+        if (snapshot) {
+            const message = await snapshot();
+            if (!receivedEvent && message.workspaceId === workspaceId)
+                callback(message);
+        }
+    } catch (error) {
+        stop();
+        throw error;
+    }
+    return stop;
+}
+
+export async function watchAudienceRecovery(
+    workspaceId: string,
+    callback: (message: string) => void
+): Promise<() => void> {
+    if (!isDesktop()) return () => {};
+    return watchNativeWorkspace<{
+        workspaceId: string;
+        message: string;
+    }>(workspaceId, "lumina:audience-recovery", (message) =>
+        callback(message.message)
+    );
+}
+
 export async function watchCursorRestriction(
     workspaceId: string,
     callback: (enabled: boolean, message?: string) => void
@@ -228,26 +272,22 @@ export async function watchCursorRestriction(
         callback(false);
         return () => {};
     }
-    let receivedEvent = false;
-    const unlisten = await listen<{
+    return watchNativeWorkspace<{
         workspaceId: string;
         enabled: boolean;
         message: string | null;
-    }>("lumina:cursor-restriction", (event) => {
-        if (event.payload.workspaceId !== workspaceId) return;
-        receivedEvent = true;
-        callback(event.payload.enabled, event.payload.message ?? undefined);
-    });
-    try {
-        const enabled = await invoke<boolean>("cursor_restriction_enabled", {
+    }>(
+        workspaceId,
+        "lumina:cursor-restriction",
+        (message) => callback(message.enabled, message.message ?? undefined),
+        async () => ({
             workspaceId,
-        });
-        if (!receivedEvent) callback(enabled);
-    } catch (error) {
-        unlisten();
-        throw error;
-    }
-    return unlisten;
+            enabled: await invoke<boolean>("cursor_restriction_enabled", {
+                workspaceId,
+            }),
+            message: null,
+        })
+    );
 }
 
 export async function watchAudience(
@@ -255,25 +295,17 @@ export async function watchAudience(
     callback: (open: boolean) => void
 ): Promise<() => void> {
     if (isDesktop()) {
-        let receivedEvent = false;
-        const unlisten = await listen<OpenMessage>(
+        return watchNativeWorkspace<OpenMessage>(
+            workspaceId,
             "lumina:audience-open",
-            (event) => {
-                if (event.payload.workspaceId !== workspaceId) return;
-                receivedEvent = true;
-                callback(event.payload.open);
-            }
-        );
-        try {
-            const open = await invoke<boolean>("audience_is_open", {
+            (message) => callback(message.open),
+            async () => ({
                 workspaceId,
-            });
-            if (!receivedEvent) callback(open);
-        } catch (error) {
-            unlisten();
-            throw error;
-        }
-        return unlisten;
+                open: await invoke<boolean>("audience_is_open", {
+                    workspaceId,
+                }),
+            })
+        );
     }
     const output = browserOutput(workspaceId);
     output.watchers.add(callback);
@@ -300,26 +332,15 @@ export async function receiveAudience(
     if (!workspaceId)
         throw new Error("Audience workspace identity is missing.");
     if (isDesktop()) {
-        let receivedEvent = false;
-        const unlisten = await listen<AudienceMessage>(
+        return watchNativeWorkspace<AudienceMessage>(
+            workspaceId,
             "lumina:audience-payload",
-            (event) => {
-                if (event.payload.workspaceId !== workspaceId) return;
-                receivedEvent = true;
-                callback(event.payload.payload);
-            }
+            (message) => callback(message.payload),
+            () =>
+                invoke<AudienceMessage>("audience_payload", {
+                    workspaceId,
+                })
         );
-        try {
-            const message = await invoke<AudienceMessage>("audience_payload", {
-                workspaceId,
-            });
-            if (!receivedEvent && message.workspaceId === workspaceId)
-                callback(message.payload);
-        } catch (error) {
-            unlisten();
-            throw error;
-        }
-        return unlisten;
     }
     const audienceSession = params.get("session");
     if (!audienceSession)
