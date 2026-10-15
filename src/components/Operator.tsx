@@ -17,6 +17,7 @@ import {
     setCursorRestriction,
     setOperatorOnTop,
     watchAudience,
+    watchAudienceRecovery,
     watchCursorRestriction,
 } from "../lib/audience";
 import { bibleIndex, referenceLabel } from "../lib/bible";
@@ -297,6 +298,24 @@ export function Operator({
                 else stop = cleanup;
             })
             .catch((error: unknown) => setMessage(String(error)));
+        return () => {
+            cancelled = true;
+            stop?.();
+        };
+    }, [workspaceId]);
+    useEffect(() => {
+        let stop: (() => void) | undefined;
+        let cancelled = false;
+        void watchAudienceRecovery(workspaceId, (feedback) => {
+            if (!cancelled) setMessage(feedback);
+        })
+            .then((cleanup) => {
+                if (cancelled) cleanup();
+                else stop = cleanup;
+            })
+            .catch((error: unknown) => {
+                if (!cancelled) setMessage(String(error));
+            });
         return () => {
             cancelled = true;
             stop?.();

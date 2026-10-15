@@ -64,6 +64,15 @@ fn label(workspace_id: &str) -> Result<String, String> {
 }
 
 fn output(app: &AppHandle, workspace_id: &str) -> Result<WebviewWindow, String> {
+  if !app
+    .state::<AudienceState>()
+    .0
+    .lock()
+    .map_err(|error| error.to_string())?
+    .contains_key(workspace_id)
+  {
+    return Err("Open this workspace's audience before changing its output.".into());
+  }
   app
     .get_webview_window(&label(workspace_id)?)
     .ok_or_else(|| "Open this workspace's audience before changing its output.".into())
@@ -110,7 +119,8 @@ pub fn audience_is_open(
   workspace_id: String,
 ) -> Result<bool, String> {
   operator(&window)?;
-  Ok(app.get_webview_window(&label(&workspace_id)?).is_some())
+  label(&workspace_id)?;
+  Ok(output(&app, &workspace_id).is_ok())
 }
 
 #[tauri::command]
@@ -174,8 +184,19 @@ pub async fn open_audience(
     .lock()
     .map_err(|error| error.to_string())?;
   if let Some(audience) = app.get_webview_window(&audience_label) {
-    audience.set_focus().map_err(|error| error.to_string())?;
-    return Ok(());
+    let tracked = app
+      .state::<AudienceState>()
+      .0
+      .lock()
+      .map_err(|error| error.to_string())?
+      .contains_key(&workspace_id);
+    if tracked {
+      audience.set_focus().map_err(|error| error.to_string())?;
+      return Ok(());
+    }
+    // A failed recovery close can leave an untracked, hidden native window.
+    // Retire it before creating the next blank generation.
+    audience.destroy().map_err(|error| error.to_string())?;
   }
   let generation = uuid::Uuid::new_v4();
   let audience = WebviewWindowBuilder::new(
@@ -263,14 +284,27 @@ pub async fn close_audience(
 }
 
 #[tauri::command]
-pub fn publish_audience(
+pub async fn publish_audience(
   app: AppHandle,
   window: WebviewWindow,
   workspace_id: String,
   payload: AudiencePayload,
 ) -> Result<(), String> {
   operator(&window)?;
+  // Opening, explicit closure and display recovery cannot replace this window
+  // while a publication is in flight. OS destruction is checked by generation.
+  let _maintenance = crate::storage::MAINTENANCE
+    .lock()
+    .map_err(|error| error.to_string())?;
   let audience = output(&app, &workspace_id)?;
+  let generation = app
+    .state::<AudienceState>()
+    .0
+    .lock()
+    .map_err(|error| error.to_string())?
+    .get(&workspace_id)
+    .map(|state| state.generation)
+    .ok_or("This workspace's audience has closed; reopen it to blank output.")?;
   let message = AudienceMessage {
     workspace_id: workspace_id.clone(),
     payload: Some(payload.clone()),
@@ -282,6 +316,7 @@ pub fn publish_audience(
   let mut outputs = state.0.lock().map_err(|error| error.to_string())?;
   let output = outputs
     .get_mut(&workspace_id)
+    .filter(|state| state.generation == generation)
     .ok_or("This workspace's audience has closed; reopen it to blank output.")?;
   output.payload = Some(payload);
   Ok(())
@@ -442,6 +477,26 @@ pub fn setup(app: &AppHandle) {
       continue;
     };
     for (workspace_id, generation) in affected {
+      let Ok(_maintenance) = crate::storage::MAINTENANCE.lock() else {
+        continue;
+      };
+      let still_affected = handle
+        .state::<AudienceState>()
+        .0
+        .lock()
+        .is_ok_and(|outputs| {
+          outputs.get(&workspace_id).is_some_and(|state| {
+            state.generation == generation
+              && state
+                .monitor
+                .as_ref()
+                .is_some_and(|monitor| !current.contains(monitor))
+          })
+        });
+      if !still_affected {
+        continue;
+      }
+      let mut failures = Vec::new();
       if let Ok(audience) = output(&handle, &workspace_id) {
         let _ = audience.emit(
           "lumina:audience-payload",
@@ -450,27 +505,30 @@ pub fn setup(app: &AppHandle) {
             payload: None,
           },
         );
-        let _ = audience.hide();
+        if let Err(error) = audience.hide() {
+          failures.push(format!("hiding its output failed: {error}"));
+        }
         if let Err(error) = audience.destroy() {
-          let _ = handle.emit_to(
-            "main",
-            "lumina:audience-recovery",
-            RecoveryMessage {
-              workspace_id: workspace_id.clone(),
-              message: format!("Audience display changed; closing its output failed: {error}"),
-            },
-          );
-          continue;
+          failures.push(format!("closing its output failed: {error}"));
         }
       }
+      // Even a failed native close invalidates the payload and releases only
+      // this audience's cursor exclusion. Other outputs keep their state.
       clear(&handle, &workspace_id, generation);
+      let message = if failures.is_empty() {
+        "Audience display changed. This output closed; reopen it to blank output.".into()
+      } else {
+        format!(
+          "Audience display changed; {}. Its live state and cursor restriction were reset. Retry Open Audience to close the remaining window and reopen blank.",
+          failures.join("; ")
+        )
+      };
       let _ = handle.emit_to(
         "main",
         "lumina:audience-recovery",
         RecoveryMessage {
           workspace_id,
-          message: "Audience display changed. This output closed; reopen it to blank output."
-            .into(),
+          message,
         },
       );
     }
