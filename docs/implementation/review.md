@@ -35,8 +35,9 @@ Native verification found two further issues:
 - Five publisher WEB rows contain no wording. They now remain unavailable;
   all 31,098 nonempty verses retain their original text. Duplicate import
   comparison uses a shared canonical content digest, while the bundled edition
-  keeps its publisher artifact identity. These final changes passed static and
-  package checks; native follow-up requires an unlocked Mac.
+  keeps its publisher artifact identity. Native follow-up confirmed 31,098
+  available verses, an identical copy skipped during Add, and Luke 17:36
+  unavailable without changing the live John 3:16 audience output.
 
 The supplied `bible-content.db` was selected in the native import dialog and
 rejected by the 128 MiB limit: 466,980,864 bytes (about 445 MiB). Read-only
