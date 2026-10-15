@@ -1,63 +1,84 @@
-# Prototype audience boundary
+# Independent audience boundary
 
-`audience::setup(app.handle())` registers transient payload state, audience
-closure handling, main-window destruction handling, and display monitoring.
-Register `audience::{open_audience, close_audience, audience_is_open,
-audience_payload, publish_audience, set_audience_fullscreen,
-set_operator_on_top, set_cursor_restriction}` in the native invoke handler.
-The operator label is `main`; audience label is `audience`.
+`audience::setup(app.handle())` registers transient output state, lifecycle and
+500 ms display monitoring. Native labels are `audience-<workspace UUID>`; URLs
+carry `workspaceId`, and native/browser event envelopes identify that workspace.
+Audience titles identify the UUID; tab names never become Scripture labels.
+Only `main` can mutate windows, projection and restriction. Payload reads require
+the requesting window's label to match its requested workspace identity. The
+`audience-*` capability grants only event listen/unlisten to these windows.
 
-Open Audience creates black output. Native projection requires an existing
-audience window. Only the operator can mutate output/window controls. Opening
-is serialized with storage replacement/removal via `storage::MAINTENANCE`.
-Audience closure clears transient projection state. Monitor removal or
-reconfiguration closes audience output; opening again starts blank. Polling
-occurs every 500 ms and conservatively closes output when any previous monitor
-signature disappears. This includes resolution/layout changes. It does not
-establish zero-frame recovery before an OS moves a window to another display;
-physical display qualification is still required.
+The TypeScript audience functions take workspace ID first. A per-workspace
+operation chain preserves Open/Send/Close order, including removing a tab while
+creation is pending. Native creation and closure also serialize against Bible
+maintenance. No numeric window limit is imposed. Opening an existing output
+focuses it; creating/reopening one starts black with no payload/restriction.
+Payloads and restrictions are transient. Failure in one command targets only
+its output and is reported back to its initiating controller.
 
-The operator must intercept CloseRequested, await workspace persistence,
-close Audience, and destroy itself. Destruction fallback closes Audience even
-when that graceful path is bypassed. Live content is never persisted/reopened.
-Fullscreen and operator always-on-top use native window APIs and surface OS
-errors. CSS and native cursor visibility hide the audience pointer separately
-from cursor restriction.
+Each native output stores its own monitor signature. Moved/resized/scale events
+update its mapping while its prior display remains connected. If macOS/another
+OS relocates a window after its old display disappears, mapping retains that old
+signature so polling still closes the affected output. Monitor loss or geometry
+reconfiguration closes only outputs mapped to that changed signature. Other
+outputs continue. Display names/positions/sizes come from Tauri, rather than a
+hardware serial-number API; mirrored/identically named displays, rapid changes,
+and OS relocation timing require physical qualification. Polling is not a
+zero-frame-disconnection guarantee. Main-window destruction closes all outputs;
+the operator's graceful path first saves all workspace preparation.
 
-## Cursor restriction remains blocked
+## macOS cursor exclusion implementation
 
-Enabling restriction explicitly returns an unavailable error. State stays off;
-no cursor-grab or cursor-position lock is activated. This is an incomplete MVP
-requirement, not equivalent behavior or a supported-platform claim. Disabling
-is a safe no-op because the prototype never installs a native constraint.
+A manual Enable installs a **Session filtering event tap** using the already
+pinned safe `core-graphics 0.25` and `core-foundation 0.10` wrappers. Application
+`unsafe_code = forbid` remains in place. No tap, permission request, or pointer
+change occurs at startup. There is no automatic request for Accessibility:
+creation denial returns an actionable System Settings error and leaves the
+workspace off. The packaged application needs its own Accessibility grant.
 
-- Windows `ClipCursor` accepts one inclusion rectangle and requires release
-  before yielding control to another application. It cannot establish arbitrary
-  audience-window exclusion while allowing ordinary movement in all other apps.
-  [Microsoft API contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-clipcursor).
-- macOS's documented cursor-association primitive disconnects movement from
-  the pointer and is foreground-only. Global event interception/warping would
-  require additional integration and permission handling, then direct evidence
-  that it prevents entry rather than correcting entry after it occurs.
-  [Apple cursor controls](https://developer.apple.com/library/archive/documentation/GraphicsImaging/Conceptual/QuartzDisplayServicesConceptual/Articles/MouseCursor.html).
-- Linux X11 pointer grabs change event routing and can interfere with other
-  applications. Wayland constraints are compositor-controlled, surface-scoped,
-  and intersect the requesting surface's input region. Neither establishes the
-  accepted exclusion behavior through the framework API.
-  [Xlib](https://www.x.org/releases/X11R7.6/doc/libX11/specs/libX11/libX11.html),
-  [Wayland protocol](https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml).
+One service composes all enabled audiences' global outer rectangles. Quartz
+coordinates are logical top-left global points; Tao's window positions/sizes are
+converted using that window's backing scale. Connected-display regions minus
+all enabled rectangles form permitted regions. Incoming pointer movement,
+drags, mouse buttons and scrolling remain unchanged outside these rectangles.
+Inside, the filter chooses the nearest permitted point and forwards a replaced
+event while keeping physical pointer position at that point. An initial pointer
+inside an audience is moved out on activation. A configuration leaving no
+permitted desktop region is rejected. No keyboard events are intercepted.
+This engineering design still needs direct physical-pointer qualification;
+compilation and an enabled toggle do not prove prevention of visible entry.
 
-Tauri's grab documentation lists Linux as unsupported and macOS as locking at
-a fixed position. A successful return cannot be interpreted as audience-window
-exclusion. [Tauri window API](https://v2.tauri.app/reference/javascript/api/namespacewindow/#setcursorgrab).
-These are API/source constraints, not runtime qualification results. The
-required global exclusion needs platform-specific engineering plus physical
-display and application-switch verification before it can be advertised.
+Window movement, resizing, scale and fullscreen transitions refresh geometry.
+Tab/app switches do not turn the service off. Manual release/closure removes
+only that workspace's rectangle; other restrictions remain. Last release stops
+the worker and destroys its tap. Reopening/restart has no restriction. Input
+callbacks never block on geometry updates: while geometry is locked, the current
+pointer event is discarded. Tap timeout/user disable or filter failure clears
+all choices using that failed service and emits workspace-specific status errors;
+operators must enable them again explicitly. `watchCursorRestriction` combines
+initial native state with keyed status events, so UI toggles reset after failure.
+A closing output also emits restriction off.
 
-## Browser preview
+The API/source evidence supports a feasible implementation, not a qualified
+compatibility claim: [safe tap wrapper source](https://github.com/servo/core-foundation-rs/blob/core-graphics-v0.25.0/core-graphics/src/event.rs),
+[Apple tap creation contract](https://developer.apple.com/documentation/coregraphics/cgevent/tapcreate(tap:place:options:eventsofinterest:callback:userinfo:)),
+and [Apple timeout event](https://developer.apple.com/documentation/coregraphics/cgeventtype/tapdisabledbytimeout).
+Global event permissions, revoked permissions, physical displays, mixed scaling,
+fullscreen, cross-app movement, simultaneous restrictions and tap failure still
+need observation before claiming this configuration supported. In particular,
+observe the actual pointer to distinguish pre-entry exclusion from correction.
 
-Browser mode uses one named popup and a per-operator BroadcastChannel. Opening
-clears its payload, closing resets operator status, and operator page closure
-closes the popup. Direct sends while closed fail. Native display monitoring,
-always-on-top, and pointer exclusion are unavailable. Fullscreen requests show
-an audience-side button because browsers require a gesture in that window.
+## Other native candidates and browser preview
+
+Windows/Linux Enable returns an explicit unavailable error without installing a
+constraint. Their accepted exclusion requirement remains unfinished. Tauri grab
+is deliberately not substituted: window inclusion/fixed lock does not establish
+cross-app exclusion. Existing platform evidence is in
+[the cursor research](../research/cursor-confinement.md).
+
+Browser preview uses separate named popups and BroadcastChannels keyed by both
+operator-session UUID and workspace UUID. Every message also verifies workspace
+identity. Closing/reopening a popup clears only its payload. Operator page
+closure closes its popups. Native display monitoring, topmost controls and
+pointer exclusion remain unavailable in a browser; fullscreen requires a gesture
+inside the particular audience popup.

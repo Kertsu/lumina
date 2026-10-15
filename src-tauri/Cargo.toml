@@ -30,6 +30,10 @@ base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
 url = "2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+core-graphics = "0.25"
+core-foundation = "0.10"
+
 [lints.rust]
 unsafe_code = "forbid"
 
