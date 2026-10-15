@@ -17,6 +17,7 @@ import {
     setCursorRestriction,
     setOperatorOnTop,
     watchAudience,
+    watchCursorRestriction,
 } from "../lib/audience";
 import { bibleIndex, referenceLabel } from "../lib/bible";
 import {
@@ -261,6 +262,23 @@ export function Operator({
                 setFullscreen(false);
                 setRestricted(false);
             }
+        })
+            .then((cleanup) => {
+                if (cancelled) cleanup();
+                else stop = cleanup;
+            })
+            .catch((error: unknown) => setMessage(String(error)));
+        return () => {
+            cancelled = true;
+            stop?.();
+        };
+    }, [workspaceId]);
+    useEffect(() => {
+        let stop: (() => void) | undefined;
+        let cancelled = false;
+        void watchCursorRestriction(workspaceId, (enabled, feedback) => {
+            setRestricted(enabled);
+            if (feedback) setMessage(feedback);
         })
             .then((cleanup) => {
                 if (cancelled) cleanup();
