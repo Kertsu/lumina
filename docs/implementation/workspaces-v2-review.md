@@ -63,8 +63,12 @@ toggles and Accessibility permission. Activation/status and independent release
 were observed. The maintainer's physical check found a defect: the audience
 rectangle stayed forbidden when another application covered it. The affected
 audience was closed and its restriction released immediately. Visible-region
-filtering and a repeat of that exact covering-application check are required
-before considering this behavior accepted.
+filtering and stationary-pointer recovery were added in `5227696`/`583c069`.
+The follow-up physical run improved covering-app use but exposed a second
+failure: foregrounding the audience with the pointer near its center traps or
+hides it until another app is selected. The output was closed again and its
+restriction confirmed off. This is still a failed native acceptance check;
+targeted position/correction tracing is underway before further changes.
 Windows/Linux exclusion is explicitly unimplemented. Keep #6 and the parent
 acceptance work open; no supported-release/platform claim follows from this PR.
 
