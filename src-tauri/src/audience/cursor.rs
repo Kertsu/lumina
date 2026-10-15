@@ -7,11 +7,13 @@ use std::{
     mpsc, Arc, Mutex,
   },
   thread,
-  time::Duration,
+  time::{Duration, Instant},
 };
 
 use core_foundation::{
-  base::TCFType,
+  base::{CFType, TCFType},
+  dictionary::CFDictionary,
+  number::CFNumber,
   runloop::{CFRunLoop, CFRunLoopRunResult},
   string::CFString,
 };
@@ -22,9 +24,13 @@ use core_graphics::{
     CallbackResult,
   },
   event_source::{CGEventSource, CGEventSourceStateID},
-  geometry::CGPoint,
+  geometry::{CGPoint, CGRect},
+  window::{
+    create_description_from_array, create_window_list, kCGNullWindowID, kCGWindowListOptionAll,
+    kCGWindowListOptionOnScreenOnly,
+  },
 };
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Clone, Copy)]
 struct Rect {
@@ -41,8 +47,14 @@ impl Rect {
 
   fn nearest(self, point: CGPoint) -> CGPoint {
     CGPoint::new(
-      point.x.clamp(self.left, self.right - 0.5),
-      point.y.clamp(self.top, self.bottom - 0.5),
+      point.x.clamp(
+        self.left,
+        self.right - ((self.right - self.left) / 2.0).min(0.5),
+      ),
+      point.y.clamp(
+        self.top,
+        self.bottom - ((self.bottom - self.top) / 2.0).min(0.5),
+      ),
     )
   }
 
@@ -50,8 +62,8 @@ impl Rect {
     [self.left, self.top, self.right, self.bottom]
       .iter()
       .all(|value| value.is_finite())
-      && self.right - self.left >= 1.0
-      && self.bottom - self.top >= 1.0
+      && self.right > self.left
+      && self.bottom > self.top
   }
 
   fn without(self, blocked: Rect) -> Vec<Rect> {
@@ -92,13 +104,21 @@ impl Rect {
 
 #[derive(Default)]
 struct Geometry {
-  blocked: HashMap<String, Rect>,
+  enabled: HashMap<String, u32>,
+  blocked: HashMap<String, Vec<Rect>>,
+  displays: Vec<Rect>,
   allowed: Vec<Rect>,
 }
 
 impl Geometry {
   fn nearest(&self, point: CGPoint) -> Option<CGPoint> {
-    if self.blocked.is_empty() || !self.blocked.values().any(|rect| rect.contains(point)) {
+    if self.blocked.is_empty()
+      || !self
+        .blocked
+        .values()
+        .flatten()
+        .any(|rect| rect.contains(point))
+    {
       return Some(point);
     }
     self
@@ -143,33 +163,96 @@ fn announce(app: &AppHandle, workspace_id: &str, enabled: bool, message: Option<
   );
 }
 
-fn window_rect(audience: &WebviewWindow) -> Result<Rect, String> {
-  let scale = audience.scale_factor().map_err(|error| error.to_string())?;
-  if !scale.is_finite() || scale <= 0.0 {
-    return Err("Audience display scale is unavailable.".into());
-  }
-  let position = audience
-    .outer_position()
-    .map_err(|error| error.to_string())?;
-  let size = audience.outer_size().map_err(|error| error.to_string())?;
-  // Tao's macOS outer coordinates are global top-left logical points multiplied
-  // by the window's backing scale. Quartz event/display coordinates use points.
-  let rect = Rect {
-    left: f64::from(position.x) / scale,
-    top: f64::from(position.y) / scale,
-    right: (f64::from(position.x) + f64::from(size.width)) / scale,
-    bottom: (f64::from(position.y) + f64::from(size.height)) / scale,
-  };
-  if !rect.valid() {
-    return Err("Audience exclusion bounds are unavailable.".into());
-  }
-  Ok(rect)
+type WindowDescription = CFDictionary<CFString, CFType>;
+
+fn window_number(window: &WindowDescription, key: &str) -> Result<i64, String> {
+  window
+    .find(CFString::new(key))
+    .and_then(|value| value.downcast::<CFNumber>())
+    .and_then(|number| number.to_i64())
+    .ok_or_else(|| format!("macOS window metadata is missing {key}."))
 }
 
-fn allowed_regions(blocked: &HashMap<String, Rect>) -> Result<Vec<Rect>, String> {
+fn window_list(onscreen: bool) -> Result<Vec<WindowDescription>, String> {
+  let option = if onscreen {
+    kCGWindowListOptionOnScreenOnly
+  } else {
+    kCGWindowListOptionAll
+  };
+  let ids = create_window_list(option, kCGNullWindowID)
+    .ok_or("macOS could not list windows. Cursor restriction is unavailable.")?;
+  let order = ids
+    .iter()
+    .enumerate()
+    .map(|(index, id)| (*id, index))
+    .collect::<HashMap<_, _>>();
+  let descriptions = create_description_from_array(ids)
+    .ok_or("macOS could not describe windows. Cursor restriction is unavailable.")?;
+  let mut windows = Vec::new();
+  for window in descriptions.iter() {
+    let number = u32::try_from(window_number(&window, "kCGWindowNumber")?)
+      .map_err(|_| "macOS returned an invalid window identity.")?;
+    let index = order
+      .get(&number)
+      .ok_or("macOS returned an unexpected window identity.")?;
+    windows.push((*index, (*window).clone()));
+  }
+  windows.sort_by_key(|(index, _)| *index);
+  Ok(windows.into_iter().map(|(_, window)| window).collect())
+}
+
+fn audience_window_id(workspace_id: &str) -> Result<u32, String> {
+  let title = format!("Lumina — Audience {workspace_id}");
+  for window in window_list(false)? {
+    if window_number(&window, "kCGWindowOwnerPID")? != i64::from(std::process::id()) {
+      continue;
+    }
+    let name = window
+      .find(CFString::new("kCGWindowName"))
+      .and_then(|value| value.downcast::<CFString>());
+    if name.is_some_and(|name| name == title.as_str()) {
+      return u32::try_from(window_number(&window, "kCGWindowNumber")?)
+        .map_err(|_| "macOS returned an invalid audience window identity.".into());
+    }
+  }
+  Err("macOS did not expose this audience's window identity. Cursor restriction was not enabled; reopen the audience and retry.".into())
+}
+
+fn window_bounds(window: &WindowDescription) -> Result<Option<Rect>, String> {
+  let bounds = window
+    .find(CFString::new("kCGWindowBounds"))
+    .and_then(|value| value.downcast::<CFDictionary>())
+    .and_then(|dictionary| CGRect::from_dict_representation(&dictionary))
+    .ok_or("macOS window bounds are unavailable.")?;
+  let rect = Rect {
+    left: bounds.origin.x,
+    top: bounds.origin.y,
+    right: bounds.origin.x + bounds.size.width,
+    bottom: bounds.origin.y + bounds.size.height,
+  };
+  if bounds.size.width == 0.0 || bounds.size.height == 0.0 {
+    return Ok(None);
+  }
+  if !rect.valid() {
+    return Err("macOS returned invalid window bounds.".into());
+  }
+  Ok(Some(rect))
+}
+
+fn permitted_regions(displays: &[Rect], blocked: &HashMap<String, Vec<Rect>>) -> Vec<Rect> {
+  let mut allowed = displays.to_vec();
+  for rect in blocked.values().flatten() {
+    allowed = allowed
+      .into_iter()
+      .flat_map(|region| region.without(*rect))
+      .collect();
+  }
+  allowed
+}
+
+fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> {
   let displays = CGDisplay::active_displays()
-    .map_err(|error| format!("Could not inspect connected displays: {error}"))?;
-  let mut allowed = displays
+    .map_err(|error| format!("Could not inspect connected displays: {error}"))?
     .into_iter()
     .map(|id| CGDisplay::new(id).bounds())
     .map(|bounds| Rect {
@@ -180,18 +263,74 @@ fn allowed_regions(blocked: &HashMap<String, Rect>) -> Result<Vec<Rect>, String>
     })
     .filter(|rect| rect.valid())
     .collect::<Vec<_>>();
-  for rect in blocked.values() {
-    allowed = allowed
-      .into_iter()
-      .flat_map(|region| region.without(*rect))
-      .collect();
+  if displays.is_empty() {
+    return Err("macOS did not expose a usable desktop.".into());
   }
-  if allowed.is_empty() && !blocked.is_empty() {
-    return Err(
-      "Restriction would leave no usable desktop area; this audience remains unrestricted.".into(),
-    );
+  let mut blocked = HashMap::new();
+  let mut above = Vec::new();
+  // Quartz returns front-to-back order and point coordinates for both windows
+  // and pointer events. No backing-scale conversion or foreign title is used.
+  for window in window_list(true)? {
+    let alpha = window
+      .find(CFString::new("kCGWindowAlpha"))
+      .and_then(|value| value.downcast::<CFNumber>())
+      .and_then(|number| number.to_f64())
+      .ok_or("macOS window transparency metadata is unavailable.")?;
+    if !alpha.is_finite() {
+      return Err("macOS returned invalid window transparency.".into());
+    }
+    if alpha <= 0.0 {
+      continue;
+    }
+    let Some(rect) = window_bounds(&window)? else {
+      continue;
+    };
+    let number = u32::try_from(window_number(&window, "kCGWindowNumber")?)
+      .map_err(|_| "macOS returned an invalid window identity.")?;
+    if let Some((workspace_id, _)) = enabled.iter().find(|(_, id)| **id == number) {
+      let mut visible = vec![rect];
+      for occluder in &above {
+        visible = visible
+          .into_iter()
+          .flat_map(|region| region.without(*occluder))
+          .collect();
+      }
+      if !visible.is_empty() {
+        blocked.insert(workspace_id.clone(), visible);
+      }
+    }
+    // A nontransparent window receives pointer events throughout its bounds,
+    // even when its content is translucent. Fully transparent windows are skipped.
+    above.push(rect);
   }
-  Ok(allowed)
+  let allowed = permitted_regions(&displays, &blocked);
+  if allowed.is_empty() {
+    return Err("Restriction would leave no usable desktop area; restrictions are off.".into());
+  }
+  Ok(Geometry {
+    enabled: enabled.clone(),
+    blocked,
+    displays,
+    allowed,
+  })
+}
+
+fn refresh_geometry(geometry: &Mutex<Geometry>) -> Result<(), String> {
+  let enabled = geometry
+    .lock()
+    .map_err(|error| error.to_string())?
+    .enabled
+    .clone();
+  if enabled.is_empty() {
+    return Ok(());
+  }
+  // Window-server calls and rectangle subtraction never hold the input lock.
+  let updated = visible_geometry(&enabled)?;
+  let mut geometry = geometry.lock().map_err(|error| error.to_string())?;
+  if geometry.enabled == enabled {
+    *geometry = updated;
+  }
+  Ok(())
 }
 
 fn move_outside(geometry: &Geometry) -> Result<(), String> {
@@ -212,7 +351,8 @@ fn move_outside(geometry: &Geometry) -> Result<(), String> {
 
 fn fail_all(app: &AppHandle, geometry: &Mutex<Geometry>, reason: &str) {
   let affected = if let Ok(mut geometry) = geometry.lock() {
-    let affected = geometry.blocked.keys().cloned().collect::<Vec<_>>();
+    let affected = geometry.enabled.keys().cloned().collect::<Vec<_>>();
+    geometry.enabled.clear();
     geometry.blocked.clear();
     geometry.allowed.clear();
     affected
@@ -291,14 +431,23 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
         || {
           let _ = ready.send(Ok(()));
           let mode = CFString::new("kCFRunLoopDefaultMode");
+          let mut last_refresh = Instant::now();
           while !worker_stop.load(Ordering::Acquire) {
             let result = CFRunLoop::run_in_mode(
               mode.as_concrete_TypeRef(),
-              Duration::from_millis(100),
+              Duration::from_millis(40),
               true,
             );
             if worker_stop.load(Ordering::Acquire) {
               break;
+            }
+            if last_refresh.elapsed() >= Duration::from_millis(40) {
+              last_refresh = Instant::now();
+              if let Err(error) = refresh_geometry(&geometry) {
+                fail_all(&handle, &geometry, &format!("{error} Restrictions are off; enable them again explicitly."));
+                worker_stop.store(true, Ordering::Release);
+                break;
+              }
             }
             let failure = failed.load(Ordering::Acquire);
             if failure != 0 || result == CFRunLoopRunResult::Finished {
@@ -338,7 +487,7 @@ pub fn enabled(app: &AppHandle, workspace_id: &str) -> Result<bool, String> {
       .geometry
       .lock()
       .map_err(|error| error.to_string())?
-      .blocked
+      .enabled
       .contains_key(workspace_id),
   )
 }
@@ -346,13 +495,12 @@ pub fn enabled(app: &AppHandle, workspace_id: &str) -> Result<bool, String> {
 pub fn release(app: &AppHandle, workspace_id: &str, message: Option<String>) {
   let state = app.state::<CursorState>();
   let empty = if let Ok(mut geometry) = state.geometry.lock() {
+    geometry.enabled.remove(workspace_id);
     geometry.blocked.remove(workspace_id);
     // Existing permitted regions remain safe after removal; recompute so the
     // newly released area is immediately available to the other applications.
-    if let Ok(allowed) = allowed_regions(&geometry.blocked) {
-      geometry.allowed = allowed;
-    }
-    geometry.blocked.is_empty()
+    geometry.allowed = permitted_regions(&geometry.displays, &geometry.blocked);
+    geometry.enabled.is_empty()
   } else {
     true
   };
@@ -371,16 +519,16 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
     release(app, workspace_id, None);
     return Ok(());
   }
-  let audience = super::output(app, workspace_id)?;
-  let rect = window_rect(&audience)?;
+  super::output(app, workspace_id)?;
+  let window_id = audience_window_id(workspace_id)?;
   let state = app.state::<CursorState>();
   {
     let mut geometry = state.geometry.lock().map_err(|error| error.to_string())?;
-    let mut blocked = geometry.blocked.clone();
-    blocked.insert(workspace_id.to_string(), rect);
-    let allowed = allowed_regions(&blocked)?;
-    geometry.blocked = blocked;
-    geometry.allowed = allowed;
+    geometry.enabled.insert(workspace_id.to_string(), window_id);
+  }
+  if let Err(error) = refresh_geometry(&state.geometry) {
+    release(app, workspace_id, Some(error.clone()));
+    return Err(error);
   }
   let mut worker = state.worker.lock().map_err(|error| error.to_string())?;
   if worker
@@ -411,7 +559,7 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
 
 pub fn refresh(app: &AppHandle, workspace_id: &str) {
   if enabled(app, workspace_id).unwrap_or(false) {
-    if let Err(error) = set(app, workspace_id, true) {
+    if let Err(error) = refresh_geometry(&app.state::<CursorState>().geometry) {
       release(app, workspace_id, Some(error));
     }
   }

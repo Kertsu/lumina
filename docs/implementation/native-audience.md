@@ -36,28 +36,48 @@ change occurs at startup. There is no automatic request for Accessibility:
 creation denial returns an actionable System Settings error and leaves the
 workspace off. The packaged application needs its own Accessibility grant.
 
-One service composes all enabled audiences' global outer rectangles. Quartz
-coordinates are logical top-left global points; Tao's window positions/sizes are
-converted using that window's backing scale. Connected-display regions minus
-all enabled rectangles form permitted regions. Incoming pointer movement,
-drags, mouse buttons and scrolling remain unchanged outside these rectangles.
-Inside, the filter chooses the nearest permitted point and forwards a replaced
-event while keeping physical pointer position at that point. An initial pointer
-inside an audience is moved out on activation. A configuration leaving no
-permitted desktop region is rejected. No keyboard events are intercepted.
-This engineering design still needs direct physical-pointer qualification;
-compilation and an enabled toggle do not prove prevention of visible entry.
+One service composes the **visible portions** of all enabled audiences. On
+explicit enable, the service matches its own process's UUID audience title to a
+Quartz window ID. Foreign window titles are never needed. Missing identity or
+window-server metadata fails explicitly without requesting Screen Recording.
+The service retains enabled workspace identities separately from their current
+visible regions: a fully covered, minimized or off-desktop audience has no
+forbidden region, but its choice remains enabled until released/closed.
 
-Window movement, resizing, scale and fullscreen transitions refresh geometry.
-Tab/app switches do not turn the service off. Manual release/closure removes
-only that workspace's rectangle; other restrictions remain. Last release stops
-the worker and destroys its tap. Reopening/restart has no restriction. Input
-callbacks never block on geometry updates: while geometry is locked, the current
-pointer event is discarded. Tap timeout/user disable or filter failure clears
-all choices using that failed service and emits workspace-specific status errors;
-operators must enable them again explicitly. `watchCursorRestriction` combines
-initial native state with keyed status events, so UI toggles reset after failure.
-A closing output also emits restriction off.
+A worker refreshes front-to-back onscreen Quartz window metadata every 40 ms.
+For each enabled audience it subtracts bounds of all nontransparent windows
+above it, including other applications and the operator window. Fully transparent
+windows and empty bounds do not occlude. Thus a covering application remains
+usable within the audience's old bounds, while uncovered audience portions are
+excluded. Window positions, display bounds and pointer events all use Quartz
+global top-left logical points; no Tao/backing-scale conversion is mixed in.
+Window-server calls and rectangle subtraction happen outside the input callback
+and geometry lock; the completed snapshot replaces geometry only if its enabled
+identities are still current. Refresh also runs after audience geometry changes.
+Polling has a bounded refresh interval, not a zero-frame transition guarantee;
+window shapes, translucent click-through overlays, Spaces transitions and mixed
+scaling require physical qualification.
+
+Connected-display regions minus the visible forbidden pieces form permitted
+regions. Incoming pointer movement, drags, mouse buttons and scrolling remain
+unchanged outside those pieces. Inside, the filter chooses the nearest permitted
+point and forwards a replaced event while keeping physical pointer position at
+that point. An initial pointer inside an audience is moved out on activation. A
+configuration leaving no permitted desktop region is rejected. No keyboard
+events are intercepted. This engineering design still needs direct physical
+pointer qualification; compilation and an enabled toggle do not prove prevention
+of visible entry.
+
+Tab/app switches preserve enabled choices, while z-order changes recompute what
+is actually visible. Manual release/closure removes only that workspace's
+identity and visible pieces; other restrictions remain. Last release stops the
+worker and destroys its tap. Reopening/restart has no restriction. Input callbacks
+never block on geometry updates: while geometry is locked, the current pointer
+event is discarded. Tap timeout/user disable, unavailable metadata or filter
+failure clears all choices using that failed service and emits workspace-specific
+status errors; operators must enable them again explicitly.
+`watchCursorRestriction` combines initial native state with keyed status events,
+so UI toggles reset after failure. A closing output also emits restriction off.
 
 The API/source evidence supports a feasible implementation, not a qualified
 compatibility claim: [safe tap wrapper source](https://github.com/servo/core-foundation-rs/blob/core-graphics-v0.25.0/core-graphics/src/event.rs),
@@ -82,3 +102,15 @@ identity. Closing/reopening a popup clears only its payload. Operator page
 closure closes its popups. Native display monitoring, topmost controls and
 pointer exclusion remain unavailable in a browser; fullscreen requires a gesture
 inside the particular audience popup.
+
+The occlusion regression was directly reproduced in the packaged macOS app:
+Room restriction stayed active after another application's window covered Room,
+and the pointer remained excluded from that covering application's rectangle.
+The previous implementation stored the audience's whole outer bounds and never
+consulted z-order. The correction separates enabled identities from visible
+regions; the same physical-pointer sequence is the regression check.
+
+Window metadata contracts: [onscreen front-to-back order](https://developer.apple.com/documentation/coregraphics/cgwindowlistoption/optiononscreenonly),
+[required metadata keys](https://developer.apple.com/documentation/coregraphics/required-window-list-keys),
+and [Apple's window-metadata privacy explanation](https://developer.apple.com/videos/play/wwdc2019/701/?time=1460).
+No window image or screen capture API is used by the filter.
