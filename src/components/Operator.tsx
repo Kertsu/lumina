@@ -140,6 +140,8 @@ export function Operator({
     const [live, setLive] = useState<Selection | null>(null);
     const [audienceOpen, setAudienceOpen] = useState(false);
     const [blank, setBlank] = useState(true);
+    const audienceEpoch = useRef(0);
+    const audienceOpenRef = useRef(false);
     const [panel, setPanel] = useState<"search" | "history">("search");
     const [query, setQuery] = useState("");
     const [mode, setMode] = useState<SearchMode>("all-words");
@@ -240,11 +242,19 @@ export function Operator({
                     selectedTranslationId: fallback.id,
                 }));
         }
+    }, [library, workspace.selectedTranslationId, setWorkspace]);
+    const searchTranslationKey = selected
+        ? `${selected.id}:${selected.edition}`
+        : "";
+    const previousSearchTranslation = useRef(searchTranslationKey);
+    useEffect(() => {
+        if (previousSearchTranslation.current === searchTranslationKey) return;
+        previousSearchTranslation.current = searchTranslationKey;
         setResults([]);
         setSubmitted(null);
         setPage(1);
         setCandidates([]);
-    }, [library, workspace.selectedTranslationId, setWorkspace]);
+    }, [searchTranslationKey]);
     useEffect(() => {
         reportStatus(
             workspaceId,
@@ -255,8 +265,10 @@ export function Operator({
         let stop: (() => void) | undefined;
         let cancelled = false;
         void watchAudience(workspaceId, (open) => {
+            audienceOpenRef.current = open;
             setAudienceOpen(open);
             if (!open) {
+                audienceEpoch.current += 1;
                 setBlank(true);
                 setLive(null);
                 setFullscreen(false);
@@ -310,13 +322,16 @@ export function Operator({
         if (!audienceOpen) {
             throw new Error("Open Audience before sending a verse live.");
         }
+        const epoch = audienceEpoch.current;
         await publishAudience(workspaceId, {
             selection,
             appearance: workspace.appearance,
             blank: false,
         });
-        setLive(selection);
-        setBlank(false);
+        if (epoch === audienceEpoch.current && audienceOpenRef.current) {
+            setLive(selection);
+            setBlank(false);
+        }
         setMessage("");
         setWorkspace((current) => recordHistory(current, selection, "live"));
     }
@@ -407,12 +422,7 @@ export function Operator({
     });
     async function toggleAudience() {
         if (audienceOpen) await closeAudience(workspaceId);
-        else {
-            await openAudience(workspaceId);
-            setAudienceOpen(true);
-            setBlank(true);
-            setLive(null);
-        }
+        else await openAudience(workspaceId);
     }
     async function toggleBlank() {
         if (!audienceOpen) {
@@ -420,12 +430,14 @@ export function Operator({
             return;
         }
         const next = !blank;
+        const epoch = audienceEpoch.current;
         await publishAudience(workspaceId, {
             selection: live,
             appearance: workspace.appearance,
             blank: next,
         });
-        setBlank(next);
+        if (epoch === audienceEpoch.current && audienceOpenRef.current)
+            setBlank(next);
     }
     async function clipboard(selection: Selection | null) {
         if (!selection) return;
@@ -491,8 +503,6 @@ export function Operator({
             );
             setLibrary(updated);
             setReview(null);
-            setResults([]);
-            setSubmitted(null);
             setMessage("Import completed. Duplicate editions were skipped.");
         } finally {
             setBusy(false);
@@ -1868,12 +1878,6 @@ export function Operator({
                                                                             true
                                                                         )
                                                                     );
-                                                                    setResults(
-                                                                        []
-                                                                    );
-                                                                    setSubmitted(
-                                                                        null
-                                                                    );
                                                                 },
                                                             })
                                                         }
@@ -2098,11 +2102,18 @@ export function Operator({
                                                 const value =
                                                     event.target.checked;
                                                 void attempt(async () => {
+                                                    const epoch =
+                                                        audienceEpoch.current;
                                                     await setAudienceFullscreen(
                                                         workspaceId,
                                                         value
                                                     );
-                                                    setFullscreen(value);
+                                                    if (
+                                                        epoch ===
+                                                            audienceEpoch.current &&
+                                                        audienceOpenRef.current
+                                                    )
+                                                        setFullscreen(value);
                                                 });
                                             }}
                                         />
@@ -2134,8 +2145,6 @@ export function Operator({
                                                 setCursorRestriction(
                                                     workspaceId,
                                                     !restricted
-                                                ).then(() =>
-                                                    setRestricted(!restricted)
                                                 )
                                             )
                                         }
