@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Audience } from "../components/Audience";
-import { Operator } from "../components/Operator";
+import { OperatorShell } from "../components/OperatorShell";
 
 function Home() {
     const [audience, setAudience] = useState<boolean | null>(null);
@@ -11,7 +11,7 @@ function Home() {
         );
     }, []);
     if (audience === null) return <div className="startup" />;
-    return audience ? <Audience /> : <Operator />;
+    return audience ? <Audience /> : <OperatorShell />;
 }
 
 export const Route = createFileRoute("/")({
