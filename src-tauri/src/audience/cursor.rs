@@ -104,6 +104,7 @@ impl Rect {
 
 #[derive(Default)]
 struct Geometry {
+  revision: u64,
   enabled: HashMap<String, u32>,
   blocked: HashMap<String, Vec<Rect>>,
   outer: HashMap<String, Vec<Rect>>,
@@ -314,6 +315,7 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
     return Err("Restriction would leave no usable desktop area outside the audience windows. Restrictions are off.".into());
   }
   Ok(Geometry {
+    revision: 0,
     enabled: enabled.clone(),
     blocked,
     outer,
@@ -322,31 +324,31 @@ fn visible_geometry(enabled: &HashMap<String, u32>) -> Result<Geometry, String> 
   })
 }
 
-fn refresh_geometry(geometry: &Mutex<Geometry>, move_pointer: bool) -> Result<(), String> {
-  let enabled = geometry
-    .lock()
-    .map_err(|error| error.to_string())?
-    .enabled
-    .clone();
+fn refresh_geometry(geometry: &Mutex<Geometry>, move_pointer: bool) -> Result<(), (u64, String)> {
+  let (revision, enabled) = {
+    let geometry = geometry.lock().map_err(|error| (0, error.to_string()))?;
+    (geometry.revision, geometry.enabled.clone())
+  };
   if enabled.is_empty() {
     return Ok(());
   }
   // Window-server calls and rectangle subtraction never hold the input lock.
-  let updated = visible_geometry(&enabled)?;
-  let applied = {
-    let mut geometry = geometry.lock().map_err(|error| error.to_string())?;
-    if geometry.enabled == enabled {
-      *geometry = updated;
-      true
-    } else {
-      false
+  let updated = visible_geometry(&enabled);
+  {
+    let mut geometry = geometry
+      .lock()
+      .map_err(|error| (revision, error.to_string()))?;
+    // Discard stale failures as well as stale geometry, including remove/re-add.
+    if geometry.revision != revision {
+      return Ok(());
     }
-  };
-  if applied && move_pointer {
-    // An occluder can disappear without any pointer event (for example Cmd-H).
-    // Inspect the physical pointer outside the geometry lock, then choose its
-    // permitted destination from the latest state, never the stale scan above.
-    move_outside(geometry)?;
+    let mut updated = updated.map_err(|error| (revision, error))?;
+    updated.revision = revision;
+    *geometry = updated;
+  }
+  if move_pointer {
+    // Uncovering can happen without input; use the latest committed geometry.
+    move_outside(geometry).map_err(|error| (revision, error))?;
   }
   Ok(())
 }
@@ -369,20 +371,37 @@ fn move_outside(geometry: &Mutex<Geometry>) -> Result<(), String> {
   Ok(())
 }
 
-fn fail_all(app: &AppHandle, geometry: &Mutex<Geometry>, reason: &str) {
-  let affected = if let Ok(mut geometry) = geometry.lock() {
+fn fail_all(app: &AppHandle, stop: &Arc<AtomicBool>, revision: Option<u64>, reason: &str) -> bool {
+  let state = app.state::<CursorState>();
+  let Ok(worker) = state.worker.lock() else {
+    return false;
+  };
+  // A retiring worker must never clear a replacement worker's restrictions.
+  if !worker
+    .as_ref()
+    .is_some_and(|worker| Arc::ptr_eq(&worker.stop, stop))
+  {
+    return false;
+  }
+  let affected = if let Ok(mut geometry) = state.geometry.lock() {
+    if revision.is_some_and(|revision| geometry.revision != revision) {
+      return false;
+    }
     let affected = geometry.enabled.keys().cloned().collect::<Vec<_>>();
+    geometry.revision = geometry.revision.wrapping_add(1);
     geometry.enabled.clear();
     geometry.blocked.clear();
     geometry.outer.clear();
     geometry.allowed.clear();
+    stop.store(true, Ordering::Release);
     affected
   } else {
-    Vec::new()
+    return false;
   };
   for workspace_id in affected {
     announce(app, &workspace_id, false, Some(reason.to_string()));
   }
+  true
 }
 
 fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> {
@@ -432,7 +451,9 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
             return CallbackResult::Drop;
           };
           let point = event.location();
-          let Some(target) = geometry.nearest(point) else {
+          let target = geometry.nearest(point);
+          drop(geometry);
+          let Some(target) = target else {
             callback_failed.store(2, Ordering::Release);
             return CallbackResult::Keep;
           };
@@ -464,10 +485,10 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
             }
             if last_refresh.elapsed() >= Duration::from_millis(40) {
               last_refresh = Instant::now();
-              if let Err(error) = refresh_geometry(&geometry, true) {
-                fail_all(&handle, &geometry, &format!("{error} Restrictions are off; enable them again explicitly."));
-                worker_stop.store(true, Ordering::Release);
-                break;
+              if let Err((revision, error)) = refresh_geometry(&geometry, true) {
+                if fail_all(&handle, &worker_stop, Some(revision), &format!("{error} Restrictions are off; enable them again explicitly.")) {
+                  break;
+                }
               }
             }
             let failure = failed.load(Ordering::Acquire);
@@ -477,7 +498,7 @@ fn start_worker(app: &AppHandle, state: &CursorState) -> Result<Worker, String> 
               } else {
                 "The cursor filter stopped protecting the desktop. Restrictions are off; enable them again explicitly."
               };
-              fail_all(&handle, &geometry, reason);
+              fail_all(&handle, &worker_stop, None, reason);
               worker_stop.store(true, Ordering::Release);
             }
           }
@@ -514,8 +535,19 @@ pub fn enabled(app: &AppHandle, workspace_id: &str) -> Result<bool, String> {
 }
 
 pub fn release(app: &AppHandle, workspace_id: &str, message: Option<String>) {
+  release_at(app, workspace_id, message, None);
+}
+
+fn release_at(app: &AppHandle, workspace_id: &str, message: Option<String>, revision: Option<u64>) {
   let state = app.state::<CursorState>();
+  let Ok(mut worker) = state.worker.lock() else {
+    return;
+  };
   let empty = if let Ok(mut geometry) = state.geometry.lock() {
+    if revision.is_some_and(|revision| geometry.revision != revision) {
+      return;
+    }
+    geometry.revision = geometry.revision.wrapping_add(1);
     geometry.enabled.remove(workspace_id);
     geometry.blocked.remove(workspace_id);
     geometry.outer.remove(workspace_id);
@@ -527,10 +559,8 @@ pub fn release(app: &AppHandle, workspace_id: &str, message: Option<String>) {
     true
   };
   if empty {
-    if let Ok(mut worker) = state.worker.lock() {
-      if let Some(worker) = worker.take() {
-        worker.stop.store(true, Ordering::Release);
-      }
+    if let Some(worker) = worker.take() {
+      worker.stop.store(true, Ordering::Release);
     }
   }
   announce(app, workspace_id, false, message);
@@ -544,32 +574,34 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
   super::output(app, workspace_id)?;
   let window_id = audience_window_id(workspace_id)?;
   let state = app.state::<CursorState>();
-  {
-    let mut geometry = state.geometry.lock().map_err(|error| error.to_string())?;
-    geometry.enabled.insert(workspace_id.to_string(), window_id);
-  }
-  if let Err(error) = refresh_geometry(&state.geometry, false) {
-    release(app, workspace_id, Some(error.clone()));
-    return Err(error);
-  }
+  // Serialize composition and worker retirement, without holding the input lock
+  // during native scans or tap startup. An invalid addition never becomes live.
   let mut worker = state.worker.lock().map_err(|error| error.to_string())?;
+  let (revision, mut candidate) = {
+    let geometry = state.geometry.lock().map_err(|error| error.to_string())?;
+    (geometry.revision, geometry.enabled.clone())
+  };
+  candidate.insert(workspace_id.to_string(), window_id);
+  let mut updated = visible_geometry(&candidate)?;
   if worker
     .as_ref()
     .is_none_or(|worker| worker.stop.load(Ordering::Acquire))
   {
-    match start_worker(app, &state) {
-      Ok(started) => *worker = Some(started),
-      Err(error) => {
-        drop(worker);
-        release(app, workspace_id, None);
-        return Err(error);
-      }
-    }
+    *worker = Some(start_worker(app, &state)?);
   }
-  drop(worker);
+  {
+    let mut geometry = state.geometry.lock().map_err(|error| error.to_string())?;
+    if geometry.revision != revision {
+      return Err("Cursor restrictions changed; enable this audience again.".into());
+    }
+    updated.revision = revision.wrapping_add(1);
+    *geometry = updated;
+  }
+  let revision = revision.wrapping_add(1);
   let moved = move_outside(&state.geometry);
   if let Err(error) = moved {
-    release(app, workspace_id, Some(error.clone()));
+    drop(worker);
+    release_at(app, workspace_id, Some(error.clone()), Some(revision));
     return Err(error);
   }
   announce(app, workspace_id, true, None);
@@ -578,8 +610,8 @@ pub fn set(app: &AppHandle, workspace_id: &str, value: bool) -> Result<(), Strin
 
 pub fn refresh(app: &AppHandle, workspace_id: &str) {
   if enabled(app, workspace_id).unwrap_or(false) {
-    if let Err(error) = refresh_geometry(&app.state::<CursorState>().geometry, true) {
-      release(app, workspace_id, Some(error));
+    if let Err((revision, error)) = refresh_geometry(&app.state::<CursorState>().geometry, true) {
+      release_at(app, workspace_id, Some(error), Some(revision));
     }
   }
 }
