@@ -217,10 +217,10 @@ input[type=color] { padding: 3px; width: 45px; height: 29px; }
 .workspace-tab-item:not(.active)::after { content: ""; position: absolute; right: 0; top: 12px; bottom: 12px; width: 1px; background: #42464d; }
 .workspace-tab-item:has(+ .active)::after { display: none; }
 .workspace-tab-item:not(.active):hover { background: #ffffff09; }
-.workspace-tab-item.active { z-index: 1; background: #15171b; }
+.workspace-tab-item.active { z-index: 1; background: #20242b; }
 .workspace-tab-item.active::before, .workspace-tab-item.active::after { content: ""; position: absolute; bottom: 0; width: 10px; height: 10px; pointer-events: none; }
-.workspace-tab-item.active::before { left: -10px; border-radius: 0 0 10px 0; box-shadow: 3px 3px 0 3px #15171b; }
-.workspace-tab-item.active::after { right: -10px; border-radius: 0 0 0 10px; box-shadow: -3px 3px 0 3px #15171b; }
+.workspace-tab-item.active::before { left: -10px; border-radius: 0 0 10px 0; box-shadow: 3px 3px 0 3px #20242b; }
+.workspace-tab-item.active::after { right: -10px; border-radius: 0 0 0 10px; box-shadow: -3px 3px 0 3px #20242b; }
 .workspace-tab { display: flex; align-items: center; flex: 1; min-width: 0; gap: 9px; height: 32px; padding: 0 5px 0 0; background: transparent; border: 0; border-radius: 5px; text-align: left; color: #afb4bd; }
 .workspace-tab-item.active .workspace-tab { color: var(--foreground); }
 .workspace-tab-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -234,6 +234,7 @@ input[type=color] { padding: 3px; width: 45px; height: 29px; }
 .tab-status { flex: 0 0 auto; font-size: 9px; color: #969ca6; }
 .tab-status.live { color: #dba265; }
 .workspace-controller { flex: 1; min-height: 0; }
+.workspace-controller .topbar { background: #20242b; }
 .workspace-controller[hidden], .operator-shell[hidden] { display: none; }
 .workspace-controller .operator-shell { height: 100%; min-height: 630px; }
 .active-workspace-name { max-width: 170px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; color: var(--amber); font-size: 12px; }
