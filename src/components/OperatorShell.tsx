@@ -1,5 +1,6 @@
 import {
     type Dispatch,
+    type KeyboardEvent,
     type SetStateAction,
     useCallback,
     useEffect,
@@ -36,6 +37,18 @@ export function OperatorShell() {
     const [removalBusy, setRemovalBusy] = useState(false);
     const saveChain = useRef(Promise.resolve());
     const closing = useRef(false);
+    const tabs = useRef(new Map<string, HTMLButtonElement>());
+    const workspaceOrder = collection?.workspaces
+        .map((entry) => entry.id)
+        .join();
+
+    useEffect(() => {
+        if (!collection?.activeWorkspaceId || !workspaceOrder) return;
+        tabs.current.get(collection.activeWorkspaceId)?.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+        });
+    }, [collection?.activeWorkspaceId, workspaceOrder]);
 
     const persist = useCallback((next: WorkspaceCollection) => {
         const operation = saveChain.current
@@ -142,6 +155,37 @@ export function OperatorShell() {
         };
     }, [persist]);
 
+    function selectWorkspace(id: string) {
+        updateCollection((current) => ({
+            ...current,
+            activeWorkspaceId: id,
+        }));
+    }
+    function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, id: string) {
+        if (!collection) return;
+        const entries = collection.workspaces;
+        const index = entries.findIndex((entry) => entry.id === id);
+        let target: number;
+        switch (event.key) {
+            case "ArrowLeft":
+                target = (index - 1 + entries.length) % entries.length;
+                break;
+            case "ArrowRight":
+                target = (index + 1) % entries.length;
+                break;
+            case "Home":
+                target = 0;
+                break;
+            case "End":
+                target = entries.length - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        selectWorkspace(entries[target].id);
+        tabs.current.get(entries[target].id)?.focus();
+    }
     function createWorkspace() {
         updateCollection((current) => {
             let number = 1;
@@ -234,92 +278,125 @@ export function OperatorShell() {
                             aria-label="Audiences"
                         >
                             {collection.workspaces.map((entry) => (
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    id={`tab-${entry.id}`}
-                                    aria-controls={`workspace-${entry.id}`}
-                                    aria-selected={
-                                        entry.id ===
-                                        collection.activeWorkspaceId
-                                    }
-                                    className={`workspace-tab ${entry.id === collection.activeWorkspaceId ? "active" : ""}`}
+                                <div
+                                    className={`workspace-tab-item ${entry.id === collection.activeWorkspaceId ? "active" : ""}`}
                                     key={entry.id}
-                                    onClick={() =>
-                                        updateCollection((current) => ({
-                                            ...current,
-                                            activeWorkspaceId: entry.id,
-                                        }))
-                                    }
+                                    role="presentation"
                                 >
-                                    <span className="workspace-tab-name">
-                                        {entry.name}
-                                    </span>
-                                    <small
-                                        className={`tab-status ${(statuses[entry.id] ?? "Closed").toLowerCase()}`}
+                                    <button
+                                        ref={(element) => {
+                                            if (element)
+                                                tabs.current.set(
+                                                    entry.id,
+                                                    element
+                                                );
+                                            else tabs.current.delete(entry.id);
+                                        }}
+                                        type="button"
+                                        role="tab"
+                                        id={`tab-${entry.id}`}
+                                        aria-controls={`workspace-${entry.id}`}
+                                        aria-selected={
+                                            entry.id ===
+                                            collection.activeWorkspaceId
+                                        }
+                                        tabIndex={
+                                            entry.id ===
+                                            collection.activeWorkspaceId
+                                                ? 0
+                                                : -1
+                                        }
+                                        className="workspace-tab"
+                                        title={entry.name}
+                                        onClick={() =>
+                                            selectWorkspace(entry.id)
+                                        }
+                                        onKeyDown={(event) =>
+                                            navigateTabs(event, entry.id)
+                                        }
                                     >
-                                        {statuses[entry.id] ?? "Closed"}
-                                    </small>
-                                </button>
+                                        <span className="workspace-tab-name">
+                                            {entry.name}
+                                        </span>
+                                        <small
+                                            className={`tab-status ${(statuses[entry.id] ?? "Closed").toLowerCase()}`}
+                                        >
+                                            {statuses[entry.id] ?? "Closed"}
+                                        </small>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="workspace-tab-close"
+                                        aria-label={`Remove workspace ${entry.name}`}
+                                        title={`Remove workspace ${entry.name}`}
+                                        disabled={
+                                            collection.workspaces.length ===
+                                                1 || removalBusy
+                                        }
+                                        onClick={() => setRemoving(entry.id)}
+                                    >
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </div>
                             ))}
                         </div>
                         <button
                             type="button"
-                            className="button compact"
+                            className="workspace-tab-add"
+                            aria-label="New workspace"
+                            title="New workspace"
                             onClick={createWorkspace}
                         >
-                            + Workspace
+                            <span aria-hidden="true">+</span>
                         </button>
-                        <button
-                            type="button"
-                            className="text-button"
-                            disabled={!active}
-                            onClick={() =>
-                                active &&
-                                setRename({
-                                    id: active.id,
-                                    name: active.name,
-                                })
-                            }
-                        >
-                            Rename
-                        </button>
-                        <button
-                            type="button"
-                            className="icon-button"
-                            aria-label="Move workspace left"
-                            disabled={
-                                !active ||
-                                collection.workspaces[0].id === active.id
-                            }
-                            onClick={() =>
-                                active && moveWorkspace(active.id, -1)
-                            }
-                        >
-                            ←
-                        </button>
-                        <button
-                            type="button"
-                            className="icon-button"
-                            aria-label="Move workspace right"
-                            disabled={
-                                !active ||
-                                collection.workspaces.at(-1)?.id === active.id
-                            }
-                            onClick={() =>
-                                active && moveWorkspace(active.id, 1)
-                            }
-                        >
-                            →
-                        </button>
-                        <button
-                            type="button"
-                            className="text-button"
-                            disabled={collection.workspaces.length === 1}
-                            onClick={() => active && setRemoving(active.id)}
-                        >
-                            Remove
-                        </button>
+                        <fieldset className="workspace-tab-tools">
+                            <legend className="sr-only">
+                                Selected workspace
+                            </legend>
+                            <button
+                                type="button"
+                                className="text-button"
+                                disabled={!active}
+                                onClick={() =>
+                                    active &&
+                                    setRename({
+                                        id: active.id,
+                                        name: active.name,
+                                    })
+                                }
+                            >
+                                Rename
+                            </button>
+                            <button
+                                type="button"
+                                className="icon-button"
+                                aria-label="Move workspace left"
+                                disabled={
+                                    !active ||
+                                    collection.workspaces[0].id === active.id
+                                }
+                                onClick={() =>
+                                    active && moveWorkspace(active.id, -1)
+                                }
+                            >
+                                ←
+                            </button>
+                            <button
+                                type="button"
+                                className="icon-button"
+                                aria-label="Move workspace right"
+                                disabled={
+                                    !active ||
+                                    collection.workspaces.at(-1)?.id ===
+                                        active.id
+                                }
+                                onClick={() =>
+                                    active && moveWorkspace(active.id, 1)
+                                }
+                            >
+                                →
+                            </button>
+                        </fieldset>
                     </nav>
                     {collection.workspaces.map((entry) => (
                         <WorkspaceController

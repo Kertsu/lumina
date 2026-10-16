@@ -210,12 +210,28 @@ input[type=color] { padding: 3px; width: 45px; height: 29px; }
 
 /* Workspace controllers remain mounted; hidden tabs retain preparation. */
 .operator-app { height: 100dvh; display: flex; flex-direction: column; min-width: 940px; }
-.workspace-tabs { display: flex; align-items: center; gap: 10px; min-height: 47px; padding: 5px 14px; border-bottom: 1px solid var(--line); background: #101215; }
-.workspace-tab-list { flex: 1; min-width: 0; display: flex; gap: 5px; overflow-x: auto; }
-.workspace-tab { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; max-width: 250px; border: 1px solid var(--line); border-radius: 6px; background: #191c21; padding: 9px 12px; }
-.workspace-tab.active { border-color: #78573a; background: #372a20; color: #eabb86; }
-.workspace-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-status { font-size: 9px; color: #969ca6; }
+.workspace-tabs { display: flex; align-items: flex-end; gap: 6px; min-height: 48px; padding: 7px 14px 0; background: #101215; }
+.workspace-tab-list { display: flex; flex: 0 1 auto; min-width: 0; padding: 0 10px; overflow-x: auto; scrollbar-width: none; }
+.workspace-tab-list::-webkit-scrollbar { display: none; }
+.workspace-tab-item { position: relative; display: flex; align-items: center; flex: 0 0 208px; min-width: 0; height: 41px; padding: 0 8px 0 14px; border-radius: 12px 12px 0 0; }
+.workspace-tab-item:not(.active)::after { content: ""; position: absolute; right: 0; top: 12px; bottom: 12px; width: 1px; background: #42464d; }
+.workspace-tab-item:has(+ .active)::after { display: none; }
+.workspace-tab-item:not(.active):hover { background: #ffffff09; }
+.workspace-tab-item.active { z-index: 1; background: #15171b; }
+.workspace-tab-item.active::before, .workspace-tab-item.active::after { content: ""; position: absolute; bottom: 0; width: 10px; height: 10px; pointer-events: none; }
+.workspace-tab-item.active::before { left: -10px; border-radius: 0 0 10px 0; box-shadow: 3px 3px 0 3px #15171b; }
+.workspace-tab-item.active::after { right: -10px; border-radius: 0 0 0 10px; box-shadow: -3px 3px 0 3px #15171b; }
+.workspace-tab { display: flex; align-items: center; flex: 1; min-width: 0; gap: 9px; height: 32px; padding: 0 5px 0 0; background: transparent; border: 0; border-radius: 5px; text-align: left; color: #afb4bd; }
+.workspace-tab-item.active .workspace-tab { color: var(--foreground); }
+.workspace-tab-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-tab-close, .workspace-tab-add { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #c8ccd3; }
+.workspace-tab-close { width: 24px; height: 24px; margin-left: 3px; font-size: 20px; line-height: 1; }
+.workspace-tab-add { width: 32px; height: 32px; margin-bottom: 5px; font-size: 26px; line-height: 1; }
+.workspace-tab-close:hover:enabled, .workspace-tab-add:hover { background: #ffffff15; color: white; }
+.workspace-tab-tools { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; height: 41px; margin: 0 0 0 auto; padding: 0 0 0 10px; border: 0; }
+.workspace-tab-tools .text-button { font-size: 11px; }
+.workspace-tab:focus-visible, .workspace-tab-close:focus-visible, .workspace-tab-add:focus-visible { outline-offset: -2px; }
+.tab-status { flex: 0 0 auto; font-size: 9px; color: #969ca6; }
 .tab-status.live { color: #dba265; }
 .workspace-controller { flex: 1; min-height: 0; }
 .workspace-controller[hidden], .operator-shell[hidden] { display: none; }
