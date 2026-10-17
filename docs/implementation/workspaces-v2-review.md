@@ -83,7 +83,7 @@ filtering and stationary-pointer recovery were added in `5227696`/`583c069`.
 The follow-up physical run improved covering-app use but exposed a second
 failure: foregrounding the audience with the pointer near its center traps or
 hides it until another app is selected. The output was closed again and its
-restriction confirmed off. This remains a failed native acceptance check.
+restriction confirmed off. That run failed native acceptance.
 
 The bounded physical trace reproduced the trap: correction selected an isolated
 126-point covering-window island inside the audience. Further movement clamped
@@ -91,7 +91,14 @@ to its edges. `051e1b1` preserves visible-region hit testing but relocates to
 desktop space outside all enabled audiences' full outer bounds. `cf7b28a`
 also validates a candidate composition before publication and rejects stale
 refresh/failure results by revision and worker identity. Temporary tracing was
-removed. Source checks passed; the corrected physical sequence remains pending.
+removed. Source checks passed. On October 17, the maintainer reran the corrected
+packaged sequence: Room restriction active, ChatGPT covering the black audience,
+pointer near its center, then keyboard uncover. Asked whether the pointer could
+escape and move without switching apps to recover, the maintainer reported:
+"Yes, pointer escapes and moves normally." This passes that reported physical
+regression sequence; it does not qualify other display or exclusion scenarios.
+After the reply, Close Audience changed Room to Closed and restored Open Audience;
+the disabled Restrict cursor control confirmed its restriction was off.
 Windows/Linux exclusion is explicitly unimplemented. Keep #6 and the parent
 acceptance work open; no supported-release/platform claim follows from this PR.
 

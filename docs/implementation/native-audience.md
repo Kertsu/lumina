@@ -79,8 +79,9 @@ destination. Minimized/off-desktop audiences contribute no outer bounds while
 their choices remain enabled. A configuration leaving no exterior desktop region
 is rejected on enable; if geometry changes to remove every exterior destination,
 restrictions turn off with explicit feedback. Interior islands are never used as
-fallback destinations. No keyboard events are intercepted. This engineering
-design still needs direct physical pointer qualification; compilation and an
+fallback destinations. No keyboard events are intercepted. The maintainer
+reported the corrected center/cover/keyboard-uncover escape sequence passing on
+October 17, 2026. Broader physical qualification remains; compilation and an
 enabled toggle do not prove prevention of visible entry.
 
 Tab/app switches preserve enabled choices, while z-order changes recompute what
@@ -99,9 +100,9 @@ compatibility claim: [safe tap wrapper source](https://github.com/servo/core-fou
 [Apple tap creation contract](https://developer.apple.com/documentation/coregraphics/cgevent/tapcreate(tap:place:options:eventsofinterest:callback:userinfo:)),
 and [Apple timeout event](https://developer.apple.com/documentation/coregraphics/cgeventtype/tapdisabledbytimeout).
 Global event permissions, revoked permissions, physical displays, mixed scaling,
-fullscreen, cross-app movement, simultaneous restrictions and tap failure still
-need observation before claiming this configuration supported. In particular,
-observe the actual pointer to distinguish pre-entry exclusion from correction.
+fullscreen, additional cross-app configurations, simultaneous restrictions and
+tap failure still need observation before claiming this configuration supported.
+Observe the actual pointer to distinguish pre-entry exclusion from correction.
 
 ## Other native candidates and browser preview
 
@@ -138,4 +139,9 @@ Both HID/session positions followed the targets, with no warp errors or lock
 contention drops. The targeted correction changes relocation destinations while
 preserving visible-region hit testing. Temporary debug instrumentation was
 removed; the trace and repeatable checks remain local verification artifacts.
-The corrected packaged physical sequence remains unverified until rerun.
+On October 17, 2026, the maintainer reran the corrected packaged sequence with
+Room restriction active: cover the black audience with ChatGPT, place the pointer
+near its center, then uncover using the keyboard. The maintainer reported:
+"Yes, pointer escapes and moves normally" without switching applications to
+recover. This is a maintainer-reported physical pass for that regression sequence;
+it does not establish pre-entry exclusion or broader platform qualification.
