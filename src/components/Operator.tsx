@@ -52,6 +52,8 @@ import {
     resolveQueue,
 } from "../lib/workspace";
 import { Icon } from "./Icon";
+import { ColorPicker } from "./ui/ColorPicker";
+import { Picker } from "./ui/Picker";
 import { VerseSlide } from "./VerseSlide";
 
 const PAGE_SIZE = 12;
@@ -182,7 +184,7 @@ export function Operator({
     const [restricted, setRestricted] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
     const searchRef = useRef<HTMLInputElement>(null);
-    const translationRef = useRef<HTMLSelectElement>(null);
+    const translationRef = useRef<HTMLButtonElement>(null);
     const selected =
         library.find(
             (item) =>
@@ -413,6 +415,11 @@ export function Operator({
     useEffect(() => {
         function keyboard(event: KeyboardEvent) {
             if (!active || !shortcutsEnabled) return;
+            if (
+                event.defaultPrevented ||
+                document.querySelector("[data-lumina-picker-overlay]")
+            )
+                return;
             if (event.key === "F1") {
                 event.preventDefault();
                 translationRef.current?.focus();
@@ -608,26 +615,24 @@ export function Operator({
                     </span>
                 </div>
                 <div className="header-divider" />
-                <label className="translation-picker">
-                    <span className="sr-only">Translation</span>
+                <div className="translation-picker">
                     <Icon name="book" />
-                    <select
-                        ref={translationRef}
+                    <Picker
+                        active={active}
+                        label="Translation"
+                        hideLabel
+                        triggerRef={translationRef}
                         value={selected?.id ?? ""}
-                        onChange={(event) =>
-                            selectTranslation(event.target.value)
-                        }
-                    >
-                        {library
+                        onChange={selectTranslation}
+                        items={library
                             .filter((item) => item.available)
-                            .map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {item.title}
-                                </option>
-                            ))}
-                    </select>
+                            .map((item) => ({
+                                value: item.id,
+                                label: item.title,
+                            }))}
+                    />
                     <kbd>F1</kbd>
-                </label>
+                </div>
                 <div className="header-spacer" />
                 <strong className="active-workspace-name" title={name}>
                     {name}
@@ -988,39 +993,31 @@ export function Operator({
                                         </label>
                                     ))}
                                 </div>
-                                <label className="scope-picker">
-                                    Search at
-                                    <select
-                                        value={scope}
-                                        onChange={(event) =>
-                                            setScope(
-                                                /^\d+$/.test(event.target.value)
-                                                    ? Number(event.target.value)
-                                                    : (event.target
-                                                          .value as SearchScope)
-                                            )
-                                        }
-                                    >
-                                        {scopes.map((item) => (
-                                            <option
-                                                key={item.value}
-                                                value={item.value}
-                                            >
-                                                {item.label}
-                                            </option>
-                                        ))}
-                                        <optgroup label="Specific book">
-                                            {selected?.books.map((book) => (
-                                                <option
-                                                    key={book.number}
-                                                    value={book.number}
-                                                >
-                                                    {book.name}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    </select>
-                                </label>
+                                <Picker
+                                    active={active}
+                                    className="scope-picker"
+                                    label="Search at"
+                                    value={scope}
+                                    onChange={(value) =>
+                                        setScope(
+                                            /^\d+$/.test(value)
+                                                ? Number(value)
+                                                : (value as SearchScope)
+                                        )
+                                    }
+                                    items={scopes}
+                                    sections={[
+                                        {
+                                            label: "Specific book",
+                                            items: (selected?.books ?? []).map(
+                                                (book) => ({
+                                                    value: String(book.number),
+                                                    label: book.name,
+                                                })
+                                            ),
+                                        },
+                                    ]}
+                                />
                                 <button
                                     className="button search-submit"
                                     type="submit"
@@ -1034,12 +1031,13 @@ export function Operator({
                                         ? `${results.length.toLocaleString()} results`
                                         : "SEARCH RESULTS"}
                                 </span>
-                                <select
-                                    aria-label="Result order"
+                                <Picker
+                                    active={active}
+                                    label="Result order"
+                                    hideLabel
                                     value={order}
-                                    onChange={(event) => {
-                                        const next = event.target
-                                            .value as SearchOrder;
+                                    onChange={(value) => {
+                                        const next = value as SearchOrder;
                                         setOrder(next);
                                         if (submitted && index)
                                             setResults(
@@ -1052,10 +1050,17 @@ export function Operator({
                                             );
                                         setPage(1);
                                     }}
-                                >
-                                    <option value="best">Best match</option>
-                                    <option value="bible">Bible order</option>
-                                </select>
+                                    items={[
+                                        {
+                                            value: "best",
+                                            label: "Best match",
+                                        },
+                                        {
+                                            value: "bible",
+                                            label: "Bible order",
+                                        },
+                                    ]}
+                                />
                             </div>
                             {submitted && (
                                 <div className="query-summary">
@@ -1199,33 +1204,28 @@ export function Operator({
                                             }}
                                         />
                                     </button>
-                                    <label>
-                                        Page
-                                        <select
-                                            aria-label="Result page"
+                                    <div className="lumina-pagination-page">
+                                        <span>Page</span>
+                                        <Picker
+                                            active={active}
+                                            label="Result page"
+                                            hideLabel
                                             value={page}
-                                            onChange={(event) =>
-                                                setPage(
-                                                    Number(event.target.value)
-                                                )
+                                            onChange={(value) =>
+                                                setPage(Number(value))
                                             }
-                                        >
-                                            {Array.from(
+                                            items={Array.from(
                                                 {
                                                     length: pages,
                                                 },
-                                                (_, i) => i + 1
-                                            ).map((pageNumber) => (
-                                                <option
-                                                    key={pageNumber}
-                                                    value={pageNumber}
-                                                >
-                                                    {pageNumber}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        of {pages}
-                                    </label>
+                                                (_, i) => ({
+                                                    value: String(i + 1),
+                                                    label: String(i + 1),
+                                                })
+                                            )}
+                                        />
+                                        <span>of {pages}</span>
+                                    </div>
                                     <button
                                         type="button"
                                         className="icon-button"
@@ -1551,46 +1551,46 @@ export function Operator({
                             <>
                                 <div className="appearance-layout">
                                     <div className="appearance-fields">
-                                        <label>
-                                            Verse font
-                                            <select
-                                                value={draft.family}
-                                                onChange={(event) =>
-                                                    setDraft({
-                                                        ...draft,
-                                                        family: event.target
-                                                            .value,
-                                                    })
-                                                }
-                                            >
-                                                <option value="Georgia, serif">
-                                                    Georgia
-                                                </option>
-                                                <option value="Inter Variable, sans-serif">
-                                                    Inter
-                                                </option>
-                                                <option value="Arial, sans-serif">
-                                                    Arial
-                                                </option>
-                                                <option value="Times New Roman, serif">
-                                                    Times New Roman
-                                                </option>
-                                            </select>
-                                        </label>
-                                        <label>
-                                            Text color
-                                            <input
-                                                type="color"
-                                                value={draft.color}
-                                                onChange={(event) =>
-                                                    setDraft({
-                                                        ...draft,
-                                                        color: event.target
-                                                            .value,
-                                                    })
-                                                }
-                                            />
-                                        </label>
+                                        <Picker
+                                            active={active}
+                                            label="Verse font"
+                                            value={draft.family}
+                                            onChange={(value) =>
+                                                setDraft({
+                                                    ...draft,
+                                                    family: value,
+                                                })
+                                            }
+                                            items={[
+                                                {
+                                                    value: "Georgia, serif",
+                                                    label: "Georgia",
+                                                },
+                                                {
+                                                    value: "Inter Variable, sans-serif",
+                                                    label: "Inter",
+                                                },
+                                                {
+                                                    value: "Arial, sans-serif",
+                                                    label: "Arial",
+                                                },
+                                                {
+                                                    value: "Times New Roman, serif",
+                                                    label: "Times New Roman",
+                                                },
+                                            ]}
+                                        />
+                                        <ColorPicker
+                                            active={active}
+                                            label="Text color"
+                                            value={draft.color}
+                                            onChange={(value) =>
+                                                setDraft({
+                                                    ...draft,
+                                                    color: value,
+                                                })
+                                            }
+                                        />
                                         <div className="style-toggles">
                                             {(
                                                 [
@@ -1696,25 +1696,21 @@ export function Operator({
                                                 "Select a verse"}{" "}
                                             background
                                         </h3>
-                                        <label>
-                                            Background color
-                                            <input
-                                                type="color"
-                                                disabled={!preview}
-                                                value={
-                                                    draft.backgrounds[
-                                                        preview?.translationId ??
-                                                            ""
-                                                    ]?.color ?? "#111820"
-                                                }
-                                                onChange={(event) =>
-                                                    updateBackground({
-                                                        color: event.target
-                                                            .value,
-                                                    })
-                                                }
-                                            />
-                                        </label>
+                                        <ColorPicker
+                                            active={active}
+                                            label="Background color"
+                                            disabled={!preview}
+                                            value={
+                                                draft.backgrounds[
+                                                    preview?.translationId ?? ""
+                                                ]?.color ?? "#111820"
+                                            }
+                                            onChange={(value) =>
+                                                updateBackground({
+                                                    color: value,
+                                                })
+                                            }
+                                        />
                                         <div className="background-tools">
                                             <button
                                                 type="button"
@@ -1732,8 +1728,10 @@ export function Operator({
                                                     ? "Loading image…"
                                                     : "Choose image"}
                                             </button>
-                                            <select
-                                                aria-label="Background fit"
+                                            <Picker
+                                                active={active}
+                                                label="Background fit"
+                                                hideLabel
                                                 disabled={!preview}
                                                 value={
                                                     draft.backgrounds[
@@ -1741,20 +1739,24 @@ export function Operator({
                                                             ""
                                                     ]?.fit ?? "fill"
                                                 }
-                                                onChange={(event) =>
+                                                onChange={(value) =>
                                                     updateBackground({
-                                                        fit: event.target
-                                                            .value as
+                                                        fit: value as
                                                             | "fill"
                                                             | "fit",
                                                     })
                                                 }
-                                            >
-                                                <option value="fill">
-                                                    Fill / crop
-                                                </option>
-                                                <option value="fit">Fit</option>
-                                            </select>
+                                                items={[
+                                                    {
+                                                        value: "fill",
+                                                        label: "Fill / crop",
+                                                    },
+                                                    {
+                                                        value: "fit",
+                                                        label: "Fit",
+                                                    },
+                                                ]}
+                                            />
                                         </div>
                                         <button
                                             type="button"
@@ -1941,8 +1943,10 @@ export function Operator({
                                                     {item.verses.length.toLocaleString()}{" "}
                                                     verses
                                                 </span>
-                                                <select
-                                                    aria-label={`Import action for ${item.title}`}
+                                                <Picker
+                                                    active={active}
+                                                    label={`Import action for ${item.title}`}
+                                                    hideLabel
                                                     value={(() => {
                                                         const choice =
                                                             choices.find(
@@ -1955,65 +1959,38 @@ export function Operator({
                                                             : (choice?.action ??
                                                                   "skip");
                                                     })()}
-                                                    onChange={(event) =>
+                                                    onChange={(value) =>
                                                         changeChoice(
                                                             item.id,
-                                                            event.target.value
+                                                            value
                                                         )
                                                     }
-                                                >
-                                                    <option value="skip">
-                                                        Skip
-                                                    </option>
-                                                    <option value="add">
-                                                        Add separate entry
-                                                    </option>
-                                                    {library
-                                                        .filter(
-                                                            (existing) =>
-                                                                !existing.bundled &&
-                                                                existing.available
-                                                        )
-                                                        .map((existing) => (
-                                                            <option
-                                                                key={
-                                                                    existing.id
-                                                                }
-                                                                value={`replace:${existing.id}`}
-                                                                disabled={
-                                                                    anyAudienceOpen
-                                                                }
-                                                            >
-                                                                Replace{" "}
-                                                                {existing.title}{" "}
-                                                                (
-                                                                {
-                                                                    existing.abbreviation
-                                                                }
-                                                                )
-                                                            </option>
-                                                        ))}
-                                                    {library
-                                                        .filter(
-                                                            (existing) =>
-                                                                !existing.bundled &&
-                                                                !existing.available
-                                                        )
-                                                        .map((existing) => (
-                                                            <option
-                                                                key={
-                                                                    existing.id
-                                                                }
-                                                                value={`restore:${existing.id}`}
-                                                                disabled={
-                                                                    anyAudienceOpen
-                                                                }
-                                                            >
-                                                                Restore{" "}
-                                                                {existing.title}
-                                                            </option>
-                                                        ))}
-                                                </select>
+                                                    items={[
+                                                        {
+                                                            value: "skip",
+                                                            label: "Skip",
+                                                        },
+                                                        {
+                                                            value: "add",
+                                                            label: "Add separate entry",
+                                                        },
+                                                        ...library
+                                                            .filter(
+                                                                (existing) =>
+                                                                    !existing.bundled
+                                                            )
+                                                            .map(
+                                                                (existing) => ({
+                                                                    value: `${existing.available ? "replace" : "restore"}:${existing.id}`,
+                                                                    label: existing.available
+                                                                        ? `Replace ${existing.title} (${existing.abbreviation})`
+                                                                        : `Restore ${existing.title}`,
+                                                                    disabled:
+                                                                        anyAudienceOpen,
+                                                                })
+                                                            ),
+                                                    ]}
+                                                />
                                             </div>
                                         ))}
                                         <div className="modal-footer">
