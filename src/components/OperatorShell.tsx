@@ -4,6 +4,7 @@ import {
     type SetStateAction,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useRef,
     useState,
 } from "react";
@@ -38,17 +39,94 @@ export function OperatorShell() {
     const saveChain = useRef(Promise.resolve());
     const closing = useRef(false);
     const tabs = useRef(new Map<string, HTMLButtonElement>());
+    const tabList = useRef<HTMLDivElement>(null);
+    const tabNavigation = useRef<HTMLDivElement>(null);
+    const previousTabs = useRef<HTMLButtonElement>(null);
+    const nextTabs = useRef<HTMLButtonElement>(null);
+    const overview = useRef<HTMLDetailsElement>(null);
+    const overviewItems = useRef(new Map<string, HTMLButtonElement>());
+    const [overviewOpen, setOverviewOpen] = useState(false);
+    const [tabScroll, setTabScroll] = useState({
+        overflow: false,
+        start: true,
+        end: true,
+    });
     const workspaceOrder = collection?.workspaces
         .map((entry) => entry.id)
         .join();
 
     useEffect(() => {
         if (!collection?.activeWorkspaceId || !workspaceOrder) return;
-        tabs.current.get(collection.activeWorkspaceId)?.scrollIntoView({
-            block: "nearest",
-            inline: "nearest",
-        });
+        tabs.current
+            .get(collection.activeWorkspaceId)
+            ?.parentElement?.scrollIntoView({
+                block: "nearest",
+                inline: "nearest",
+            });
     }, [collection?.activeWorkspaceId, workspaceOrder]);
+
+    useLayoutEffect(() => {
+        const list = tabList.current;
+        const navigation = tabNavigation.current;
+        if (!list || !navigation || !workspaceOrder) return;
+        function measure() {
+            if (!list || !navigation) return;
+            const gap =
+                Number.parseFloat(getComputedStyle(navigation).gap) || 0;
+            const controlsWidth =
+                previousTabs.current && nextTabs.current
+                    ? previousTabs.current.offsetWidth +
+                      nextTabs.current.offsetWidth +
+                      2 * gap
+                    : 0;
+            const next = {
+                overflow:
+                    list.scrollWidth > list.clientWidth + controlsWidth + 1,
+                start: list.scrollLeft <= 1,
+                end: list.scrollLeft + list.clientWidth >= list.scrollWidth - 1,
+            };
+            setTabScroll((current) =>
+                current.overflow === next.overflow &&
+                current.start === next.start &&
+                current.end === next.end
+                    ? current
+                    : next
+            );
+        }
+        const observer = new ResizeObserver(() => {
+            const id = collectionRef.current?.activeWorkspaceId;
+            if (id)
+                tabs.current.get(id)?.parentElement?.scrollIntoView({
+                    block: "nearest",
+                    inline: "nearest",
+                });
+            measure();
+        });
+        observer.observe(list);
+        observer.observe(navigation);
+        list.addEventListener("scroll", measure, {
+            passive: true,
+        });
+        measure();
+        return () => {
+            observer.disconnect();
+            list.removeEventListener("scroll", measure);
+        };
+    }, [workspaceOrder]);
+
+    useEffect(() => {
+        function dismissOverview(event: PointerEvent) {
+            if (
+                event.target instanceof Node &&
+                !overview.current?.contains(event.target)
+            ) {
+                if (overview.current) overview.current.open = false;
+            }
+        }
+        document.addEventListener("pointerdown", dismissOverview);
+        return () =>
+            document.removeEventListener("pointerdown", dismissOverview);
+    }, []);
 
     const persist = useCallback((next: WorkspaceCollection) => {
         const operation = saveChain.current
@@ -162,7 +240,8 @@ export function OperatorShell() {
         }));
     }
     function navigateTabs(event: KeyboardEvent<HTMLButtonElement>, id: string) {
-        if (!collection) return;
+        if (!collection || event.altKey || event.ctrlKey || event.metaKey)
+            return;
         const entries = collection.workspaces;
         const index = entries.findIndex((entry) => entry.id === id);
         let target: number;
@@ -185,6 +264,58 @@ export function OperatorShell() {
         event.preventDefault();
         selectWorkspace(entries[target].id);
         tabs.current.get(entries[target].id)?.focus();
+    }
+    function scrollTabs(direction: -1 | 1) {
+        const list = tabList.current;
+        if (!list) return;
+        list.scrollBy({
+            left: direction * Math.max(144, list.clientWidth * 0.75),
+            behavior: "smooth",
+        });
+    }
+    function navigateOverview(event: KeyboardEvent<HTMLElement>) {
+        const menu = overview.current;
+        if (!menu) return;
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            menu.open = false;
+            menu.querySelector("summary")?.focus();
+            return;
+        }
+        if (
+            !menu.open ||
+            !collection ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey
+        )
+            return;
+        const entries = collection.workspaces;
+        const index = entries.findIndex(
+            (entry) =>
+                overviewItems.current.get(entry.id) === document.activeElement
+        );
+        let target: number;
+        switch (event.key) {
+            case "ArrowDown":
+                target = (index + 1) % entries.length;
+                break;
+            case "ArrowUp":
+                target = index <= 0 ? entries.length - 1 : index - 1;
+                break;
+            case "Home":
+                target = 0;
+                break;
+            case "End":
+                target = entries.length - 1;
+                break;
+            default:
+                return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        overviewItems.current.get(entries[target].id)?.focus();
     }
     function createWorkspace() {
         updateCollection((current) => {
@@ -273,86 +404,240 @@ export function OperatorShell() {
                         aria-label="Operator workspaces"
                     >
                         <div
-                            className="workspace-tab-list"
-                            role="tablist"
-                            aria-label="Audiences"
+                            className="workspace-tabs-navigation"
+                            ref={tabNavigation}
                         >
-                            {collection.workspaces.map((entry) => (
-                                <div
-                                    className={`workspace-tab-item ${entry.id === collection.activeWorkspaceId ? "active" : ""}`}
-                                    key={entry.id}
-                                    role="presentation"
+                            {tabScroll.overflow && (
+                                <button
+                                    ref={previousTabs}
+                                    type="button"
+                                    className="workspace-tab-scroll"
+                                    aria-label="Scroll workspaces left"
+                                    disabled={tabScroll.start}
+                                    onClick={() => scrollTabs(-1)}
                                 >
-                                    <button
-                                        ref={(element) => {
-                                            if (element)
-                                                tabs.current.set(
-                                                    entry.id,
-                                                    element
-                                                );
-                                            else tabs.current.delete(entry.id);
-                                        }}
-                                        type="button"
-                                        role="tab"
-                                        id={`tab-${entry.id}`}
-                                        aria-controls={`workspace-${entry.id}`}
-                                        aria-selected={
-                                            entry.id ===
-                                            collection.activeWorkspaceId
-                                        }
-                                        tabIndex={
-                                            entry.id ===
-                                            collection.activeWorkspaceId
-                                                ? 0
-                                                : -1
-                                        }
-                                        className="workspace-tab"
-                                        title={entry.name}
-                                        onClick={() =>
-                                            selectWorkspace(entry.id)
-                                        }
-                                        onKeyDown={(event) =>
-                                            navigateTabs(event, entry.id)
-                                        }
+                                    <svg
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden="true"
                                     >
-                                        <span className="workspace-tab-name">
-                                            {entry.name}
-                                        </span>
-                                        <small
-                                            className={`tab-status ${(statuses[entry.id] ?? "Closed").toLowerCase()}`}
+                                        <path d="m15 5-7 7 7 7" />
+                                    </svg>
+                                </button>
+                            )}
+                            <div
+                                ref={tabList}
+                                className="workspace-tab-list"
+                                role="tablist"
+                                aria-label="Audiences"
+                            >
+                                {collection.workspaces.map((entry) => (
+                                    <div
+                                        className={`workspace-tab-item ${entry.id === collection.activeWorkspaceId ? "active" : ""}`}
+                                        key={entry.id}
+                                        role="presentation"
+                                    >
+                                        <button
+                                            ref={(element) => {
+                                                if (element)
+                                                    tabs.current.set(
+                                                        entry.id,
+                                                        element
+                                                    );
+                                                else
+                                                    tabs.current.delete(
+                                                        entry.id
+                                                    );
+                                            }}
+                                            type="button"
+                                            role="tab"
+                                            id={`tab-${entry.id}`}
+                                            aria-controls={`workspace-${entry.id}`}
+                                            aria-selected={
+                                                entry.id ===
+                                                collection.activeWorkspaceId
+                                            }
+                                            tabIndex={
+                                                entry.id ===
+                                                collection.activeWorkspaceId
+                                                    ? 0
+                                                    : -1
+                                            }
+                                            className="workspace-tab"
+                                            title={entry.name}
+                                            onClick={() =>
+                                                selectWorkspace(entry.id)
+                                            }
+                                            onKeyDown={(event) =>
+                                                navigateTabs(event, entry.id)
+                                            }
                                         >
-                                            {statuses[entry.id] ?? "Closed"}
-                                        </small>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="workspace-tab-close"
-                                        aria-label={`Remove workspace ${entry.name}`}
-                                        title={`Remove workspace ${entry.name}`}
-                                        disabled={
-                                            collection.workspaces.length ===
-                                                1 || removalBusy
-                                        }
-                                        onClick={() => setRemoving(entry.id)}
+                                            <span className="workspace-tab-name">
+                                                {entry.name}
+                                            </span>
+                                            <small
+                                                className={`tab-status ${(statuses[entry.id] ?? "Closed").toLowerCase()}`}
+                                            >
+                                                {statuses[entry.id] ?? "Closed"}
+                                            </small>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="workspace-tab-close"
+                                            aria-label={`Remove workspace ${entry.name}`}
+                                            title={`Remove workspace ${entry.name}`}
+                                            disabled={
+                                                collection.workspaces.length ===
+                                                    1 || removalBusy
+                                            }
+                                            onClick={() =>
+                                                setRemoving(entry.id)
+                                            }
+                                        >
+                                            <span aria-hidden="true">×</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            {tabScroll.overflow && (
+                                <button
+                                    ref={nextTabs}
+                                    type="button"
+                                    className="workspace-tab-scroll"
+                                    aria-label="Scroll workspaces right"
+                                    disabled={tabScroll.end}
+                                    onClick={() => scrollTabs(1)}
+                                >
+                                    <svg
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden="true"
                                     >
-                                        <span aria-hidden="true">×</span>
-                                    </button>
-                                </div>
-                            ))}
+                                        <path d="m9 5 7 7-7 7" />
+                                    </svg>
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className="workspace-tab-add"
+                                aria-label="New workspace"
+                                title="New workspace"
+                                onClick={createWorkspace}
+                            >
+                                <span aria-hidden="true">+</span>
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            className="workspace-tab-add"
-                            aria-label="New workspace"
-                            title="New workspace"
-                            onClick={createWorkspace}
-                        >
-                            <span aria-hidden="true">+</span>
-                        </button>
                         <fieldset className="workspace-tab-tools">
                             <legend className="sr-only">
                                 Selected workspace
                             </legend>
+                            <details
+                                className="workspace-tab-overview"
+                                ref={overview}
+                                onToggle={(event) => {
+                                    const open = event.currentTarget.open;
+                                    setOverviewOpen(open);
+                                    if (open && collection.activeWorkspaceId)
+                                        overviewItems.current
+                                            .get(collection.activeWorkspaceId)
+                                            ?.focus();
+                                }}
+                                onKeyDown={navigateOverview}
+                                onBlur={(event) => {
+                                    if (
+                                        event.relatedTarget instanceof Node &&
+                                        !event.currentTarget.contains(
+                                            event.relatedTarget
+                                        )
+                                    )
+                                        event.currentTarget.open = false;
+                                }}
+                            >
+                                <summary
+                                    aria-label="All workspaces"
+                                    title="All workspaces"
+                                >
+                                    <svg
+                                        width="19"
+                                        height="19"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M4 4h16M4 9h9M4 14h6" />
+                                        <circle cx="16" cy="15" r="4" />
+                                        <path d="m19 18 3 3" />
+                                    </svg>
+                                </summary>
+                                <section
+                                    className="workspace-tab-overview-menu"
+                                    aria-label="All workspaces"
+                                >
+                                    <p>Workspaces</p>
+                                    <ul>
+                                        {collection.workspaces.map((entry) => (
+                                            <li key={entry.id}>
+                                                <button
+                                                    ref={(element) => {
+                                                        if (element)
+                                                            overviewItems.current.set(
+                                                                entry.id,
+                                                                element
+                                                            );
+                                                        else
+                                                            overviewItems.current.delete(
+                                                                entry.id
+                                                            );
+                                                    }}
+                                                    type="button"
+                                                    aria-current={
+                                                        entry.id ===
+                                                        collection.activeWorkspaceId
+                                                            ? "true"
+                                                            : undefined
+                                                    }
+                                                    onClick={() => {
+                                                        if (overview.current)
+                                                            overview.current.open = false;
+                                                        selectWorkspace(
+                                                            entry.id
+                                                        );
+                                                        tabs.current
+                                                            .get(entry.id)
+                                                            ?.focus();
+                                                    }}
+                                                >
+                                                    <span className="workspace-tab-name">
+                                                        {entry.name}
+                                                    </span>
+                                                    <small
+                                                        className={`tab-status ${(statuses[entry.id] ?? "Closed").toLowerCase()}`}
+                                                    >
+                                                        {statuses[entry.id] ??
+                                                            "Closed"}
+                                                    </small>
+                                                    {entry.id ===
+                                                        collection.activeWorkspaceId && (
+                                                        <span aria-hidden="true">
+                                                            ✓
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                            </details>
                             <button
                                 type="button"
                                 className="text-button"
@@ -402,7 +687,9 @@ export function OperatorShell() {
                         <WorkspaceController
                             key={entry.id}
                             entry={entry}
-                            shortcutsEnabled={!rename && !removing}
+                            shortcutsEnabled={
+                                !rename && !removing && !overviewOpen
+                            }
                             active={entry.id === collection.activeWorkspaceId}
                             library={library}
                             setLibrary={setLibrary}
