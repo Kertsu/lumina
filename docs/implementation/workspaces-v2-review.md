@@ -51,6 +51,22 @@ Restart restored all 20 names/order, last active identity, queues/history and
 applied appearance, with every audience closed and runtime previews/results
 empty. This verifies 20 saved workspaces, not 20 simultaneous audiences.
 
+The October 17 UI refinement retained Chrome tab shoulders and added flexible
+widths, overflow arrows and an All workspaces list. Browser checks at 1440×960
+and 1000×720 observed adjacent add, scroll edge state, list selection, Home/End
+navigation and inactive-workspace removal cancellation. The updated native
+package restored the same twenty saved workspaces.
+
+All seven dropdowns and both color pickers now share styled React Aria
+components. In the production browser frontend, keyboard scope selection and
+a John-only search worked; translation, result order and page menus opened and
+dismissed correctly. Font and text-color edits cancelled back to saved values.
+Applying font, background color and fit retained them on reopening Appearance.
+Background controls stayed disabled without a prepared verse. The native package
+also opened its translation menu and all import-decision options for a duplicate
+fixture; cancelling import preserved the library. Native file selection remains
+the operating system's dialog.
+
 Typecheck, Biome, rustfmt, Clippy with warnings denied, Vite production build,
 and macOS debug .app packaging passed. No automated test files added/modified.
 Detailed observed runs/screenshots and check instructions remain local in this
