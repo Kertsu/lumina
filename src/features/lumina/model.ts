@@ -49,12 +49,14 @@ export type Workspace = {
     mode: SearchMode;
     scope: string;
     page: number;
+    order: "best" | "bible";
+    historyProjectedOnly: boolean;
 };
 
 export function defaultAppearance(): Appearance {
     return {
         fontFamily: "Cormorant Garamond",
-        fontSize: 48,
+        fontSize: 64,
         bold: false,
         italic: false,
         underline: false,
@@ -70,22 +72,22 @@ export function defaultAppearance(): Appearance {
             {
                 min: 0,
                 max: 100,
-                size: 56,
+                size: 72,
             },
             {
                 min: 101,
                 max: 220,
-                size: 48,
+                size: 64,
             },
             {
                 min: 221,
                 max: 400,
-                size: 36,
+                size: 48,
             },
             {
                 min: 401,
-                max: Number.POSITIVE_INFINITY,
-                size: 30,
+                max: 100000,
+                size: 40,
             },
         ],
     };
@@ -115,6 +117,8 @@ export function createWorkspace(index: number): Workspace {
         mode: "all",
         scope: "Entire Bible",
         page: 1,
+        order: "best",
+        historyProjectedOnly: false,
     };
 }
 
@@ -288,7 +292,7 @@ export function searchVerses(
     if (!normalized || (mode !== "contains" && !queryWords.length)) {
         return [];
     }
-    return verses.filter((verse) => {
+    const matches = verses.filter((verse) => {
         if (verse.translation !== translation || !inScope(verse, scope)) {
             return false;
         }
@@ -311,6 +315,14 @@ export function searchVerses(
             )
         );
     });
+    const score = (verse: Verse) => {
+        const content = words(verse.text);
+        const phrase =
+            queryWords.length > 0 &&
+            content.join(" ").includes(queryWords.join(" "));
+        return (phrase ? 1000 : 0) + 100 / Math.max(1, content.length);
+    };
+    return matches.sort((left, right) => score(right) - score(left));
 }
 
 export function getAdjacentVerse(
@@ -360,7 +372,7 @@ export function getBand(verse: Verse, appearance: Appearance) {
             (band) => length >= band.min && length <= band.max
         ) ?? {
             min: 0,
-            max: Number.POSITIVE_INFINITY,
+            max: 100000,
             size: appearance.fontSize,
         }
     );
