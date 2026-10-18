@@ -1,7 +1,7 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { arrayMove } from "@dnd-kit/sortable";
+import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
+import { isTauri } from "@tauri-apps/api/core";
 import {
-    ArrowLeft,
-    ArrowRight,
     BookOpen,
     Check,
     ChevronDown,
@@ -14,10 +14,8 @@ import {
     Keyboard,
     Maximize2,
     Monitor,
-    MoreHorizontal,
     Palette,
     PanelRightClose,
-    Pencil,
     Plus,
     Radio,
     Send,
@@ -44,13 +42,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -58,7 +49,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
     Tooltip,
     TooltipContent,
@@ -78,8 +69,11 @@ import {
     resolveReference,
 } from "./model";
 import { SidePanel } from "./side-panel";
+import { useNativeTabShortcuts } from "./use-native-tab-shortcuts";
 import { useWorkspaces } from "./use-workspaces";
 import { VerseSlide } from "./verse-slide";
+import { WorkspaceSearch } from "./workspace-search";
+import { WorkspaceTabs } from "./workspace-tabs";
 
 function IconButton({
     label,
@@ -110,19 +104,6 @@ function IconButton({
     );
 }
 
-function Status({ status }: { status: Workspace["status"] }) {
-    return (
-        <span className={`output-status status-${status}`}>
-            <span />
-            {status === "live"
-                ? "Live"
-                : status === "blank"
-                  ? "Blank"
-                  : "Closed"}
-        </span>
-    );
-}
-
 export function ProjectionDesk() {
     const {
         workspaces,
@@ -146,6 +127,7 @@ export function ProjectionDesk() {
     const [informationOpen, setInformationOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
     const [translationOpen, setTranslationOpen] = useState(false);
+    const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
     const [removeId, setRemoveId] = useState<string | null>(null);
     const [renameId, setRenameId] = useState<string | null>(null);
     const [rename, setRename] = useState("");
@@ -330,7 +312,8 @@ export function ProjectionDesk() {
     }, [updateWorkspace]);
 
     const dialogOpen = Boolean(
-        appearanceOpen ||
+        workspaceSearchOpen ||
+            appearanceOpen ||
             informationOpen ||
             helpOpen ||
             libraryOpen ||
@@ -342,6 +325,64 @@ export function ProjectionDesk() {
         !document.querySelector(
             '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]'
         ) && document.activeElement?.getAttribute("role") !== "tab";
+    const requestCloseTab = () => {
+        if (dialogOpen || !workspace) return;
+        if (workspaces.length === 1) {
+            notify("Keep at least one workspace open.");
+            return;
+        }
+        setRemoveId(workspace.id);
+    };
+    const requestNewTab = () => {
+        if (!dialogOpen) addWorkspace();
+    };
+    useNativeTabShortcuts(requestCloseTab, requestNewTab, () =>
+        notify("Desktop tab shortcuts unavailable. Use the tab controls.")
+    );
+    useHotkeys(
+        ([1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((number) => ({
+            hotkey: `Mod+${number}` as const,
+            callback: () => {
+                if (dialogOpen) return;
+                const target =
+                    number === 9 ? workspaces.at(-1) : workspaces[number - 1];
+                if (target) setActiveId(target.id);
+            },
+            options: {
+                requireReset: true,
+            },
+        })),
+        {
+            ignoreInputs: false,
+            preventDefault: true,
+            stopPropagation: true,
+            capture: true,
+        }
+    );
+    useHotkey("Mod+T", requestNewTab, {
+        enabled: typeof window !== "undefined" && !isTauri(),
+        ignoreInputs: false,
+        preventDefault: true,
+        stopPropagation: true,
+        requireReset: true,
+        capture: true,
+    });
+    useHotkey("Mod+W", requestCloseTab, {
+        enabled: typeof window !== "undefined" && !isTauri(),
+        ignoreInputs: false,
+        preventDefault: true,
+        stopPropagation: true,
+        requireReset: true,
+        capture: true,
+    });
+    useHotkey("Mod+Shift+A", () => setWorkspaceSearchOpen((open) => !open), {
+        enabled: !dialogOpen || workspaceSearchOpen,
+        ignoreInputs: false,
+        preventDefault: true,
+        stopPropagation: true,
+        requireReset: true,
+        capture: true,
+    });
     useHotkey("F1", () => setTranslationOpen(true), {
         enabled: !dialogOpen,
         ignoreInputs: false,
@@ -487,80 +528,39 @@ export function ProjectionDesk() {
                 className="projection-desk gap-0"
             >
                 <div className="workspace-bar">
-                    <TabsList
-                        className="workspace-tabs"
-                        aria-label="Operator workspaces"
-                    >
-                        {workspaces.map((item, index) => (
-                            <div
-                                key={item.id}
-                                className={`workspace-tab ${item.id === activeId ? "selected" : ""}`}
-                            >
-                                <TabsTrigger value={item.id}>
-                                    <Monitor />
-                                    <span>{item.name}</span>
-                                    <Status status={item.status} />
-                                </TabsTrigger>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            aria-label={`Options for ${item.name}`}
-                                        >
-                                            <MoreHorizontal />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start">
-                                        <DropdownMenuItem
-                                            onSelect={() => {
-                                                setRenameId(item.id);
-                                                setRename(item.name);
-                                            }}
-                                        >
-                                            <Pencil />
-                                            Rename workspace
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            disabled={index === 0}
-                                            onSelect={() =>
-                                                moveWorkspace(item.id, -1)
-                                            }
-                                        >
-                                            <ArrowLeft />
-                                            Move left
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            disabled={
-                                                index === workspaces.length - 1
-                                            }
-                                            onSelect={() =>
-                                                moveWorkspace(item.id, 1)
-                                            }
-                                        >
-                                            <ArrowRight />
-                                            Move right
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            disabled={workspaces.length === 1}
-                                            className="text-destructive"
-                                            onSelect={() =>
-                                                setRemoveId(item.id)
-                                            }
-                                        >
-                                            <X />
-                                            Remove workspace
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        ))}
-                    </TabsList>
+                    <WorkspaceTabs
+                        workspaces={workspaces}
+                        activeId={activeId}
+                        onReorder={(sourceId, targetId) =>
+                            setWorkspaces((previous) => {
+                                const source = previous.findIndex(
+                                    (item) => item.id === sourceId
+                                );
+                                const target = previous.findIndex(
+                                    (item) => item.id === targetId
+                                );
+                                return source < 0 || target < 0
+                                    ? previous
+                                    : arrayMove(previous, source, target);
+                            })
+                        }
+                        onRename={(item) => {
+                            setRenameId(item.id);
+                            setRename(item.name);
+                        }}
+                        onMove={moveWorkspace}
+                        onClose={setRemoveId}
+                    />
                     <IconButton label="Add workspace" onClick={addWorkspace}>
                         <Plus />
                     </IconButton>
-                    <div className="prototype-badge">Prototype 02</div>
+                    <WorkspaceSearch
+                        workspaces={workspaces}
+                        activeId={activeId}
+                        open={workspaceSearchOpen}
+                        onOpenChange={setWorkspaceSearchOpen}
+                        onSelect={setActiveId}
+                    />
                 </div>
                 <header className="main-toolbar">
                     <a href="/" className="brand" aria-label="Lumina home">
@@ -1346,6 +1346,12 @@ export function ProjectionDesk() {
                             ["Find a verse", "F3"],
                             ["Book information", "F7"],
                             ["Quick reference", "⌘ / Ctrl K"],
+                            ["New tab", "⌘ / Ctrl T"],
+                            ["Select tab 1–8", "⌘ / Ctrl 1–8"],
+                            ["Select last tab", "⌘ / Ctrl 9"],
+                            ["Close current tab", "⌘ / Ctrl W"],
+                            ["Search workspaces", "⌘ / Ctrl Shift A"],
+                            ["Tab options", "Right-click / Shift F10"],
                             ["Send preview live", "⌘ / Ctrl ↵"],
                             ["Previous / next verse", "← / →"],
                             ["Blank / resume audience", "B"],
@@ -1444,7 +1450,10 @@ export function ProjectionDesk() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            Remove this workspace?
+                            Close{" "}
+                            {workspaces.find((item) => item.id === removeId)
+                                ?.name ?? "this tab"}
+                            ?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             Its audience will close and its saved history and
@@ -1452,11 +1461,17 @@ export function ProjectionDesk() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Keep workspace</AlertDialogCancel>
+                        <AlertDialogCancel>Keep tab</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => {
                                 if (!removeId || workspaces.length === 1)
                                     return;
+                                const removedIndex = workspaces.findIndex(
+                                    (item) => item.id === removeId
+                                );
+                                const remaining = workspaces.filter(
+                                    (item) => item.id !== removeId
+                                );
                                 closeAudience(removeId);
                                 setWorkspaces((previous) =>
                                     previous.filter(
@@ -1465,14 +1480,13 @@ export function ProjectionDesk() {
                                 );
                                 if (activeId === removeId)
                                     setActiveId(
-                                        workspaces.find(
-                                            (item) => item.id !== removeId
-                                        )?.id ?? ""
+                                        remaining[Math.max(0, removedIndex - 1)]
+                                            .id
                                     );
                                 setRemoveId(null);
                             }}
                         >
-                            Remove workspace
+                            Close tab
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
