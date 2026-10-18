@@ -18,9 +18,9 @@ import {
     Palette,
     PanelLeft,
     PanelTop,
-    PanelRightClose,
     Plus,
     Radio,
+    Search,
     Send,
     X,
 } from "lucide-react";
@@ -53,6 +53,13 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
     Tooltip,
@@ -72,7 +79,9 @@ import {
     getBand,
     resolveReference,
 } from "./model";
+import { PanelDivider } from "./panel-divider";
 import { SidePanel } from "./side-panel";
+import { CHAPTER_PANEL_MIN_WIDTH, usePanelLayout } from "./use-panel-layout";
 import { useNativeTabShortcuts } from "./use-native-tab-shortcuts";
 import { useWorkspaces } from "./use-workspaces";
 import { VerseSlide } from "./verse-slide";
@@ -121,10 +130,7 @@ export function ProjectionDesk() {
     } = useWorkspaces();
     const workspace =
         workspaces.find((item) => item.id === activeId) ?? workspaces[0];
-    const [sidebar, setSidebar] = useState(false);
-    useEffect(() => {
-        setSidebar(window.innerWidth > 760);
-    }, []);
+    const [sidebar, setSidebar] = useState(true);
     const [sideTab, setSideTab] = useState("search");
     const [appearanceOpen, setAppearanceOpen] = useState(false);
     const [libraryOpen, setLibraryOpen] = useState(false);
@@ -135,6 +141,38 @@ export function ProjectionDesk() {
     const [chapterView, setChapterView] = useState<"horizontal" | "sidebar">(
         "horizontal"
     );
+    const [chapterStripCollapsed, setChapterStripCollapsed] = useState(false);
+    const [chapterSidebarWidth, setChapterSidebarWidth] = useState(190);
+    const [searchPanelWidth, setSearchPanelWidth] = useState(325);
+    const [activePanelSheet, setActivePanelSheet] = useState<
+        "verses" | "search" | null
+    >(null);
+    const panelLayout = usePanelLayout({
+        chapterSidebar: chapterView === "sidebar",
+        chapterCollapsed: chapterStripCollapsed,
+        searchOpen: sidebar,
+        chapterPreferredWidth: chapterSidebarWidth,
+        searchPreferredWidth: searchPanelWidth,
+    });
+    const changeSearchOpen = (open: boolean) => {
+        if (panelLayout.overlay)
+            setActivePanelSheet((previous) =>
+                open ? "search" : previous === "search" ? null : previous
+            );
+        else setSidebar(open);
+    };
+    const changeVerseSheetOpen = (open: boolean) =>
+        setActivePanelSheet((previous) =>
+            open ? "verses" : previous === "verses" ? null : previous
+        );
+    useEffect(() => {
+        if (
+            activePanelSheet &&
+            (!panelLayout.overlay ||
+                (activePanelSheet === "verses" && chapterView !== "sidebar"))
+        )
+            setActivePanelSheet(null);
+    }, [activePanelSheet, chapterView, panelLayout.overlay]);
     const [removeId, setRemoveId] = useState<string | null>(null);
     const [renameId, setRenameId] = useState<string | null>(null);
     const [rename, setRename] = useState("");
@@ -150,6 +188,9 @@ export function ProjectionDesk() {
     const referenceErrorId = useId();
     const workspaceNameId = useId();
     const searchInput = useRef<HTMLInputElement>(null);
+    const verseSheetTrigger = useRef<HTMLButtonElement>(null);
+    const searchSheetTrigger = useRef<HTMLButtonElement>(null);
+    const focusReferenceAfterSheet = useRef(false);
     const notify = (message: string) => setNotification(message);
     const patch = (value: Partial<Workspace>) =>
         updateWorkspace(activeId, (previous) => ({
@@ -161,10 +202,12 @@ export function ProjectionDesk() {
         updateWorkspace(activeId, (previous) =>
             displayVerse(previous, verse, action)
         );
-    const previewVerse = (verse: Verse) =>
+    const previewVerse = (verse: Verse) => {
+        if (panelLayout.overlay) setActivePanelSheet(null);
         patch({
             preview: verse,
         });
+    };
     const sendLive = (verse: Verse) => {
         if (!workspace || workspace.status === "closed") {
             notify("Open this audience before sending a verse live.");
@@ -264,7 +307,13 @@ export function ProjectionDesk() {
     useEffect(() => {
         const strip = filmstrip.current;
         const selected = selectedThumbnail.current;
-        if (currentId && strip && selected) {
+        if (
+            (!chapterStripCollapsed ||
+                (chapterView === "sidebar" && panelLayout.overlay)) &&
+            currentId &&
+            strip &&
+            selected
+        ) {
             const stripBounds = strip.getBoundingClientRect();
             const selectedBounds = selected.getBoundingClientRect();
             strip.scrollTo({
@@ -287,7 +336,13 @@ export function ProjectionDesk() {
                 behavior: "instant",
             });
         }
-    }, [chapterView, currentId]);
+    }, [
+        activePanelSheet,
+        chapterStripCollapsed,
+        chapterView,
+        currentId,
+        panelLayout.overlay,
+    ]);
     useEffect(() => {
         for (const item of workspaces) {
             try {
@@ -332,7 +387,8 @@ export function ProjectionDesk() {
     }, [updateWorkspace]);
 
     const dialogOpen = Boolean(
-        workspaceSearchOpen ||
+        (panelLayout.overlay && activePanelSheet !== null) ||
+            workspaceSearchOpen ||
             appearanceOpen ||
             informationOpen ||
             helpOpen ||
@@ -344,7 +400,9 @@ export function ProjectionDesk() {
     const canNavigate = () =>
         !document.querySelector(
             '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]'
-        ) && document.activeElement?.getAttribute("role") !== "tab";
+        ) &&
+        document.activeElement?.getAttribute("role") !== "tab" &&
+        document.activeElement?.getAttribute("role") !== "separator";
     const requestCloseTab = () => {
         if (dialogOpen || !workspace) return;
         if (workspaces.length === 1) {
@@ -410,7 +468,7 @@ export function ProjectionDesk() {
     useHotkey(
         "F3",
         () => {
-            setSidebar(true);
+            changeSearchOpen(true);
             setSideTab("search");
             window.setTimeout(() => searchInput.current?.focus(), 50);
         },
@@ -444,6 +502,7 @@ export function ProjectionDesk() {
         },
         {
             enabled:
+                !activePanelSheet &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -459,6 +518,7 @@ export function ProjectionDesk() {
         },
         {
             enabled:
+                !activePanelSheet &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -474,6 +534,7 @@ export function ProjectionDesk() {
         },
         {
             enabled:
+                !activePanelSheet &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -575,12 +636,197 @@ export function ProjectionDesk() {
                 size="sm"
                 onClick={() => {
                     setReference("John 3:16");
-                    referenceInput.current?.focus();
+                    if (panelLayout.overlay && activePanelSheet === "verses") {
+                        focusReferenceAfterSheet.current = true;
+                        setActivePanelSheet(null);
+                    } else referenceInput.current?.focus();
                 }}
             >
                 Try John 3:16
             </Button>
         </div>
+    );
+    const chapterPanel = (
+        <section
+            className={`chapter-section ${chapterView === "sidebar" ? "is-sidebar" : ""} ${chapterStripCollapsed && (chapterView === "horizontal" || !panelLayout.overlay) ? "is-collapsed" : ""}`}
+            id="chapter-verses-panel"
+            aria-label="Chapter verses"
+            hidden={
+                !panelLayout.overlay &&
+                chapterView === "sidebar" &&
+                chapterStripCollapsed
+            }
+        >
+            <div className="chapter-heading">
+                <div className="chapter-heading-title">
+                    <BookOpen />
+                    <div className="chapter-heading-copy">
+                        <h3>
+                            {current
+                                ? `${current.book} ${current.chapter}`
+                                : "Explore a chapter"}
+                        </h3>
+                        <span>
+                            {chapterVerses.length
+                                ? `${chapterVerses.length} verses`
+                                : "Fixture library"}
+                        </span>
+                    </div>
+                    {chapterView === "horizontal" && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="chapter-collapse-button"
+                                    aria-label={
+                                        chapterStripCollapsed
+                                            ? "Show verse strip"
+                                            : "Hide verse thumbnails"
+                                    }
+                                    aria-expanded={!chapterStripCollapsed}
+                                    aria-controls="chapter-verses-panel"
+                                    onClick={() =>
+                                        setChapterStripCollapsed(
+                                            (collapsed) => !collapsed
+                                        )
+                                    }
+                                >
+                                    {chapterStripCollapsed ? (
+                                        <ChevronUp />
+                                    ) : (
+                                        <ChevronDown />
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {chapterStripCollapsed
+                                    ? "Show verse strip"
+                                    : "Hide verse thumbnails"}
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                </div>
+                <div className="chapter-heading-actions">
+                    <span className="filmstrip-hint">
+                        {chapterStripCollapsed
+                            ? "Verse thumbnails hidden"
+                            : "Select a verse to display"}
+                    </span>
+                    <div
+                        className="chapter-view-toggle"
+                        role="group"
+                        aria-label="Verse strip layout"
+                    >
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className={
+                                        chapterView === "horizontal"
+                                            ? "is-selected"
+                                            : ""
+                                    }
+                                    aria-label="Horizontal verse strip"
+                                    aria-pressed={chapterView === "horizontal"}
+                                    onClick={() => setChapterView("horizontal")}
+                                >
+                                    <PanelTop />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Horizontal strip</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className={
+                                        chapterView === "sidebar"
+                                            ? "is-selected"
+                                            : ""
+                                    }
+                                    aria-label="Sidebar verse strip"
+                                    aria-pressed={chapterView === "sidebar"}
+                                    onClick={() => {
+                                        setChapterView("sidebar");
+                                        if (panelLayout.chapterOverlay)
+                                            changeVerseSheetOpen(true);
+                                    }}
+                                >
+                                    <PanelLeft />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Left sidebar</TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <div className="chapter-scroll-controls">
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={
+                                chapterView === "sidebar"
+                                    ? "Scroll verses up"
+                                    : "Scroll verses left"
+                            }
+                            onClick={() =>
+                                filmstrip.current?.scrollBy({
+                                    left:
+                                        chapterView === "horizontal" ? -450 : 0,
+                                    top: chapterView === "sidebar" ? -300 : 0,
+                                    behavior: "smooth",
+                                })
+                            }
+                        >
+                            {chapterView === "sidebar" ? (
+                                <ChevronUp />
+                            ) : (
+                                <ChevronLeft />
+                            )}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={
+                                chapterView === "sidebar"
+                                    ? "Scroll verses down"
+                                    : "Scroll verses right"
+                            }
+                            onClick={() =>
+                                filmstrip.current?.scrollBy({
+                                    left:
+                                        chapterView === "horizontal" ? 450 : 0,
+                                    top: chapterView === "sidebar" ? 300 : 0,
+                                    behavior: "smooth",
+                                })
+                            }
+                        >
+                            {chapterView === "sidebar" ? (
+                                <ChevronDown />
+                            ) : (
+                                <ChevronRight />
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+            {chapterView === "sidebar" ? (
+                <ScrollArea
+                    className="chapter-sidebar-scroll"
+                    viewportRef={filmstrip}
+                    viewportClassName="chapter-sidebar-viewport"
+                >
+                    <div className="chapter-sidebar-items">
+                        {chapterContent}
+                    </div>
+                </ScrollArea>
+            ) : (
+                <div className="chapter-filmstrip" ref={filmstrip}>
+                    {chapterContent}
+                </div>
+            )}
+        </section>
     );
     return (
         <TooltipProvider delayDuration={350}>
@@ -730,7 +976,11 @@ export function ProjectionDesk() {
                         </IconButton>
                     </div>
                 </header>
-                <TabsContent value={activeId} className="desk-body">
+                <TabsContent
+                    value={activeId}
+                    ref={panelLayout.containerRef}
+                    className={`desk-body ${panelLayout.overlay ? "uses-panel-sheets" : ""}`}
+                >
                     <main className="operator-content">
                         <div className="stage-heading">
                             <div>
@@ -776,22 +1026,52 @@ export function ProjectionDesk() {
                                           ? "Audience is blank"
                                           : "Audience is live"}
                                 </span>
-                                <IconButton
-                                    label={
-                                        sidebar
-                                            ? "Hide search and history"
-                                            : "Open search and history"
-                                    }
-                                    onClick={() => setSidebar(!sidebar)}
-                                >
-                                    <PanelRightClose
-                                        className={!sidebar ? "rotate-180" : ""}
-                                    />
-                                </IconButton>
+                                {panelLayout.overlay && (
+                                    <div className="compact-panel-actions">
+                                        {chapterView === "sidebar" && (
+                                            <Button
+                                                ref={verseSheetTrigger}
+                                                variant="ghost"
+                                                size="sm"
+                                                aria-haspopup="dialog"
+                                                aria-expanded={
+                                                    activePanelSheet ===
+                                                    "verses"
+                                                }
+                                                onClick={() =>
+                                                    changeVerseSheetOpen(true)
+                                                }
+                                            >
+                                                <PanelLeft />
+                                                Verses
+                                            </Button>
+                                        )}
+                                        <Button
+                                            ref={searchSheetTrigger}
+                                            variant="ghost"
+                                            size="sm"
+                                            aria-haspopup="dialog"
+                                            aria-expanded={
+                                                activePanelSheet === "search"
+                                            }
+                                            onClick={() =>
+                                                changeSearchOpen(true)
+                                            }
+                                        >
+                                            <Search />
+                                            Search / History
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div
-                            className={`projection-workspace ${chapterView === "sidebar" ? "is-sidebar" : ""}`}
+                            className={`projection-workspace ${chapterView === "sidebar" && !panelLayout.overlay ? "is-sidebar" : ""} ${chapterView === "sidebar" && chapterStripCollapsed && !panelLayout.overlay ? "is-sidebar-collapsed" : ""}`}
+                            style={
+                                {
+                                    "--chapter-sidebar-width": `${panelLayout.chapterWidth}px`,
+                                } as React.CSSProperties
+                            }
                         >
                             <div className="projection-main">
                                 <section
@@ -955,181 +1235,28 @@ export function ProjectionDesk() {
                                     </div>
                                 </div>
                             </div>
-                            <section
-                                className={`chapter-section ${chapterView === "sidebar" ? "is-sidebar" : ""}`}
-                                aria-label="Chapter verses"
-                            >
-                                <div className="chapter-heading">
-                                    <div className="chapter-heading-title">
-                                        <BookOpen />
-                                        <div className="chapter-heading-copy">
-                                            <h3>
-                                                {current
-                                                    ? `${current.book} ${current.chapter}`
-                                                    : "Explore a chapter"}
-                                            </h3>
-                                            <span>
-                                                {chapterVerses.length
-                                                    ? `${chapterVerses.length} verses`
-                                                    : "Fixture library"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="chapter-heading-actions">
-                                        <span className="filmstrip-hint">
-                                            Select a verse to display
-                                        </span>
-                                        <div
-                                            className="chapter-view-toggle"
-                                            role="group"
-                                            aria-label="Verse strip layout"
-                                        >
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        className={
-                                                            chapterView ===
-                                                            "horizontal"
-                                                                ? "is-selected"
-                                                                : ""
-                                                        }
-                                                        aria-label="Horizontal verse strip"
-                                                        aria-pressed={
-                                                            chapterView ===
-                                                            "horizontal"
-                                                        }
-                                                        onClick={() =>
-                                                            setChapterView(
-                                                                "horizontal"
-                                                            )
-                                                        }
-                                                    >
-                                                        <PanelTop />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Horizontal strip
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        className={
-                                                            chapterView ===
-                                                            "sidebar"
-                                                                ? "is-selected"
-                                                                : ""
-                                                        }
-                                                        aria-label="Sidebar verse strip"
-                                                        aria-pressed={
-                                                            chapterView ===
-                                                            "sidebar"
-                                                        }
-                                                        onClick={() =>
-                                                            setChapterView(
-                                                                "sidebar"
-                                                            )
-                                                        }
-                                                    >
-                                                        <PanelLeft />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Left sidebar
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                        <div className="chapter-scroll-controls">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={
-                                                    chapterView === "sidebar"
-                                                        ? "Scroll verses up"
-                                                        : "Scroll verses left"
-                                                }
-                                                onClick={() =>
-                                                    filmstrip.current?.scrollBy(
-                                                        {
-                                                            left:
-                                                                chapterView ===
-                                                                "horizontal"
-                                                                    ? -450
-                                                                    : 0,
-                                                            top:
-                                                                chapterView ===
-                                                                "sidebar"
-                                                                    ? -300
-                                                                    : 0,
-                                                            behavior: "smooth",
-                                                        }
-                                                    )
-                                                }
-                                            >
-                                                {chapterView === "sidebar" ? (
-                                                    <ChevronUp />
-                                                ) : (
-                                                    <ChevronLeft />
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                aria-label={
-                                                    chapterView === "sidebar"
-                                                        ? "Scroll verses down"
-                                                        : "Scroll verses right"
-                                                }
-                                                onClick={() =>
-                                                    filmstrip.current?.scrollBy(
-                                                        {
-                                                            left:
-                                                                chapterView ===
-                                                                "horizontal"
-                                                                    ? 450
-                                                                    : 0,
-                                                            top:
-                                                                chapterView ===
-                                                                "sidebar"
-                                                                    ? 300
-                                                                    : 0,
-                                                            behavior: "smooth",
-                                                        }
-                                                    )
-                                                }
-                                            >
-                                                {chapterView === "sidebar" ? (
-                                                    <ChevronDown />
-                                                ) : (
-                                                    <ChevronRight />
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                                {chapterView === "sidebar" ? (
-                                    <ScrollArea
-                                        className="chapter-sidebar-scroll"
-                                        viewportRef={filmstrip}
-                                        viewportClassName="chapter-sidebar-viewport"
-                                    >
-                                        <div className="chapter-sidebar-items">
-                                            {chapterContent}
-                                        </div>
-                                    </ScrollArea>
-                                ) : (
-                                    <div
-                                        className="chapter-filmstrip"
-                                        ref={filmstrip}
-                                    >
-                                        {chapterContent}
-                                    </div>
+                            {chapterView === "sidebar" &&
+                                !panelLayout.overlay && (
+                                    <PanelDivider
+                                        side="left"
+                                        label="verse sidebar"
+                                        controls="chapter-verses-panel"
+                                        width={panelLayout.chapterWidth}
+                                        minWidth={CHAPTER_PANEL_MIN_WIDTH}
+                                        maxWidth={panelLayout.chapterMaxWidth}
+                                        collapsed={chapterStripCollapsed}
+                                        onResize={setChapterSidebarWidth}
+                                        onToggle={() =>
+                                            setChapterStripCollapsed(
+                                                (collapsed) => !collapsed
+                                            )
+                                        }
+                                        className="chapter-sidebar-divider"
+                                    />
                                 )}
-                            </section>
+                            {!(
+                                chapterView === "sidebar" && panelLayout.overlay
+                            ) && chapterPanel}
                         </div>
                         <div className="workspace-footer">
                             <span>
@@ -1145,23 +1272,31 @@ export function ProjectionDesk() {
                             </button>
                         </div>
                     </main>
-                    {sidebar && (
-                        <SidePanel
-                            key={workspace.id}
-                            workspace={workspace}
-                            searchInputRef={searchInput}
-                            tab={sideTab}
-                            onTab={setSideTab}
-                            onChange={patch}
-                            onPreview={previewVerse}
-                            onSend={sendLive}
-                            onRecall={(verse) =>
-                                selectVerse(verse, "Recalled history")
-                            }
-                            onClose={() => setSidebar(false)}
-                            onNotify={notify}
-                        />
-                    )}
+                    <SidePanel
+                        key={workspace.id}
+                        open={
+                            panelLayout.overlay
+                                ? activePanelSheet === "search"
+                                : sidebar
+                        }
+                        overlay={panelLayout.overlay}
+                        width={panelLayout.searchWidth}
+                        maxWidth={panelLayout.searchMaxWidth}
+                        onResize={setSearchPanelWidth}
+                        triggerRef={searchSheetTrigger}
+                        onOpenChange={changeSearchOpen}
+                        workspace={workspace}
+                        searchInputRef={searchInput}
+                        tab={sideTab}
+                        onTab={setSideTab}
+                        onChange={patch}
+                        onPreview={previewVerse}
+                        onSend={sendLive}
+                        onRecall={(verse) =>
+                            selectVerse(verse, "Recalled history")
+                        }
+                        onNotify={notify}
+                    />
                 </TabsContent>
                 <footer className="quick-reference-bar">
                     <div className="quick-reference-label">
@@ -1244,6 +1379,48 @@ export function ProjectionDesk() {
                     </div>
                 )}
             </Tabs>
+            <Sheet
+                open={
+                    panelLayout.overlay &&
+                    chapterView === "sidebar" &&
+                    activePanelSheet === "verses"
+                }
+                onOpenChange={changeVerseSheetOpen}
+            >
+                <SheetContent
+                    side="left"
+                    className="chapter-verses-sheet"
+                    onOpenAutoFocus={(event) => {
+                        if (selectedThumbnail.current) {
+                            event.preventDefault();
+                            selectedThumbnail.current.focus();
+                        }
+                    }}
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                        const target = focusReferenceAfterSheet.current
+                            ? referenceInput.current
+                            : verseSheetTrigger.current;
+                        focusReferenceAfterSheet.current = false;
+                        if (
+                            !document.querySelector(
+                                '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+                            )
+                        )
+                            target?.focus();
+                    }}
+                >
+                    <SheetHeader>
+                        <SheetTitle>Chapter verses</SheetTitle>
+                        <SheetDescription>
+                            Choose a verse to display.
+                        </SheetDescription>
+                    </SheetHeader>
+                    {panelLayout.overlay &&
+                        chapterView === "sidebar" &&
+                        chapterPanel}
+                </SheetContent>
+            </Sheet>
             <AppearanceDialog
                 open={appearanceOpen}
                 onOpenChange={setAppearanceOpen}
