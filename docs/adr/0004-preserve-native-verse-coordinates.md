@@ -1,0 +1,3 @@
+# Preserve each translation's native verse coordinates
+
+Use shared identities for the supported 66 books while preserving each translation edition's own chapter/verse coordinates and original text, so legitimate source verses are not rejected or rewritten to match bundled WEB. Validate structure and documented resource limits independently of starter content, and resolve references, indexes, and navigation within the selected edition. Translation changes retain the requested numbered reference; automatic passage-equivalence mapping requires a separate capability rather than an assumed universal verse layout.
