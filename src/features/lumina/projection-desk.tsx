@@ -7,6 +7,7 @@ import {
     ChevronDown,
     ChevronLeft,
     ChevronRight,
+    ChevronUp,
     Copy,
     Eye,
     EyeOff,
@@ -15,6 +16,8 @@ import {
     Maximize2,
     Monitor,
     Palette,
+    PanelLeft,
+    PanelTop,
     PanelRightClose,
     Plus,
     Radio,
@@ -33,6 +36,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     Dialog,
     DialogContent,
@@ -128,6 +132,9 @@ export function ProjectionDesk() {
     const [helpOpen, setHelpOpen] = useState(false);
     const [translationOpen, setTranslationOpen] = useState(false);
     const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
+    const [chapterView, setChapterView] = useState<"horizontal" | "sidebar">(
+        "horizontal"
+    );
     const [removeId, setRemoveId] = useState<string | null>(null);
     const [renameId, setRenameId] = useState<string | null>(null);
     const [rename, setRename] = useState("");
@@ -258,16 +265,29 @@ export function ProjectionDesk() {
         const strip = filmstrip.current;
         const selected = selectedThumbnail.current;
         if (currentId && strip && selected) {
+            const stripBounds = strip.getBoundingClientRect();
+            const selectedBounds = selected.getBoundingClientRect();
             strip.scrollTo({
                 left:
-                    selected.offsetLeft -
-                    strip.offsetLeft -
-                    strip.clientWidth / 2 +
-                    selected.clientWidth / 2,
+                    chapterView === "horizontal"
+                        ? strip.scrollLeft +
+                          selectedBounds.left -
+                          stripBounds.left -
+                          strip.clientWidth / 2 +
+                          selected.clientWidth / 2
+                        : strip.scrollLeft,
+                top:
+                    chapterView === "sidebar"
+                        ? strip.scrollTop +
+                          selectedBounds.top -
+                          stripBounds.top -
+                          strip.clientHeight / 2 +
+                          selected.clientHeight / 2
+                        : strip.scrollTop,
                 behavior: "instant",
             });
         }
-    }, [currentId]);
+    }, [chapterView, currentId]);
     useEffect(() => {
         for (const item of workspaces) {
             try {
@@ -520,6 +540,48 @@ export function ProjectionDesk() {
             [next[index], next[target]] = [next[target], next[index]];
             return next;
         });
+    const chapterContent = chapterVerses.length ? (
+        chapterVerses.map((verse) => (
+            <button
+                type="button"
+                key={verse.id}
+                ref={verse.id === current?.id ? selectedThumbnail : undefined}
+                className={`verse-thumbnail ${verse.id === current?.id ? "selected" : ""}`}
+                aria-label={`Display ${referenceLabel(verse)}`}
+                aria-pressed={verse.id === current?.id}
+                onClick={() => selectVerse(verse)}
+            >
+                <VerseSlide
+                    miniature
+                    verse={verse}
+                    appearance={workspace.appearance}
+                />
+                <div className="thumbnail-caption">
+                    <span>{referenceLabel(verse)}</span>
+                    {verse.id === current?.id && <Radio />}
+                </div>
+            </button>
+        ))
+    ) : (
+        <div className="chapter-empty">
+            <BookOpen />
+            <span>
+                {savedCopy
+                    ? "Reinstall the original edition to navigate this saved copy."
+                    : "Select a verse to see the rest of its chapter."}
+            </span>
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                    setReference("John 3:16");
+                    referenceInput.current?.focus();
+                }}
+            >
+                Try John 3:16
+            </Button>
+        </div>
+    );
     return (
         <TooltipProvider delayDuration={350}>
             <Tabs
@@ -728,259 +790,347 @@ export function ProjectionDesk() {
                                 </IconButton>
                             </div>
                         </div>
-                        <section
-                            className="projection-stage"
-                            aria-label="Current verse projection"
+                        <div
+                            className={`projection-workspace ${chapterView === "sidebar" ? "is-sidebar" : ""}`}
                         >
-                            <div className="stage-canvas">
-                                <VerseSlide
-                                    verse={current}
-                                    appearance={workspace.appearance}
-                                />
-                            </div>
-                            <div className="stage-bottom">
-                                <span>
-                                    <Monitor />
-                                    {workspace.information
-                                        ? "Retained verse"
-                                        : workspace.status === "live"
-                                          ? "On audience"
-                                          : "Retained verse"}
-                                    <span className="stage-aspect">16:9</span>
-                                </span>
-                                <div>
-                                    <IconButton
-                                        label="Copy current verse"
-                                        onClick={() => {
-                                            if (!current) return;
-                                            void navigator.clipboard
-                                                .writeText(
-                                                    `${current.text}\n${referenceLabel(current)} — ${translations.find((item) => item.id === current.translation)?.name}`
-                                                )
-                                                .then(
-                                                    () =>
-                                                        notify("Verse copied"),
-                                                    () =>
-                                                        notify(
-                                                            "Clipboard unavailable. Try copying from the verse preview."
-                                                        )
-                                                );
-                                        }}
-                                    >
-                                        <Copy />
-                                    </IconButton>
-                                    <IconButton
-                                        label="Inspect current slide"
-                                        onClick={() => {
-                                            if (current) previewVerse(current);
-                                        }}
-                                    >
-                                        <Maximize2 />
-                                    </IconButton>
-                                </div>
-                            </div>
-                        </section>
-                        <div className="current-details">
-                            <div>
-                                <div className="reference-heading">
-                                    <h2>
-                                        {current
-                                            ? referenceLabel(current)
-                                            : "Ready when you are."}
-                                    </h2>
-                                    {savedCopy && (
-                                        <span className="info-badge">
-                                            Saved copy
-                                        </span>
-                                    )}
-                                </div>
-                                <p>
-                                    {current ? (
-                                        <>
-                                            {current.text.length} characters
-                                            <span className="detail-dot" />
-                                            {band?.size}px size band
-                                            <span className="detail-dot" />
-                                            {
-                                                translations.find(
-                                                    (item) =>
-                                                        item.id ===
-                                                        current.translation
-                                                )?.name
-                                            }
-                                        </>
-                                    ) : (
-                                        "Find a reference or search the words you remember."
-                                    )}
-                                </p>
-                            </div>
-                            <div className="current-actions">
-                                <Select
-                                    value={
-                                        current?.translation ??
-                                        workspace.translation
-                                    }
-                                    onValueChange={(id: TranslationId) =>
-                                        changeTranslation(id)
-                                    }
-                                    disabled={!current}
+                            <div className="projection-main">
+                                <section
+                                    className="projection-stage"
+                                    aria-label="Current verse projection"
                                 >
-                                    <SelectTrigger
-                                        aria-label="Change current verse translation"
-                                        className="current-translation"
-                                    >
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {translations
-                                            .filter((item) =>
-                                                installed.includes(item.id)
-                                            )
-                                            .map((item) => (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={item.id}
-                                                >
-                                                    {item.shortName}
-                                                </SelectItem>
-                                            ))}
-                                    </SelectContent>
-                                </Select>
-                                <div className="navigation-pair">
-                                    <Button
-                                        variant="outline"
-                                        disabled={
-                                            !current ||
-                                            !isInstalled(current) ||
-                                            !getAdjacentVerse(current, -1)
-                                        }
-                                        onClick={() => navigate(-1)}
-                                    >
-                                        <ChevronLeft />
-                                        Previous
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        disabled={
-                                            !current ||
-                                            !isInstalled(current) ||
-                                            !getAdjacentVerse(current, 1)
-                                        }
-                                        onClick={() => navigate(1)}
-                                    >
-                                        Next
-                                        <ChevronRight />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                        <section
-                            className="chapter-section"
-                            aria-label="Chapter verses"
-                        >
-                            <div className="chapter-heading">
-                                <div>
-                                    <BookOpen />
-                                    <h3>
-                                        {current
-                                            ? `${current.book} ${current.chapter}`
-                                            : "Explore a chapter"}
-                                    </h3>
-                                    <span>
-                                        {chapterVerses.length
-                                            ? `${chapterVerses.length} verses`
-                                            : "Fixture library"}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="filmstrip-hint">
-                                        Select a verse to display
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label="Scroll chapter left"
-                                        onClick={() =>
-                                            filmstrip.current?.scrollBy({
-                                                left: -450,
-                                                behavior: "smooth",
-                                            })
-                                        }
-                                    >
-                                        <ChevronLeft />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label="Scroll chapter right"
-                                        onClick={() =>
-                                            filmstrip.current?.scrollBy({
-                                                left: 450,
-                                                behavior: "smooth",
-                                            })
-                                        }
-                                    >
-                                        <ChevronRight />
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="chapter-filmstrip" ref={filmstrip}>
-                                {chapterVerses.length ? (
-                                    chapterVerses.map((verse) => (
-                                        <button
-                                            type="button"
-                                            key={verse.id}
-                                            ref={
-                                                verse.id === current?.id
-                                                    ? selectedThumbnail
-                                                    : undefined
-                                            }
-                                            className={`verse-thumbnail ${verse.id === current?.id ? "selected" : ""}`}
-                                            aria-label={`Display ${referenceLabel(verse)}`}
-                                            aria-pressed={
-                                                verse.id === current?.id
-                                            }
-                                            onClick={() => selectVerse(verse)}
-                                        >
-                                            <VerseSlide
-                                                miniature
-                                                verse={verse}
-                                                appearance={
-                                                    workspace.appearance
-                                                }
-                                            />
-                                            <div className="thumbnail-caption">
-                                                <span>
-                                                    {referenceLabel(verse)}
-                                                </span>
-                                                {verse.id === current?.id && (
-                                                    <Radio />
-                                                )}
-                                            </div>
-                                        </button>
-                                    ))
-                                ) : (
-                                    <div className="chapter-empty">
-                                        <BookOpen />
+                                    <div className="stage-canvas">
+                                        <VerseSlide
+                                            verse={current}
+                                            appearance={workspace.appearance}
+                                        />
+                                    </div>
+                                    <div className="stage-bottom">
                                         <span>
-                                            {savedCopy
-                                                ? "Reinstall the original edition to navigate this saved copy."
-                                                : "Select a verse to see the rest of its chapter."}
+                                            <Monitor />
+                                            {workspace.information
+                                                ? "Retained verse"
+                                                : workspace.status === "live"
+                                                  ? "On audience"
+                                                  : "Retained verse"}
+                                            <span className="stage-aspect">
+                                                16:9
+                                            </span>
                                         </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                setReference("John 3:16");
-                                                referenceInput.current?.focus();
-                                            }}
+                                        <div>
+                                            <IconButton
+                                                label="Copy current verse"
+                                                onClick={() => {
+                                                    if (!current) return;
+                                                    void navigator.clipboard
+                                                        .writeText(
+                                                            `${current.text}\n${referenceLabel(current)} — ${translations.find((item) => item.id === current.translation)?.name}`
+                                                        )
+                                                        .then(
+                                                            () =>
+                                                                notify(
+                                                                    "Verse copied"
+                                                                ),
+                                                            () =>
+                                                                notify(
+                                                                    "Clipboard unavailable. Try copying from the verse preview."
+                                                                )
+                                                        );
+                                                }}
+                                            >
+                                                <Copy />
+                                            </IconButton>
+                                            <IconButton
+                                                label="Inspect current slide"
+                                                onClick={() => {
+                                                    if (current)
+                                                        previewVerse(current);
+                                                }}
+                                            >
+                                                <Maximize2 />
+                                            </IconButton>
+                                        </div>
+                                    </div>
+                                </section>
+                                <div className="current-details">
+                                    <div>
+                                        <div className="reference-heading">
+                                            <h2>
+                                                {current
+                                                    ? referenceLabel(current)
+                                                    : "Ready when you are."}
+                                            </h2>
+                                            {savedCopy && (
+                                                <span className="info-badge">
+                                                    Saved copy
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p>
+                                            {current ? (
+                                                <>
+                                                    {current.text.length}{" "}
+                                                    characters
+                                                    <span className="detail-dot" />
+                                                    {band?.size}px size band
+                                                    <span className="detail-dot" />
+                                                    {
+                                                        translations.find(
+                                                            (item) =>
+                                                                item.id ===
+                                                                current.translation
+                                                        )?.name
+                                                    }
+                                                </>
+                                            ) : (
+                                                "Find a reference or search the words you remember."
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div className="current-actions">
+                                        <Select
+                                            value={
+                                                current?.translation ??
+                                                workspace.translation
+                                            }
+                                            onValueChange={(
+                                                id: TranslationId
+                                            ) => changeTranslation(id)}
+                                            disabled={!current}
                                         >
-                                            Try John 3:16
-                                        </Button>
+                                            <SelectTrigger
+                                                aria-label="Change current verse translation"
+                                                className="current-translation"
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {translations
+                                                    .filter((item) =>
+                                                        installed.includes(
+                                                            item.id
+                                                        )
+                                                    )
+                                                    .map((item) => (
+                                                        <SelectItem
+                                                            key={item.id}
+                                                            value={item.id}
+                                                        >
+                                                            {item.shortName}
+                                                        </SelectItem>
+                                                    ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <div className="navigation-pair">
+                                            <Button
+                                                variant="outline"
+                                                disabled={
+                                                    !current ||
+                                                    !isInstalled(current) ||
+                                                    !getAdjacentVerse(
+                                                        current,
+                                                        -1
+                                                    )
+                                                }
+                                                onClick={() => navigate(-1)}
+                                            >
+                                                <ChevronLeft />
+                                                Previous
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                disabled={
+                                                    !current ||
+                                                    !isInstalled(current) ||
+                                                    !getAdjacentVerse(
+                                                        current,
+                                                        1
+                                                    )
+                                                }
+                                                onClick={() => navigate(1)}
+                                            >
+                                                Next
+                                                <ChevronRight />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <section
+                                className={`chapter-section ${chapterView === "sidebar" ? "is-sidebar" : ""}`}
+                                aria-label="Chapter verses"
+                            >
+                                <div className="chapter-heading">
+                                    <div className="chapter-heading-title">
+                                        <BookOpen />
+                                        <div className="chapter-heading-copy">
+                                            <h3>
+                                                {current
+                                                    ? `${current.book} ${current.chapter}`
+                                                    : "Explore a chapter"}
+                                            </h3>
+                                            <span>
+                                                {chapterVerses.length
+                                                    ? `${chapterVerses.length} verses`
+                                                    : "Fixture library"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="chapter-heading-actions">
+                                        <span className="filmstrip-hint">
+                                            Select a verse to display
+                                        </span>
+                                        <div
+                                            className="chapter-view-toggle"
+                                            role="group"
+                                            aria-label="Verse strip layout"
+                                        >
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        className={
+                                                            chapterView ===
+                                                            "horizontal"
+                                                                ? "is-selected"
+                                                                : ""
+                                                        }
+                                                        aria-label="Horizontal verse strip"
+                                                        aria-pressed={
+                                                            chapterView ===
+                                                            "horizontal"
+                                                        }
+                                                        onClick={() =>
+                                                            setChapterView(
+                                                                "horizontal"
+                                                            )
+                                                        }
+                                                    >
+                                                        <PanelTop />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    Horizontal strip
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                        className={
+                                                            chapterView ===
+                                                            "sidebar"
+                                                                ? "is-selected"
+                                                                : ""
+                                                        }
+                                                        aria-label="Sidebar verse strip"
+                                                        aria-pressed={
+                                                            chapterView ===
+                                                            "sidebar"
+                                                        }
+                                                        onClick={() =>
+                                                            setChapterView(
+                                                                "sidebar"
+                                                            )
+                                                        }
+                                                    >
+                                                        <PanelLeft />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    Left sidebar
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </div>
+                                        <div className="chapter-scroll-controls">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                aria-label={
+                                                    chapterView === "sidebar"
+                                                        ? "Scroll verses up"
+                                                        : "Scroll verses left"
+                                                }
+                                                onClick={() =>
+                                                    filmstrip.current?.scrollBy(
+                                                        {
+                                                            left:
+                                                                chapterView ===
+                                                                "horizontal"
+                                                                    ? -450
+                                                                    : 0,
+                                                            top:
+                                                                chapterView ===
+                                                                "sidebar"
+                                                                    ? -300
+                                                                    : 0,
+                                                            behavior: "smooth",
+                                                        }
+                                                    )
+                                                }
+                                            >
+                                                {chapterView === "sidebar" ? (
+                                                    <ChevronUp />
+                                                ) : (
+                                                    <ChevronLeft />
+                                                )}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                aria-label={
+                                                    chapterView === "sidebar"
+                                                        ? "Scroll verses down"
+                                                        : "Scroll verses right"
+                                                }
+                                                onClick={() =>
+                                                    filmstrip.current?.scrollBy(
+                                                        {
+                                                            left:
+                                                                chapterView ===
+                                                                "horizontal"
+                                                                    ? 450
+                                                                    : 0,
+                                                            top:
+                                                                chapterView ===
+                                                                "sidebar"
+                                                                    ? 300
+                                                                    : 0,
+                                                            behavior: "smooth",
+                                                        }
+                                                    )
+                                                }
+                                            >
+                                                {chapterView === "sidebar" ? (
+                                                    <ChevronDown />
+                                                ) : (
+                                                    <ChevronRight />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {chapterView === "sidebar" ? (
+                                    <ScrollArea
+                                        className="chapter-sidebar-scroll"
+                                        viewportRef={filmstrip}
+                                        viewportClassName="chapter-sidebar-viewport"
+                                    >
+                                        <div className="chapter-sidebar-items">
+                                            {chapterContent}
+                                        </div>
+                                    </ScrollArea>
+                                ) : (
+                                    <div
+                                        className="chapter-filmstrip"
+                                        ref={filmstrip}
+                                    >
+                                        {chapterContent}
                                     </div>
                                 )}
-                            </div>
-                        </section>
+                            </section>
+                        </div>
                         <div className="workspace-footer">
                             <span>
                                 <span className="offline-dot" />
