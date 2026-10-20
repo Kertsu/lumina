@@ -1,0 +1,237 @@
+:root[data-theme="light"] {
+    color-scheme: light;
+    scrollbar-color: #bcbcaf transparent;
+    --background: #f5f3ed;
+    --foreground: #2b302e;
+    --card: #fdfcf9;
+    --popover: #fffefa;
+    --primary: #8a612f;
+    --primary-foreground: #fffaf1;
+    --secondary: #e8e5dc;
+    --muted: #eeeae2;
+    --muted-foreground: #686f6b;
+    --accent: #e8e4da;
+    --destructive: #b4403a;
+    --input: #d1cbbf;
+    --live: #3a7857;
+    --border: #dcd7cc;
+    --text-secondary: #505c57;
+    --primary-soft: #8a612f0e;
+    --primary-border: #8a612f42;
+
+    * { scrollbar-color: #bcbcaf transparent; }
+    input::placeholder { color: #7a8078; }
+    ::selection { background: #b9924e40; }
+
+    .workspace-bar { background: #e9e6de; }
+    .main-toolbar,
+    .workspace-tab.selected,
+    .workspace-tab.selected::after,
+    .navigation-pair button,
+    .verse-thumbnail { background: var(--card); }
+    .workspace-tab-overlay { background: var(--card); border-color: var(--primary-border); box-shadow: 0 8px 24px #44382325; }
+    .projection-stage { background: #eae7df; border-color: var(--border); box-shadow: 0 8px 28px #44382308; }
+    .chapter-view-toggle { background: var(--card); border-color: var(--border); }
+    .quick-reference-bar { background: #efede5; border-color: var(--border); box-shadow: 0 -8px 25px #44382308; }
+    .side-panel-content,
+    .search-history-sheet { background: #f0eee7; }
+    .workspace-search-popover { background: var(--popover); border-color: var(--input); }
+    .reference-input-wrap,
+    .search-input-wrap,
+    .workspace-search-input,
+    .size-bands input,
+    .text-input { background: var(--card); border-color: var(--input); }
+
+    .brand img { filter: sepia(1) saturate(.8) brightness(.85); }
+
+    .workspace-tab,
+    .workspace-tab > button:first-child > svg,
+    .workspace-tab-label > svg,
+    .output-status,
+    .brand small,
+    .translation-picker > svg:first-child,
+    kbd,
+    .toolbar-tools,
+    .stage-heading-right > span,
+    .stage-heading-right button,
+    .stage-bottom,
+    .stage-aspect,
+    .current-details p,
+    .chapter-heading-title > svg,
+    .chapter-heading span,
+    .chapter-heading .filmstrip-hint,
+    .chapter-view-toggle button,
+    .chapter-scroll-controls button,
+    .chapter-collapse-button,
+    .chapter-empty,
+    .chapter-empty > svg,
+    .workspace-footer,
+    .reference-input-wrap > span,
+    .reference-bar-hint,
+    .sidebar-tabbar [data-slot="tabs-trigger"],
+    .sidebar-tabbar > button,
+    .search-input-wrap > svg,
+    .search-filters label,
+    .search-welcome > p,
+    .familiar-passages > span,
+    .familiar-passages > button svg,
+    .sidebar-footnote,
+    .sort-select,
+    .query-summary,
+    .result-ref > span,
+    .sidebar-empty,
+    .sidebar-empty > svg,
+    .history-tools button,
+    .history-entry-heading > span,
+    .history-entry > div:last-child,
+    .desk-toast button,
+    [data-slot="dialog-description"],
+    [data-slot="alert-dialog-description"],
+    .preview-reference > span:last-child,
+    .subtle,
+    .size-bands > div,
+    .appearance-sample > span,
+    .library-item p,
+    .library-item span,
+    .import-dropzone span,
+    .file-demo-label,
+    .book-metadata dt,
+    .metadata-attribution,
+    .info-toggle-row p,
+    .workspace-search-trigger,
+    .workspace-search-heading > span:last-child,
+    .workspace-search-input > svg,
+    .workspace-search-input kbd,
+    .workspace-search-results > button > svg:first-child,
+    .workspace-search-empty,
+    .workspace-search-footer { color: var(--muted-foreground); }
+
+    .translation-picker,
+    .controlled-workspace,
+    .blank-button,
+    .stage-heading h1,
+    .thumbnail-caption,
+    .field-label,
+    .suggested-searches button,
+    .familiar-passages > button,
+    .results-heading,
+    .verse-result > p,
+    .history-entry h3,
+    .history-entry > p,
+    .preview-reference,
+    .appearance-sample > p,
+    .demo-notice,
+    .import-review p,
+    .confirmation-box p,
+    .book-metadata dd,
+    .shortcut-list > div,
+    .shortcut-list kbd,
+    .workspace-search-results > button { color: var(--text-secondary); }
+
+    .workspace-tab.selected,
+    .reference-input-wrap input,
+    .search-welcome h3,
+    .sidebar-empty h3,
+    .size-bands input,
+    .info-toggle-row strong,
+    .text-input,
+    .workspace-search-heading > span:first-child,
+    .workspace-search-input input { color: var(--foreground); }
+
+    kbd,
+    .stage-aspect,
+    .chapter-section,
+    .verse-thumbnail,
+    .reference-input-wrap > span,
+    .search-content > form,
+    .familiar-passages,
+    .sidebar-footnote,
+    .verse-result,
+    .history-entry,
+    .color-picker,
+    .size-bands,
+    .size-bands > div,
+    .library-item,
+    .book-metadata > div,
+    .info-toggle-row,
+    .shortcut-list > div,
+    .workspace-search-trigger,
+    .workspace-search-input kbd,
+    .workspace-search-footer,
+    .size-bands .band-boundary input { border-color: var(--border); }
+    .verse-thumbnail:hover { border-color: #8f968b; }
+    .detail-dot { background: #9ea599; }
+    .scroll-area-thumb { background: #a9b0a4; }
+
+    .audience-button,
+    .blank-button.is-blank,
+    .tool-active,
+    .chapter-view-toggle button.is-selected,
+    .chapter-collapse-button:hover,
+    .verse-thumbnail.selected .thumbnail-caption,
+    .font-style-controls button[aria-pressed="true"],
+    .size-bands > div.active-band,
+    .info-badge,
+    .workspace-search-results > button[data-current="true"] { background: var(--primary-soft); color: var(--primary); }
+    .audience-button,
+    .blank-button.is-blank,
+    .font-style-controls button[aria-pressed="true"],
+    .info-badge { border-color: var(--primary-border); }
+    .verse-thumbnail.selected { border-color: var(--primary); box-shadow: 0 0 0 2px #8a612f55; }
+    .output-status.status-blank,
+    .sidebar-tabbar [data-slot="tabs-trigger"][data-state="active"],
+    .quick-reference-label,
+    .search-illustration > svg,
+    .suggested-searches button:hover,
+    .familiar-passages > button:hover,
+    .result-ref > svg,
+    .result-ref h3,
+    .text-action,
+    .history-entry:hover h3,
+    .demo-notice > svg,
+    .library-icon,
+    .import-dropzone,
+    .book-info-heading > svg,
+    .workspace-search-trigger:hover { color: var(--primary); }
+    .reference-input-wrap:focus-within,
+    .search-input-wrap:focus-within,
+    .text-input:focus,
+    .workspace-search-input:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+    .quick-reference-bar form > button:last-child kbd { color: var(--primary-foreground); }
+    .background-option[aria-pressed="true"] { border-color: var(--primary); }
+
+    .search-illustration { background: radial-gradient(circle, #b9986333, #b998630c 45%, transparent 70%); }
+    .tab-count,
+    .search-input-wrap button,
+    .file-demo-label input::file-selector-button { background: var(--secondary); color: var(--text-secondary); border-color: var(--input); }
+    .suggested-searches button { background: var(--card); border-color: var(--border); }
+    .suggested-searches button:hover { border-color: var(--primary-border); }
+    mark { background: #e8d6ac99; color: #68481f; }
+    .demo-notice,
+    .library-icon { background: var(--primary-soft); border-color: var(--primary-border); }
+    .import-dropzone { border-color: #b3ad9d; }
+    .import-dropzone:hover,
+    .workspace-search-trigger:hover { background: var(--primary-soft); border-color: var(--primary-border); }
+    .import-review,
+    .confirmation-box { background: #44795e0a; border-color: #8caa984d; }
+    .workspace-search-results > button:hover,
+    .workspace-search-results > button[aria-selected="true"] { background: var(--accent); }
+    .workspace-search-results > button[data-current="true"] { background: var(--primary-soft); }
+
+    .output-status.status-live,
+    .sidebar-footnote svg,
+    .desk-toast > svg { color: var(--live); }
+    .stage-dot { background: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+    .stage-dot.live,
+    .offline-dot { background: var(--live); }
+    .desk-toast { background: var(--popover); border-color: var(--input); box-shadow: 0 10px 40px #44382325; }
+    [data-slot="dialog-content"],
+    [data-slot="alert-dialog-content"] { background: var(--popover); border-color: var(--input); box-shadow: 0 24px 100px #292c2940; }
+    [data-slot="sheet-overlay"],
+    [data-slot="dialog-overlay"],
+    [data-slot="alert-dialog-overlay"] { background: #2b302e55; }
+    .reference-error { background: #fff1eb; border-color: #cc8e80; color: #953c2e; box-shadow: 0 8px 24px #44382320; }
+    .reference-input-wrap.has-error { border-color: var(--destructive); }
+    .inline-error { color: var(--destructive); }
+    .storage-warning { background: #f2e1c6; color: #734b25; }
+}

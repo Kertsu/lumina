@@ -7,6 +7,7 @@
 @import "@fontsource/cormorant-garamond/600.css";
 @import "@fontsource/cormorant-garamond/700.css";
 @import "@fontsource/cormorant-garamond/500-italic.css";
+@import "./light-theme.css";
 
 @theme inline {
     --font-sans: "DM Sans", sans-serif;
@@ -18,18 +19,18 @@
     --color-popover: var(--popover);
     --color-popover-foreground: var(--foreground);
     --color-primary: var(--primary);
-    --color-primary-foreground: #1b2026;
-    --color-secondary: #2d3339;
-    --color-secondary-foreground: #e9e4da;
-    --color-muted: #202a34;
-    --color-muted-foreground: #8e9ba9;
-    --color-accent: #2a3540;
-    --color-accent-foreground: #e9e4da;
-    --color-destructive: #e38b86;
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--foreground);
+    --color-destructive: var(--destructive);
     --color-border: var(--border);
-    --color-input: #35404c;
-    --color-ring: #d8b782;
-    --color-live: #99c5a9;
+    --color-input: var(--input);
+    --color-ring: var(--primary);
+    --color-live: var(--live);
     --radius-sm: 4px;
     --radius-md: 6px;
     --radius-lg: 10px;
@@ -43,6 +44,14 @@
     --card: #18212b;
     --popover: #1c2631;
     --primary: #d8b782;
+    --primary-foreground: #1b2026;
+    --secondary: #2d3339;
+    --muted: #202a34;
+    --muted-foreground: #8e9ba9;
+    --accent: #2a3540;
+    --destructive: #e38b86;
+    --input: #35404c;
+    --live: #99c5a9;
     --border: #2b3540;
 }
 

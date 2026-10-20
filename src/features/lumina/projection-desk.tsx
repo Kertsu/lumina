@@ -22,6 +22,7 @@ import {
     Radio,
     Search,
     Send,
+    Settings,
     X,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -68,6 +69,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AppearanceDialog } from "./appearance-dialog";
+import { AppSettingsDialog } from "./app-settings-dialog";
 import type { TranslationId, Verse } from "./fixtures";
 import { bookMetadata, referenceLabel, translations, verses } from "./fixtures";
 import { LibraryDialog } from "./library-dialog";
@@ -81,6 +83,7 @@ import {
 } from "./model";
 import { PanelDivider } from "./panel-divider";
 import { SidePanel } from "./side-panel";
+import { useAppTheme } from "./use-app-theme";
 import { CHAPTER_PANEL_MIN_WIDTH, usePanelLayout } from "./use-panel-layout";
 import { useNativeTabShortcuts } from "./use-native-tab-shortcuts";
 import { useWorkspaces } from "./use-workspaces";
@@ -118,6 +121,7 @@ function IconButton({
 }
 
 export function ProjectionDesk() {
+    const { theme, setTheme } = useAppTheme();
     const {
         workspaces,
         setWorkspaces,
@@ -133,6 +137,7 @@ export function ProjectionDesk() {
     const [sidebar, setSidebar] = useState(true);
     const [sideTab, setSideTab] = useState("search");
     const [appearanceOpen, setAppearanceOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [informationOpen, setInformationOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
@@ -389,6 +394,7 @@ export function ProjectionDesk() {
     const dialogOpen = Boolean(
         (panelLayout.overlay && activePanelSheet !== null) ||
             workspaceSearchOpen ||
+            settingsOpen ||
             appearanceOpen ||
             informationOpen ||
             helpOpen ||
@@ -503,6 +509,7 @@ export function ProjectionDesk() {
         {
             enabled:
                 !activePanelSheet &&
+                !settingsOpen &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -519,6 +526,7 @@ export function ProjectionDesk() {
         {
             enabled:
                 !activePanelSheet &&
+                !settingsOpen &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -535,6 +543,7 @@ export function ProjectionDesk() {
         {
             enabled:
                 !activePanelSheet &&
+                !settingsOpen &&
                 !appearanceOpen &&
                 !informationOpen &&
                 !workspace?.preview &&
@@ -950,7 +959,13 @@ export function ProjectionDesk() {
                     <div className="toolbar-divider" />
                     <div className="toolbar-tools">
                         <IconButton
-                            label="Appearance"
+                            label="App settings"
+                            onClick={() => setSettingsOpen(true)}
+                        >
+                            <Settings />
+                        </IconButton>
+                        <IconButton
+                            label="Slide appearance"
                             onClick={() => setAppearanceOpen(true)}
                         >
                             <Palette />
@@ -1421,6 +1436,12 @@ export function ProjectionDesk() {
                         chapterPanel}
                 </SheetContent>
             </Sheet>
+            <AppSettingsDialog
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                theme={theme}
+                onThemeChange={setTheme}
+            />
             <AppearanceDialog
                 open={appearanceOpen}
                 onOpenChange={setAppearanceOpen}
