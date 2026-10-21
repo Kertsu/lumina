@@ -1,6 +1,6 @@
 # Architecture design
 
-The maintainer has confirmed the architecture design and foundation specification. Implementation is specified in [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11); foundation implementation and verification execution have not started.
+The maintainer has confirmed the architecture design and foundation specification. Implementation is specified in [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11). The static frontend slice ([#12](https://github.com/Kertsu/lumina/issues/12)) supplies React/Vite/Router startup, route entry points, and the welcome capability. The remaining foundation below is the agreed target; see [README](../README.md) for implemented commands and frontend responsibilities. Maintainer runtime verification remains pending.
 
 ## Maintainer goal
 

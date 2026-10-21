@@ -95,16 +95,6 @@
     },
     "overrides": [
         {
-            "linter": {
-                "rules": {
-                    "style": {
-                        "noHeadElement": "off"
-                    }
-                }
-            },
-            "includes": ["src/routes/__root.tsx"]
-        },
-        {
             "includes": ["src/routes/**/*.tsx"],
             "linter": {
                 "rules": {
