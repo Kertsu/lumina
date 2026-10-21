@@ -1,0 +1,3 @@
+# Own application state and workflow decisions in Rust
+
+Rust application modules own workspace transitions, current verse and output state, history, and confirmed settings, coordinating the shared Bible library and native audience lifecycle. React owns interaction state such as input drafts, focus, and open panels, and renders accepted application state through typed IPC; Tauri handlers adapt requests to application modules. This accepts more explicit IPC coordination in exchange for one authority enforcing workspace isolation and consistent outcomes across native and rendered surfaces; projection acknowledgment and storage contracts remain separate decisions.

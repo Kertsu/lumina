@@ -2,6 +2,12 @@
 
 This file records requirement changes and their rationale. The current [specification](spec.md) and [MVP plan](../../docs/specs/mvp.md) contain only the resulting requirements. Historical entries are not implementation instructions.
 
+## 2026-10-21 — Audience-confirmed projection
+
+- Define Projected as confirmation from the intended audience that it applied the exact verse action. Command acceptance and dispatch alone do not establish projection; software confirmation does not prove physical display visibility.
+- Distinguish pre-dispatch rejection, which preserves previous state/output, from unconfirmed delivery after sending may have begun. Content may already have appeared when confirmation is missing, so the former blanket failure guarantee was too strong.
+- Align the glossary, MVP plan, implementation specification, and acceptance cases. Defer detailed timeout, retry, and overlapping-action policies to projection feature design.
+
 ## 2026-10-21 — Lumina documentation consolidation
 
 - Retired the product-comparison matrix and duplicate search proposal. The MVP plan and implementation specification define Lumina's requirements and acceptance behavior.

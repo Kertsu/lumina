@@ -1,0 +1,3 @@
+# Confirm projection at the intended audience
+
+Count a verse action as Projected only after its intended audience window confirms applying that exact action to its content. Command acceptance or message dispatch does not establish this outcome; missing confirmation after delivery may have begun is unconfirmed, while rejection before dispatch preserves the previous current verse, presentation mode, and audience content. This accepts explicit acknowledgment and uncertainty handling for honest projection history, without claiming proof of physical display visibility; detailed delivery and recovery policies belong to projection feature design.

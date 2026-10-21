@@ -1,0 +1,3 @@
+# Enforce domain, application, and persistence separation
+
+Use three Rust libraries plus the existing Tauri shell: `lumina-core` owns domain types and rules, `lumina-app` owns use cases and application-facing storage/native interfaces, `lumina-persistence` owns SQLite operations and migrations, and `src-tauri` owns startup wiring, IPC, and native windows. Application code depends on the domain; persistence implements application storage interfaces; the shell constructs and connects the implementations. This accepts additional public interfaces and wiring in exchange for compiler-enforced separation of domain, application, persistence, and desktop integration, giving the maintainer predictable places for changes.

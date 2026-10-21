@@ -56,8 +56,12 @@ A book, chapter, and verse identifying a location within a particular translatio
 _Avoid_: Universal passage identity, when referring only to matching reference numbers
 
 **Projection history**:
-The part of verse history containing verses sent to the audience, including the translation used.
+The part of verse history containing verses whose application was confirmed by the intended audience window, including the translation used.
 _Avoid_: Search history, viewed-verse history
+
+**Unconfirmed projection**:
+A requested audience change whose application has not been confirmed, leaving whether it appeared uncertain.
+_Avoid_: Failed projection, when delivery is uncertain
 
 **Verse history**:
 A record of verses selected for display or sent to the audience, including their translations.
