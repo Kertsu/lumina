@@ -1,23 +1,22 @@
+mod bindings;
 mod runtime;
 
-use lumina_app::Application;
+use lumina_app::{Application, ApplicationFailure, Greeting};
 use lumina_persistence::SqliteStorage;
 use runtime::DesktopRuntime;
 use std::error::Error;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 use tauri::Manager;
 
 #[tauri::command]
-async fn greet(runtime: tauri::State<'_, DesktopRuntime>) -> Result<String, String> {
+#[specta::specta]
+async fn greet(runtime: tauri::State<'_, DesktopRuntime>) -> Result<Greeting, ApplicationFailure> {
   runtime
-    .call(|_application| {
-      let epoch_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
-      Ok(format!("Hello world from Rust! Current epoch: {epoch_ms}"))
-    })
+    .call(|application| application.greet(SystemTime::now()).map_err(runtime::RuntimeError::Clock))
     .await
     .map_err(|error| {
       report_error("greet", &error);
-      error.to_string()
+      error.public_failure()
     })
 }
 
@@ -28,10 +27,12 @@ async fn greet(runtime: tauri::State<'_, DesktopRuntime>) -> Result<String, Stri
 /// reported separately while the operator window remains usable.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> tauri::Result<()> {
+  let bindings = bindings::registration();
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
-    .invoke_handler(tauri::generate_handler![greet])
-    .setup(|app| {
+    .invoke_handler(bindings.invoke_handler())
+    .setup(move |app| {
+      bindings.mount_events(app);
       let database_path = app.path().app_data_dir()?.join("lumina.sqlite3");
       let runtime = DesktopRuntime::new();
       app.manage(runtime.clone());
@@ -52,6 +53,15 @@ pub fn run() -> tauri::Result<()> {
       Ok(())
     })
     .run(tauri::generate_context!())
+}
+
+/// Export contracts to the supplied path without constructing a desktop application.
+///
+/// # Errors
+/// Returns export or file access diagnostics.
+pub fn export_bindings(path: &std::path::Path) -> Result<(), Box<dyn Error>> {
+  bindings::registration().export(specta_typescript::Typescript::default(), path)?;
+  Ok(())
 }
 
 /// Print the ordinary terminal diagnostic, including each retained source cause.

@@ -1,5 +1,6 @@
 [package]
 name = "Lumina"
+default-run = "Lumina"
 version.workspace = true
 description = "A modern, cross-platform desktop application for Bible verse projection and reading. It enables small teams—or even a single operator—to manage Bible verse projections efficiently and confidently, without requiring a complex production setup."
 authors.workspace = true
@@ -29,8 +30,11 @@ lumina-persistence.workspace = true
 thiserror.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta-typescript = "=0.0.12"
 
 [lints]
 workspace = true

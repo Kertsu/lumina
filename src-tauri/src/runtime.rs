@@ -1,6 +1,6 @@
 //! The single boundary for synchronous application/storage work on desktop.
 
-use lumina_app::Application;
+use lumina_app::{Application, ApplicationFailure, AvailabilityData, StartupState};
 use lumina_persistence::{SqliteStorage, StorageError};
 use std::sync::{Arc, Mutex};
 
@@ -26,6 +26,28 @@ pub(crate) enum RuntimeError {
   Worker(#[source] tauri::Error),
   #[error("system clock is before the Unix epoch")]
   Clock(#[from] std::time::SystemTimeError),
+}
+
+impl RuntimeError {
+  pub(crate) fn public_failure(&self) -> ApplicationFailure {
+    match self {
+      Self::Starting => ApplicationFailure::Unavailable {
+        message: "Application storage is starting. Try again shortly.".into(),
+        data: AvailabilityData {
+          state: StartupState::Starting,
+        },
+      },
+      Self::Startup(_) => ApplicationFailure::Unavailable {
+        message: "Application storage could not start. Check the terminal diagnostics.".into(),
+        data: AvailabilityData {
+          state: StartupState::Failed,
+        },
+      },
+      Self::Poisoned | Self::Worker(_) | Self::Clock(_) => ApplicationFailure::Internal {
+        message: "The application operation failed. Check the terminal diagnostics.".into(),
+      },
+    }
+  }
 }
 
 enum State {

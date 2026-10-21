@@ -1,6 +1,20 @@
 //! Application ownership and startup, independent of the desktop and storage adapters.
 
+mod failure;
+
+pub use failure::{ApplicationFailure, AvailabilityData, InvocationData, StartupState};
+
 use std::error::Error;
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
+
+/// Minimal scaffold response, computed by the initialized application.
+#[derive(Debug, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Greeting {
+  pub message: String,
+  /// Decimal string avoids truncating Rust's `u128` milliseconds in JavaScript.
+  pub epoch_ms: String,
+}
 
 /// Storage initialization needed before the application accepts work.
 pub trait Storage {
@@ -27,6 +41,18 @@ pub enum StartupError<E: Error + 'static> {
 }
 
 impl<S: Storage> Application<S> {
+  /// Greet through the application using the host's clock.
+  ///
+  /// # Errors
+  /// Retains the clock error if the host time predates the Unix epoch.
+  pub fn greet(&self, now: SystemTime) -> Result<Greeting, SystemTimeError> {
+    let epoch_ms = now.duration_since(UNIX_EPOCH)?.as_millis().to_string();
+    Ok(Greeting {
+      message: "Hello world from Rust!".into(),
+      epoch_ms,
+    })
+  }
+
   /// Initialize storage before publishing the application as ready.
   ///
   /// # Errors
@@ -60,6 +86,19 @@ mod tests {
     let initialized = Cell::new(false);
     let _application = Application::start(TestStorage(&initialized))?;
     assert!(initialized.get());
+    Ok(())
+  }
+
+  #[test]
+  fn initialized_application_returns_a_greeting_at_the_supplied_time(
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    let initialized = Cell::new(false);
+    let application = Application::start(TestStorage(&initialized))?;
+    let now = std::time::UNIX_EPOCH + std::time::Duration::from_millis(1234);
+    let greeting = application.greet(now)?;
+    assert_eq!(greeting.message, "Hello world from Rust!");
+    assert_eq!(greeting.epoch_ms, "1234");
+    assert!(application.greet(std::time::UNIX_EPOCH - std::time::Duration::from_secs(1)).is_err());
     Ok(())
   }
 

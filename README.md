@@ -37,7 +37,9 @@ integration, including the `TAURI_DEV_HOST` host/HMR settings.
 
 Open `/` for the welcome screen or `/playground` for the development-only
 component sandbox. `/playground` renders Not Found in a production build.
-There is no server-rendering process or native-command consumer in this slice.
+Click **Say hello** on `/` to call the selected application client. Desktop uses
+the Rust operation; a browser uses a fixed representative fixture. There is no
+server-rendering process.
 
 ## Frontend responsibilities
 
@@ -47,7 +49,9 @@ There is no server-rendering process or native-command consumer in this slice.
 | `src/app/main.tsx` | Global styles, React mounting, and router composition |
 | `src/app/router.tsx` | Router construction, options, and registered route types |
 | `src/routes/` | Route entry points, nesting, and the playground environment gate |
-| `src/features/welcome/welcome.tsx` | Welcome UI, consumed through its exported `Welcome` component |
+| `src/features/welcome/welcome.tsx` | Welcome UI and greeting interaction through the typed client |
+| `src/bridge/client.ts` | One typed client, desktop normalization, browser fixtures, host selection |
+| `src/bridge/bindings.gen.ts` | Committed Rust-generated contracts; regenerate rather than edit |
 | `src/routeTree.gen.ts` | Generated route tree; Vite regenerates it when routes change |
 | `src/styles.css`, `public/` | Shared styling, bundled fonts, and static assets |
 | `vite.config.ts`, `src-tauri/tauri.conf.json` | Frontend tooling and desktop entry/output wiring |
@@ -56,10 +60,11 @@ Use `@/` imports across frontend modules. Keep related capability UI, interactio
 hooks, and tests together under `src/features/`. Routes compose capabilities;
 they do not own product workflows. Add real modules as responsibilities arise.
 
-Typed native integration/browser fixtures under `src/bridge/` and editable
-shared UI under `src/shared/ui/` belong to dependent foundation tickets. Their
-directories are not created until implemented. React owns interaction state;
-accepted application state belongs to Rust. See the agreed
+Direct native calls/subscriptions stay in `src/bridge/`. Features consume
+`ApplicationClient` from `@/bridge/client`; they never import native APIs or
+generated command wrappers. Editable shared UI under `src/shared/ui/` remains
+a dependent foundation ticket. React owns pending/result display state;
+accepted application state and greeting computation belong to Rust. See the agreed
 [architecture](docs/architecture.md) and [domain glossary](GLOSSARY.md).
 
 ## Rust responsibilities and startup
@@ -100,8 +105,8 @@ The terminal prints the actual path before initialization and a ready message
 after success. Failure diagnostics print the operation and retained source
 chain. Native setup/event-loop failures return a failing process exit code;
 storage failures preserve a typed startup cause in the managed runtime. The
-sample command currently returns a string rejection; the typed-adapter ticket
-owns the generated consumer and standardized public IPC failures.
+`greet` command logs retained causes before translating runtime failures into
+the generated public failure contract.
 
 Persistence creates missing directories, opens the managed file with bundled
 SQLite, enables foreign keys, and sets a five-second busy timeout. Initialization
@@ -135,7 +140,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-Application unit tests live alongside startup. Persistence integration tests
+Application unit tests live alongside startup and public failure serialization. Persistence integration tests
 use real disposable SQLite files to cover creation, reopening, migration
 version handling, bundled FTS5, and diagnostic causes. They use the same
 bundled dependency and initialization path as desktop startup.
@@ -144,6 +149,18 @@ For the storage runtime check, run `pnpm dev`, inspect the printed path and
 ready message, and confirm the operator window responds. Close and restart:
 the same database should reopen without unexplained errors. Use disposable data
 when investigating failures. Maintainer runtime observations remain pending.
+
+## Typed calls and failures
+
+See the [integration guide](docs/integration.md) for the React → bridge → desktop
+→ application path, generated contracts, diagnostic causes, exact M2/M4/M5/M6
+fixture activation/restoration steps, and pending runtime observations.
+
+```sh
+pnpm bindings:generate
+pnpm typecheck
+pnpm bindings:check
+```
 
 ## Verify and debug
 
