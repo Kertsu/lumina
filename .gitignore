@@ -8,7 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Frontend dependencies and build output
+/target/
 node_modules
+.pnpm-store/
 dist
 .output
 *.local

@@ -12,6 +12,8 @@ Tauri's operator window or a browser.
   [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). On macOS,
   install Xcode Command Line Tools; Windows needs Microsoft C++ Build Tools
   and WebView2; Linux needs the distribution's WebKitGTK and build packages.
+- Rust 1.96.0, including rustfmt and Clippy, is pinned in `rust-toolchain.toml`.
+  Rustup installs it when a Rust command first runs.
 
 ```sh
 pnpm install --frozen-lockfile

@@ -1,9 +1,15 @@
 [package]
 name = "Lumina"
-version = "0.1.0"
+version.workspace = true
 description = "A modern, cross-platform desktop application for Bible verse projection and reading. It enables small teams—or even a single operator—to manage Bible verse projections efficiently and confidently, without requiring a complex production setup."
-authors = ["kurtddanielbigtas"]
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,35 +29,5 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-[lints.rust]
-unsafe_code = "forbid"
-
-[workspace.lints.clippy]
-# Deny all warnings - treat them as errors
-all = { level = "deny", priority = -1 }
-pedantic = { level = "deny", priority = -1 }
-cargo = { level = "deny", priority = -1 }
-unwrap_used = "deny"
-expect_used = "deny"
-panic = "deny"
-
-# Unimplemented items can be left as warnings
-todo = "warn"
-unimplemented = "warn"
-
-# Correctness (deny)
-cast_lossless = "deny"
-cast_possible_truncation = "deny"
-cast_possible_wrap = "deny"
-cast_precision_loss = "deny"
-cast_sign_loss = "deny"
-
-# Performance (warn/deny)
-inefficient_to_string = "deny"
-large_enum_variant = "warn"
-large_stack_arrays = "warn"
-needless_pass_by_value = "warn"
-
-# Style (warn)
-missing_errors_doc = "warn"
-missing_panics_doc = "warn"
+[lints]
+workspace = true

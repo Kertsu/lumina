@@ -16,6 +16,8 @@
             "**/*.mts",
             "**/*.mjs",
             "!!dist",
+            "!!target",
+            "!!.pnpm-store",
             "!!src-tauri",
             "!!node_modules",
             "!!.output",
