@@ -19,6 +19,18 @@ For example, issue #22 becomes
 `1-add-fuzzy-search-functionality-Kurtd-Daniel-Bigtas` when
 Kurtd Daniel Bigtas does the work. Open the pull request from that branch.
 
+## Database migrations
+
+Name SQL files `VYYYYMMDDHHmmss_description.sql` using UTC creation time
+(year, month, day, hour, minute, second; four-digit year and 24-hour time)
+and a lowercase snake_case description. Example: `V20261021161209_foundation.sql`.
+Year-first timestamps keep filenames in chronological order.
+
+Register each file in `crates/lumina-persistence/src/migrations.rs` with the
+next sequential schema version. Filenames record creation time;
+`PRAGMA user_version` stores the sequential version. Append migrations;
+keep merged filenames, SQL, and registered versions unchanged.
+
 ## Commit messages
 
 Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):

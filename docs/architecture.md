@@ -1,6 +1,6 @@
 # Architecture design
 
-The maintainer has confirmed the architecture design and foundation specification. Implementation is specified in [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11). The static frontend slice ([#12](https://github.com/Kertsu/lumina/issues/12)) supplies React/Vite/Router startup, route entry points, and the welcome capability. The remaining foundation below is the agreed target; see [README](../README.md) for implemented commands and frontend responsibilities. Maintainer runtime verification remains pending.
+The maintainer has confirmed the architecture design and foundation specification. Implementation is specified in [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11). The static frontend slice ([#12](https://github.com/Kertsu/lumina/issues/12)) supplies React/Vite/Router startup, route entry points, and the welcome capability. The Rust startup slice ([#13](https://github.com/Kertsu/lumina/issues/13)) supplies the Cargo workspace, explicit composition root, one blocking execution boundary, and managed bundled SQLite initialization/migrations. The remaining foundation below is the agreed target; see [README](../README.md) for implemented commands and responsibilities. Maintainer runtime verification remains pending.
 
 ## Maintainer goal
 
@@ -87,7 +87,7 @@ Sources: [shadcn aliases](https://ui.shadcn.com/docs/components-json#aliasesui),
 
 Use `rusqlite` with bundled SQLite inside `lumina-persistence`. Keep SQL and migration implementation together in that crate; application/domain code does not expose SQLite connection or row types.
 
-Persistence operations are synchronous. The desktop runtime schedules blocking application/storage work away from the native UI thread through one identifiable integration path. Connection and task ownership must be explicit; core/application/persistence remain Tauri-independent. Exact connection arrangements and schema details follow implementation needs.
+Persistence operations are synchronous. `DesktopRuntime` in `src-tauri/src/runtime.rs` routes startup and native application calls through one `spawn_blocking` boundary. A worker acquires the application mutex; the application retains one `SqliteStorage` connection. The setup hook in `src-tauri/src/lib.rs` constructs those dependencies in its startup closure and returns before database work completes. Core/application/persistence remain Tauri-independent. See [README](../README.md#rust-responsibilities-and-startup) for location, lifecycle, migration behavior, diagnostics, and native-free verification commands. Product schema details follow feature needs.
 
 Verify bundled FTS5 availability through the actual application dependency/build path rather than relying on the developer's system SQLite.
 
@@ -163,6 +163,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11) is published with the ready-for-agent label; implementation remains pending.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend and Rust startup are implemented in their respective slices; typed integration, shared UI, shared verification/CI, and the final maintainer walkthrough remain separate foundation work.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.

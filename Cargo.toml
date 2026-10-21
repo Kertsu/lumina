@@ -1,0 +1,45 @@
+[workspace]
+members = ["crates/lumina-core", "crates/lumina-app", "crates/lumina-persistence", "src-tauri"]
+default-members = ["crates/lumina-core", "crates/lumina-app", "crates/lumina-persistence"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+authors = ["kurtddanielbigtas"]
+publish = false
+repository = "https://github.com/Kertsu/lumina"
+readme = "README.md"
+keywords = ["bible", "projection", "desktop"]
+categories = ["multimedia"]
+
+[workspace.dependencies]
+lumina-core = { path = "crates/lumina-core" }
+lumina-app = { path = "crates/lumina-app" }
+lumina-persistence = { path = "crates/lumina-persistence" }
+thiserror = "2.0.17"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "warn"
+unimplemented = "warn"
+cast_lossless = "deny"
+cast_possible_truncation = "deny"
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+cast_sign_loss = "deny"
+inefficient_to_string = "deny"
+large_enum_variant = "warn"
+large_stack_arrays = "warn"
+needless_pass_by_value = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
