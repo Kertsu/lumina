@@ -62,6 +62,89 @@ directories are not created until implemented. React owns interaction state;
 accepted application state belongs to Rust. See the agreed
 [architecture](docs/architecture.md) and [domain glossary](GLOSSARY.md).
 
+## Rust responsibilities and startup
+
+| Location | Owns | Local dependencies |
+| --- | --- | --- |
+| `crates/lumina-core` | Domain types and pure rules; no rules needed yet | None |
+| `crates/lumina-app` | Application ownership, startup use case, storage interface | Core |
+| `crates/lumina-persistence` | Bundled SQLite connection, configuration, migrations | Application, core |
+| `src-tauri` | Composition root, IPC, desktop runtime and native adapters | Application, persistence |
+
+Trace startup from `src-tauri/src/main.rs` to `run()` in `src-tauri/src/lib.rs`.
+Its setup hook resolves the application data directory, registers
+`DesktopRuntime`, and schedules initialization before returning to the native
+event loop. The worker closure opens `SqliteStorage` and calls
+`Application::start`, which initializes storage through the application-owned
+`Storage` interface. The application retains its initialized storage.
+
+`src-tauri/src/runtime.rs` contains the sole `spawn_blocking` boundary. Both
+startup and the existing `greet` command use it. One mutex serializes access to
+the application and its single SQLite connection; the mutex is acquired inside
+the blocking task, never on the native UI thread. The connection may move
+between worker threads but is never accessed concurrently. There is no worker
+queue or background-job framework. Shutdown drops application ownership and
+closes the connection when outstanding tasks release it. A command racing
+startup either waits on the worker's lock or reports that storage is starting.
+Storage failure leaves the operator window running and native calls unavailable.
+
+The database is `lumina.sqlite3` under Tauri's application data directory for
+`com.kurtddanielbigtas.lumina`. Typical locations:
+
+- macOS: `~/Library/Application Support/com.kurtddanielbigtas.lumina/`
+- Windows: `%APPDATA%\com.kurtddanielbigtas.lumina\`
+- Linux: `$XDG_DATA_HOME/com.kurtddanielbigtas.lumina/`, defaulting to
+  `~/.local/share/com.kurtddanielbigtas.lumina/`
+
+The terminal prints the actual path before initialization and a ready message
+after success. Failure diagnostics print the operation and retained source
+chain. Native setup/event-loop failures return a failing process exit code;
+storage failures preserve a typed startup cause in the managed runtime. The
+sample command currently returns a string rejection; the typed-adapter ticket
+owns the generated consumer and standardized public IPC failures.
+
+Persistence creates missing directories, opens the managed file with bundled
+SQLite, enables foreign keys, and sets a five-second busy timeout. Initialization
+probes FTS5 using a temporary virtual table, then applies migrations atomically
+in an immediate transaction. `PRAGMA user_version` tracks the schema; version 1
+reserves the foundation and adds no product tables. Reopening is idempotent;
+newer schemas are rejected without downgrading. Name SQL files using the
+[migration convention](CONTRIBUTING.md#database-migrations) and register their
+sequential versions in `crates/lumina-persistence/src/migrations.rs` with
+feature work. SQLite connections, rows, and SQL stay inside persistence.
+
+The root `Cargo.lock` covers all four packages; the former desktop lockfile
+has moved there. Root Cargo commands default to the three native-free libraries.
+All packages explicitly inherit workspace lint policies and are unpublished.
+`clippy.toml` names the existing incompatible upstream dependency duplicates
+required by Tauri/build tooling and SQLite/test dependencies. Other duplicate
+crates still fail Clippy; inspect `cargo tree -p Lumina -d --target all` when
+updating dependencies and remove exceptions when their ranges converge.
+
+```sh
+# Native-free checks: no Tauri build or desktop window.
+cargo check -p lumina-app -p lumina-persistence --locked
+cargo test -p lumina-app -p lumina-persistence --locked
+cargo test -p lumina-persistence --test initialization --locked
+cargo clippy -p lumina-app -p lumina-persistence --all-targets --locked -- -D warnings
+
+# Full Rust checks: desktop compilation needs native prerequisites, opens no window.
+cargo fmt --all -- --check
+cargo check --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+```
+
+Application unit tests live alongside startup. Persistence integration tests
+use real disposable SQLite files to cover creation, reopening, migration
+version handling, bundled FTS5, and diagnostic causes. They use the same
+bundled dependency and initialization path as desktop startup.
+
+For the storage runtime check, run `pnpm dev`, inspect the printed path and
+ready message, and confirm the operator window responds. Close and restart:
+the same database should reopen without unexplained errors. Use disposable data
+when investigating failures. Maintainer runtime observations remain pending.
+
 ## Verify and debug
 
 ```sh

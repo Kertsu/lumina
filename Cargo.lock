@@ -6,11 +6,14 @@ version = 4
 name = "Lumina"
 version = "0.1.0"
 dependencies = [
+ "lumina-app",
+ "lumina-persistence",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
