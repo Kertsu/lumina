@@ -69,7 +69,8 @@
                         "allowExportNames": ["Route"]
                     }
                 },
-                "useImportType": "error"
+                "useImportType": "error",
+                "useBlockStatements": "error"
             },
             "performance": {
                 "noImgElement": "off"
