@@ -1,6 +1,6 @@
 [workspace]
-members = ["src-tauri"]
-default-members = ["src-tauri"]
+members = ["crates/lumina-core", "crates/lumina-app", "crates/lumina-persistence", "src-tauri"]
+default-members = ["crates/lumina-core", "crates/lumina-app", "crates/lumina-persistence"]
 resolver = "2"
 
 [workspace.package]
@@ -13,6 +13,12 @@ repository = "https://github.com/Kertsu/lumina"
 readme = "README.md"
 keywords = ["bible", "projection", "desktop"]
 categories = ["multimedia"]
+
+[workspace.dependencies]
+lumina-core = { path = "crates/lumina-core" }
+lumina-app = { path = "crates/lumina-app" }
+lumina-persistence = { path = "crates/lumina-persistence" }
+thiserror = "2.0.17"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
