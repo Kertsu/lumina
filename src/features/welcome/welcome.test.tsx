@@ -8,17 +8,24 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-it("shows the generated greeting through the browser client", async () => {
+it("disables the action while pending and shows the browser greeting", async () => {
     render(<Welcome client={createBrowserClient()} />);
-    fireEvent.click(
-        screen.getByRole("button", {
-            name: "Say hello",
-        })
+    const button = screen.getByRole("button", {
+        name: "Say hello",
+    });
+
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("status").textContent).toBe(
+        "Contacting application…"
     );
     expect(
         await screen.findByText("Hello world from the browser fixture!")
     ).toBeTruthy();
     expect(screen.getByText("Current epoch: 1234")).toBeTruthy();
+    expect(button.hasAttribute("disabled")).toBe(false);
 });
 
 it.each([

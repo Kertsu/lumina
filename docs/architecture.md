@@ -163,6 +163,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, and typed integration are implemented in their respective slices; shared UI, shared verification/CI, and the final maintainer walkthrough remain separate foundation work.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, typed integration, and shared UI are implemented in their respective slices; shared verification/CI and the final maintainer walkthrough remain separate foundation work. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.
