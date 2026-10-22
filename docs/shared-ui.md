@@ -12,8 +12,10 @@ appearance, spacing, layout, and bundled fonts.
   `@/shared/ui/utils`. Existing TypeScript `@/*` paths and Vite's TypeScript
   path resolution resolve these locations under `src/`.
 - Tailwind v4 uses `src/styles.css` with no Tailwind configuration file.
-  `@theme inline` maps semantic utilities to light/dark CSS variables.
-  Dark colors follow `prefers-color-scheme`; fonts remain bundled.
+  It imports `src/themes/default.css` for the paired application palette and
+  maps all 32 color roles to semantic utilities through `@theme inline`.
+  Dark colors follow `prefers-color-scheme`; fonts remain bundled and separate
+  from palette values.
 - Enabled buttons use a pointer cursor through `@layer base` in
   `src/styles.css`, matching shadcn's `init --pointer` option.
 - Button needs only `@radix-ui/react-slot`, `class-variance-authority`, `clsx`,
@@ -64,9 +66,49 @@ pnpm build:vite
 ## Customize source
 
 Edit Button classes/variants directly or pass a local `className` override.
-Change shared colors and Tailwind mappings in `src/styles.css`. Keep behavior
-in the capability, as Welcome does for pending state and greeting results.
+Change shared color values in `src/themes/default.css`; keep their Tailwind
+mappings in `src/styles.css`. Keep behavior in the capability, as Welcome does
+for pending state and greeting results.
 Inspect diffs before permitting a CLI overwrite of customized source.
+
+## Application palette
+
+The default palette retains tweakcn's shadcn color names: surface/foreground
+pairs, primary, secondary, muted, accent, destructive, border, input, ring,
+chart colors, and sidebar colors. This includes the exported
+`destructive-foreground` role. Use semantic utilities such as `bg-primary` and
+`text-primary-foreground` in components. Keep literal palette colors in the
+palette stylesheet.
+
+Light values live in `:root`; dark values override the same roles inside
+`@media (prefers-color-scheme: dark)`. System changes update the rendered colors
+without JavaScript or a restart. There is one bundled application theme and no
+manual mode preference or persistence yet.
+
+When editing a palette or copying values from tweakcn, update the color variables
+in both mode blocks. Retain the existing role names and mappings. Keep fonts,
+spacing, radii, shadows, and base rules separate; importing tweakcn's complete
+stylesheet would also replace settings outside the palette. Future palettes
+supply values for these same roles. Theme selection, a registry, and the public
+import format will be designed with their implementations.
+
+The application palette supplies shared defaults for windows importing the global
+stylesheet. Future audience rendering must give explicit workspace verse colors
+and translation background images precedence. Audience defaults, image fallback,
+and live reaction to application theme changes remain audience implementation
+decisions.
+
+Check rendered component states after color changes. The palette is adjusted
+around Button's existing hover opacity and focus-ring styles. The sole Button
+change is a fully opaque destructive keyboard-focus border: its stock 40%
+opacity cannot reach 3:1 on the light surfaces through palette values alone.
+This shared focus style applies to every theme; imported palettes retain the same
+color role contract and need contrast review against Lumina's component states.
+Sizes, radii, ring width, and behavior are unchanged. The
+[theme specification](specs/application-theme.md#implementation-evidence)
+records palette adjustments, measured ratios, and browser/native verification.
+Check new components and color combinations individually; a palette does not
+guarantee contrast for every opacity, image, or pairing.
 
 shadcn source is maintained by the project. In contrast,
 `src/bridge/bindings.gen.ts` is read-only IPC output regenerated from Rust with
