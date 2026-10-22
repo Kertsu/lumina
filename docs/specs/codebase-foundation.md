@@ -1,8 +1,8 @@
 # Establish Lumina's maintainable Rust and React foundation
 
 Status: approved foundation implemented. Agent verification is recorded in
-[foundation verification](../foundation-verification.md); maintainer M1–M8
-observations remain pending. Approval of scenarios does not complete acceptance.
+[foundation verification](../foundation-verification.md); the maintainer reported
+M1–M8 passing on 2026-10-22. Approval of scenarios alone does not complete acceptance.
 
 Implementation issue: [#11](https://github.com/Kertsu/lumina/issues/11).
 
@@ -119,7 +119,7 @@ Deliver a working minimal desktop and browser-development scaffold, the agreed c
 ## Verification Decisions
 
 The maintainer approved these acceptance scenarios and planned checks. Their
-current evidence and pending/reported status live in the
+current evidence and reporting status live in the
 [verification record](../foundation-verification.md); the scenarios below are
 requirements, not completed verification results.
 
@@ -177,7 +177,8 @@ At approval, the project was an exploratory scaffold. The Rust workspace,
 persistence driver, shared code-based error contract, generated bridge, shared
 verification command, and static frontend are now implemented. CI runs the
 frontend and Rust/contracts verification groups. Product features remain outside
-this foundation; maintainer runtime acceptance remains pending.
+this foundation. The maintainer reported M1–M8 passing; attribution and scope
+are recorded in the verification ledger.
 
 The architecture guide and associated ADRs prepared during the design session must accompany the implementation so a fresh checkout has the rationale and responsibility map. Keep this issue self-contained; it does not depend on unpublished chat transcripts or external AI-share pages. Preserve existing local documentation changes when beginning implementation.
 

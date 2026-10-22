@@ -184,7 +184,8 @@ diagnostics, and observed result in the [verification record](foundation-verific
 After all temporary edits, inspect `git diff` (fixtures must be gone), run
 `pnpm check` and `pnpm build:vite`. Restoration commands in focused guides
 assume those files were clean initially; otherwise undo only the temporary edits.
-Maintainer M1–M8 stay pending until the maintainer reports actual observations.
+The maintainer reported M1–M8 passing on 2026-10-22; see the
+[acceptance ledger](foundation-verification.md#maintainer-acceptance-ledger).
 
 ## 6. Build and launch a local package (M8)
 

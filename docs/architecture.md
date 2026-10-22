@@ -1,6 +1,6 @@
 # Architecture design
 
-The maintainer approved the architecture and [foundation specification](specs/codebase-foundation.md), tracked in [#11](https://github.com/Kertsu/lumina/issues/11). The static frontend, Rust workspace/startup, typed integration, shared Radix UI, and shared local/CI checks are implemented. This document records their responsibility map and rationale. Follow the [maintainer walkthrough](maintainer-workflow.md) for setup and maintenance, and consult the [verification record](foundation-verification.md) for evidence. Maintainer M1–M8 observations remain pending.
+The maintainer approved the architecture and [foundation specification](specs/codebase-foundation.md), tracked in [#11](https://github.com/Kertsu/lumina/issues/11). The static frontend, Rust workspace/startup, typed integration, shared Radix UI, and shared local/CI checks are implemented. This document records their responsibility map and rationale. Follow the [maintainer walkthrough](maintainer-workflow.md) for setup and maintenance, and consult the [verification record](foundation-verification.md) for evidence. The maintainer reported M1–M8 passing on 2026-10-22.
 
 ## Maintainer goal
 
@@ -167,6 +167,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. The [walkthrough](maintainer-workflow.md) joins the delivered slices into one maintenance workflow. Its [evidence record](foundation-verification.md) separates agent checks from pending maintainer acceptance. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. The [walkthrough](maintainer-workflow.md) joins the delivered slices into one maintenance workflow. Its [evidence record](foundation-verification.md) separates agent checks from maintainer-reported acceptance. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.

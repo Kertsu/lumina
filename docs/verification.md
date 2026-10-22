@@ -3,7 +3,7 @@
 For fresh setup and the complete M1–M8 rehearsal, start with the
 [maintainer walkthrough](maintainer-workflow.md). The final
 [foundation verification record](foundation-verification.md) separates tests,
-static/build checks, agent observations, and pending maintainer acceptance.
+static/build checks, agent observations, and maintainer-reported acceptance.
 The slice-specific agent record below remains historical evidence for #16.
 
 Run `pnpm install --frozen-lockfile`, then `pnpm check`. It runs the frontend
@@ -201,5 +201,7 @@ Rust/contracts jobs. Workflow inspection confirmed independent jobs, run-level
 concurrency, unchanged prerequisites/triggers, and the same seven checks shared
 with local verification.
 
-Maintainer M7 and other runtime acceptance remain pending until reported.
-Hosted Ubuntu CI and native/package launch were not run in this local check.
+At this slice's verification, maintainer acceptance was pending. The
+[foundation record](foundation-verification.md#maintainer-acceptance-ledger)
+now records the maintainer's M1–M8 pass report. Hosted Ubuntu CI and
+native/package launch were not run in this #16 local check.

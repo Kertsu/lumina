@@ -88,6 +88,7 @@ Neither generated file owns UI styling.
 Both commands use port 3000; run them sequentially. Both surfaces import the
 same Welcome and Button source. No dependency patch or IPC regeneration is
 needed. Welcome tests cover focusability, pending/disabled state, subsequent
-activation, browser results, and error recovery. Real keyboard activation,
-visible focus, hot reload, and desktop/browser observations remain pending
-until the maintainer reports M3.
+activation, browser results, and error recovery. The maintainer reported M3
+passing on 2026-10-22, covering its keyboard/focus, hot-reload, and both-surface
+checks; see the
+[acceptance ledger](foundation-verification.md#maintainer-acceptance-ledger).

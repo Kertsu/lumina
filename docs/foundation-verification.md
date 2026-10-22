@@ -3,9 +3,10 @@
 Work: [#17](https://github.com/Kertsu/lumina/issues/17), following parent
 [#11](https://github.com/Kertsu/lumina/issues/11).
 Procedure: [maintainer walkthrough](maintainer-workflow.md).
-Maintainer M1–M8 acceptance remains pending; the observations below are agent
-evidence. Approval of scenarios and passing automated checks do not establish
-maintainer runtime acceptance.
+The maintainer reported M1–M8 passing on 2026-10-22; see the acceptance ledger
+below. Automated tests, static/build checks, and agent observations remain
+separate evidence. Approval of scenarios or passing automated checks alone does
+not establish maintainer runtime acceptance.
 
 ## Reproducible starting point
 
@@ -136,24 +137,29 @@ These are separate from automated tests and maintainer acceptance.
   implementation branch. Relative documentation link targets and
   `git diff --check` were also checked.
 
-The available host's package build and agent launch are verified. This is not
-Windows/Linux qualification, a distribution/signing review, or maintainer M8
-acceptance.
+The available host's package build and agent launch are verified. Maintainer M8
+acceptance is recorded separately below. Neither record establishes
+Windows/Linux qualification or a distribution/signing review.
 
 ## Maintainer acceptance ledger
 
-| Scenario | Maintainer status | Required report |
-| --- | --- | --- |
-| M1 | Pending | Fresh setup, full checks, operator window, startup/reopen diagnostics |
-| M2 | Pending | Browser fixture, navigation, visible edit/hot reload without native processes |
-| M3 | Pending | Shared Radix edit on both surfaces, visible focus, Enter/Space, restoration |
-| M4 | Pending | Same code/data and label across changed message wording |
-| M5 | Pending | Failed IPC remains inspectable; usable UI, no browser-success fallback |
-| M6 | Pending | Drift failure, headless generation, affected consumers, restored passing checks |
-| M7 | Pending | Prohibited import diagnostic and restored passing checks |
-| M8 | Pending | Host/build/package path, launch and Rust greeting with dev server stopped, or exact unmet prerequisite |
+On 2026-10-22, the maintainer reported in the implementation conversation:
+"I was able to verify m1-m8". All eight scenarios are recorded as
+maintainer-reported passes. The report supplied no separate host/tool versions,
+command logs, or package path; the exact host/build details above describe the
+agent run only.
 
-When the maintainer reports a result, record their date/host, commands/actions,
-observed outcome, and any remaining limitation in this ledger. Do not replace
-pending status with agent observations. Windows/Linux packaging, signing,
-notarization, distribution, and cross-platform qualification were not verified.
+| Scenario | Maintainer status | Accepted scenario |
+| --- | --- | --- |
+| M1 | Passed (maintainer-reported) | Fresh setup, full checks, operator window, startup/reopen diagnostics |
+| M2 | Passed (maintainer-reported) | Browser fixture, navigation, visible edit/hot reload without native processes |
+| M3 | Passed (maintainer-reported) | Shared Radix edit on both surfaces, visible focus, Enter/Space, restoration |
+| M4 | Passed (maintainer-reported) | Same code/data and label across changed message wording |
+| M5 | Passed (maintainer-reported) | Failed IPC remains inspectable; usable UI, no browser-success fallback |
+| M6 | Passed (maintainer-reported) | Drift failure, headless generation, affected consumers, restored passing checks |
+| M7 | Passed (maintainer-reported) | Prohibited import diagnostic and restored passing checks |
+| M8 | Passed (maintainer-reported) | Packaged launch with the development server stopped |
+
+Add host details, commands, or logs here if the maintainer supplies them later.
+This report does not establish Windows/Linux packaging, signing, notarization,
+distribution, or cross-platform qualification.
