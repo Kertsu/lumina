@@ -19,8 +19,11 @@ Design agreed on 2026-10-22. Implementation tracked in
   file structure when implementing imports.
 - Small, documented color adjustments may correct insufficient rendered contrast
   while preserving the palette's overall appearance.
+- Adjust the palette around Button's existing hover and focus-ring styles. The
+  sole agreed component change makes the destructive keyboard-focus border fully
+  opaque; its stock opacity cannot provide 3:1 contrast on the light surfaces.
 
-## Current foundation
+## Starting foundation
 
 `src/styles.css` owns semantic CSS variables, Tailwind v4 utility mappings,
 system-mode selection, typography, and base styles. Welcome and Button already
@@ -182,9 +185,89 @@ and [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-con
 for applicable rendered pairs: normal text at least 4.5:1, large text at least
 3:1, and essential control/state indicators at least 3:1 against adjacent colors.
 Use the linked standard's definition of large text. Decorative borders and
-inactive controls do not
-automatically need the same contrast as essential control/state indicators.
+inactive controls do not automatically need the same contrast as essential
+control/state indicators.
 Record original/adjusted values, affected role/state, and measured ratios for
 any adjustment. Do not claim arbitrary image backgrounds are covered by a
 palette-only review. These are required implementation checks, not completed
 verification results.
+
+## Implementation evidence
+
+Implemented on 2026-10-22. `src/themes/default.css` defines the paired palette;
+`src/styles.css` imports it and maps all 32 color roles to Tailwind utilities.
+Typography and global base rules remain in `src/styles.css`. Static inspection
+confirmed all roles in both modes, all mappings, and exactly the four palette
+adjustments below. Existing brand artwork and non-color styling are unchanged.
+
+### Contrast adjustments
+
+The inspected palette table above preserves the original export. The final
+palette differs only in these four mode/role values:
+
+| Mode / role | Source | Final | Reason |
+| --- | --- | --- | --- |
+| Light / primary | `#8a612f` | `#714722` | With stock 80% hover opacity, light text improves from 3.60:1 to 4.78:1 on the application background. |
+| Light / muted-foreground | `#686f6b` | `#636a66` | Text on the muted surface improves from 4.29:1 to 4.63:1. |
+| Light / destructive | `#b4403a` | `#9b302b` | With stock 20% hover tint, text improves from 3.81:1 to 4.83:1 on the application background. |
+| Dark / destructive | `#e38b86` | `#e9938e` | With stock 20% hover tint, text on the popover surface improves from 4.30:1 to 4.58:1. |
+
+Button retains its stock hover and focus-ring opacity. It has one shared
+color-class exception, explicitly agreed with the maintainer:
+
+| State | Source styling | Final styling | Evidence |
+| --- | --- | --- | --- |
+| Destructive keyboard focus | `focus-visible:border-destructive/40` | `focus-visible:border-destructive` | At 40% opacity, even a black border reaches only 2.81:1 against the light application background. The final destructive focus border reaches 6.64:1 there. Its stock 20% ring remains a decorative glow. |
+
+Before-change ratios above use sRGB compositing of the source colors. Final
+ratios come from rendered computed colors, including alpha compositing, using a
+temporary review fixture in each renderer. Rounded values are for reporting;
+the measured hovered-text minima were 4.616:1 in light and 4.580:1 in dark.
+Existing three-pixel focus-ring geometry, layout, typography, and interaction
+behavior are preserved.
+
+The focus border is shared component behavior for all application themes.
+Keeping the same token names preserves palette compatibility; every future
+palette still needs validation against these component states. The import file
+format and validation policy remain future work.
+
+### Rendered checks
+
+Reviewed all six Button variants (default, outline, secondary, ghost,
+destructive, link) on background, card, popover, and sidebar surfaces in both
+system modes. For each renderer/mode, checked 24 hover states and 24 keyboard
+focus states, plus normal states, disabled appearance, and color swatches.
+
+| Surface under test | Mode | Minimum hovered text contrast | Minimum focus-border contrast |
+| --- | --- | --- | --- |
+| In-app browser | Light | 4.631:1 | 4.721:1 |
+| In-app browser | Dark | 4.580:1 | 6.586:1 |
+| Native Tauri window | Light | 4.616:1 | 4.721:1 |
+| Native Tauri window | Dark | 4.580:1 | 6.586:1 |
+
+The muted foreground/surface pair measured 4.625:1 in light and 5.139:1 in dark.
+These checks cover the listed combinations; they do not certify future controls,
+arbitrary chart adjacency, or audience image backgrounds.
+
+Browser verification used `pnpm dev:vite`; native verification used `pnpm dev`
+after stopping the separate Vite server. A temporary `.app` wrapper exposed the
+unchanged development binary to native automation separately from an older
+packaged Lumina already open. The native configuration override opened the
+temporary fixture; no wrapper or configuration override is committed.
+
+Changed macOS appearance from Dark to Light and back with the maintainer's
+permission. Both renderers updated their media mode and colors without an app
+restart. Reviewed the actual Welcome screen in both modes; browser keyboard
+activation returned the browser fixture greeting, and native keyboard activation
+returned `Hello world from Rust!`. Restored macOS Dark appearance and removed
+the temporary playground fixture before final checks.
+
+### Automated checks
+
+`pnpm check` passed: frontend lint, typechecking, all 23 frontend tests, Rust
+formatting, generated IPC binding drift, Clippy, and all 10 Rust tests.
+`pnpm build:vite` passed after restoring the original playground. The production
+build excludes the temporary review fixture. Existing Welcome tests were also
+run during implementation; no CSS literal-value tests or new dependencies were
+added. Biome does not include CSS in this repo; the Vite build and rendered
+checks provide the stylesheet verification.
