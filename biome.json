@@ -22,7 +22,8 @@
             "!!node_modules",
             "!!.output",
             "!!.tanstack",
-            "!src/routeTree.gen.ts"
+            "!src/routeTree.gen.ts",
+            "!src/bridge/bindings.gen.ts"
         ]
     },
     "formatter": {

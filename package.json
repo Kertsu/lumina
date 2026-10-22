@@ -15,7 +15,9 @@
         "fix": "biome check --write",
         "typecheck": "tsc --noEmit",
         "dev": "tauri dev",
-        "build": "tauri build"
+        "build": "tauri build",
+        "bindings:generate": "node scripts/bindings.mjs",
+        "bindings:check": "node scripts/bindings.mjs --check"
     },
     "dependencies": {
         "@fontsource-variable/inter": "^5.2.8",

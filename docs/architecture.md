@@ -114,8 +114,8 @@ Reference pattern: the corporate `ApiError` envelope and policy `ServiceApiError
 ## Generated contracts and dependency checks
 
 - Rust command/event/error declarations are the source of truth. Use `tauri-specta` to generate TypeScript under `src/bridge`; commit the output and treat it as read-only.
-- Binding generation uses the application's command/event registration and works without opening a desktop window. Check generation drift in CI, then typecheck the frontend.
-- Pin compatible released Specta/Tauri Specta versions during setup; their v2 integration is currently prerelease. Keep generator-specific registration in the desktop integration.
+- Binding generation uses the application's command/event registration and works without opening a desktop window. `pnpm bindings:generate` and `pnpm bindings:check` are implemented; run `pnpm typecheck` after regeneration. CI wiring belongs to the shared-verification slice. See the [integration guide](integration.md) for the consumed greeting, adapter selection, diagnostics, and M2/M4/M5/M6 fixtures.
+- Compatible released prereleases are pinned: Specta/Tauri Specta `=2.0.0-rc.25` and Specta TypeScript `=0.0.12`. Keep generator-specific registration in the desktop integration.
 - Cargo dependency declarations and Rust visibility express crate/module separation. Review changes to crate manifests for forbidden additions.
 - Use a small Biome import-rule set for direct Tauri imports and canonical alias imports across frontend modules. Prefer existing tools over a custom dependency-analysis subsystem.
 - Verified limitation: installed Biome 2.4.14 restrictions match written import paths. Relative paths or alternate aliases can bypass rules unless covered; use one documented cross-module alias convention and retain review for cases simple rules cannot prove. Symbol-visibility rules are not comprehensive feature-folder privacy.
@@ -163,6 +163,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend and Rust startup are implemented in their respective slices; typed integration, shared UI, shared verification/CI, and the final maintainer walkthrough remain separate foundation work.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, and typed integration are implemented in their respective slices; shared UI, shared verification/CI, and the final maintainer walkthrough remain separate foundation work.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.
