@@ -6,6 +6,7 @@ import {
     client as defaultClient,
     type Greeting,
 } from "@/bridge/client";
+import { Button } from "@/shared/ui/button";
 
 function failureLabel(failure: ApplicationFailure): string {
     switch (failure.errorCode) {
@@ -54,14 +55,14 @@ export function Welcome({
                     Verse projection for the room, without exposing the
                     operator's screen.
                 </p>
-                <button
+                <Button
                     type="button"
-                    className="rounded border px-4 py-2 disabled:opacity-50"
+                    variant="outline"
                     disabled={pending}
                     onClick={greet}
                 >
                     Say hello
-                </button>
+                </Button>
                 {pending && <p role="status">Contacting application…</p>}
                 {result?.status === "ok" && (
                     <div role="status">

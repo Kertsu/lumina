@@ -52,6 +52,8 @@ server-rendering process.
 | `src/features/welcome/welcome.tsx` | Welcome UI and greeting interaction through the typed client |
 | `src/bridge/client.ts` | One typed client, desktop normalization, browser fixtures, host selection |
 | `src/bridge/bindings.gen.ts` | Committed Rust-generated contracts; regenerate rather than edit |
+| `src/shared/ui/` | Editable shadcn/ui primitives and their styling helper |
+| `components.json` | Explicit Radix style and shared UI generator aliases |
 | `src/routeTree.gen.ts` | Generated route tree; Vite regenerates it when routes change |
 | `src/styles.css`, `public/` | Shared styling, bundled fonts, and static assets |
 | `vite.config.ts`, `src-tauri/tauri.conf.json` | Frontend tooling and desktop entry/output wiring |
@@ -62,8 +64,8 @@ they do not own product workflows. Add real modules as responsibilities arise.
 
 Direct native calls/subscriptions stay in `src/bridge/`. Features consume
 `ApplicationClient` from `@/bridge/client`; they never import native APIs or
-generated command wrappers. Editable shared UI under `src/shared/ui/` remains
-a dependent foundation ticket. React owns pending/result display state;
+generated command wrappers. Shared UI under `src/shared/ui/` stays independent
+of features, application rules, and the native bridge. React owns pending/result display state;
 accepted application state and greeting computation belong to Rust. See the agreed
 [architecture](docs/architecture.md) and [domain glossary](GLOSSARY.md).
 
@@ -161,6 +163,17 @@ pnpm bindings:generate
 pnpm typecheck
 pnpm bindings:check
 ```
+
+## Shared UI
+
+The welcome screen's **Say hello** action uses the editable Radix-backed
+shadcn `Button` in `src/shared/ui/button.tsx` on both surfaces. Change its
+classes directly; use `src/styles.css` for shared light/dark theme tokens.
+Bundled Inter and JetBrains Mono fonts remain shared too.
+
+See the [shared UI guide](docs/shared-ui.md) for adding components, dependency
+selection, customization, editable versus generated ownership, and the M3
+desktop/browser verification steps. Maintainer M3 observations remain pending.
 
 ## Verify and debug
 
