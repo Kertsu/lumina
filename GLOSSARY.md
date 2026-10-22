@@ -24,6 +24,10 @@ _Avoid_: Audience window, when referring to the workspace's controls
 The presentation surface containing the Bible content intended for the audience.
 _Avoid_: Operator screen, reading window
 
+**Application theme**:
+A paired light and dark color palette shared by Lumina's operator and audience windows.
+_Avoid_: Workspace appearance, when referring to the shared application palette
+
 **Cursor hiding**:
 Suppressing the pointer image over an audience window while leaving pointer movement and input possible.
 _Avoid_: Pointer confinement, when referring only to visibility
