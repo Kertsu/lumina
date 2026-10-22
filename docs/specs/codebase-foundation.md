@@ -1,6 +1,8 @@
 # Establish Lumina's maintainable Rust and React foundation
 
-Status: approved for implementation. The maintainer approved the verification scenarios; foundation implementation and verification execution have not started.
+Status: approved foundation implemented. Agent verification is recorded in
+[foundation verification](../foundation-verification.md); maintainer M1–M8
+observations remain pending. Approval of scenarios does not complete acceptance.
 
 Implementation issue: [#11](https://github.com/Kertsu/lumina/issues/11).
 
@@ -116,7 +118,10 @@ Deliver a working minimal desktop and browser-development scaffold, the agreed c
 
 ## Verification Decisions
 
-The maintainer approved these acceptance scenarios and planned checks. They are not completed verification results; execution remains pending.
+The maintainer approved these acceptance scenarios and planned checks. Their
+current evidence and pending/reported status live in the
+[verification record](../foundation-verification.md); the scenarios below are
+requirements, not completed verification results.
 
 ### Maintainer manual scenarios
 
@@ -168,7 +173,11 @@ Use existing minimal views and development/test fixtures for these checks. Docum
 
 This is an engineering foundation specification. Its user stories describe maintainer outcomes rather than end-user product features. The primary outcome is a codebase the maintainer can understand and change personally over time.
 
-The current project is still a scaffold: the Rust workspace, persistence driver, shared code-based error contract, generated bridge, shared verification command, and simplified frontend are agreed targets rather than completed work. The current frontend CI does not yet verify the Rust foundation.
+At approval, the project was an exploratory scaffold. The Rust workspace,
+persistence driver, shared code-based error contract, generated bridge, shared
+verification command, and static frontend are now implemented. CI runs the
+frontend and Rust/contracts verification groups. Product features remain outside
+this foundation; maintainer runtime acceptance remains pending.
 
 The architecture guide and associated ADRs prepared during the design session must accompany the implementation so a fresh checkout has the rationale and responsibility map. Keep this issue self-contained; it does not depend on unpublished chat transcripts or external AI-share pages. Preserve existing local documentation changes when beginning implementation.
 

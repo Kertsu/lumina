@@ -4,6 +4,11 @@ Bible passage selection and projection during gatherings. The current welcome
 scaffold runs as a static React, Vite, and TanStack Router frontend in either
 Tauri's operator window or a browser.
 
+Returning to the project? Follow the [maintainer walkthrough](docs/maintainer-workflow.md)
+for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
+verification evidence. The responsibility maps and focused guides below remain
+the reference for each area.
+
 ## Setup
 
 - Node.js 24 (`.node-version`).
@@ -13,11 +18,20 @@ Tauri's operator window or a browser.
   install Xcode Command Line Tools; Windows needs Microsoft C++ Build Tools
   and WebView2; Linux needs the distribution's WebKitGTK and build packages.
 - Rust 1.96.0, including rustfmt and Clippy, is pinned in `rust-toolchain.toml`.
-  Rustup installs it when a Rust command first runs.
+  Install Rustup first, then install the declared toolchain from the repo root.
 
 ```sh
+npm install --global pnpm@10.30.1
+node --version
+pnpm --version
+rustup toolchain install --no-self-update
 pnpm install --frozen-lockfile
 ```
+
+Expect Node `v24.x` and pnpm `10.30.1`, including inside script subprocesses.
+Preserve `pnpm-lock.yaml` and the root `Cargo.lock`; there is no desktop-only
+lockfile. Cargo checks use `--locked`. The walkthrough lists native setup for
+each host; full verification needs native compile tools even without a window.
 
 ## Run and build
 
@@ -216,6 +230,6 @@ browser developer tools (or the operator window's WebView inspector). Vite
 retains the existing TanStack development plugin, React Fast Refresh,
 Tailwind integration, and TypeScript path aliases.
 
-Maintainer runtime observations remain pending until reported. Final
-host-specific package build/launch verification belongs to the foundation
-walkthrough ticket; a static build alone does not establish that result.
+Maintainer M1–M8 observations remain pending until reported. See the
+[walkthrough evidence](docs/foundation-verification.md) for automated tests,
+static/build checks, and the available host's package build/launch result.
