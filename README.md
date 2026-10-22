@@ -4,6 +4,11 @@ Bible passage selection and projection during gatherings. The current welcome
 scaffold runs as a static React, Vite, and TanStack Router frontend in either
 Tauri's operator window or a browser.
 
+Returning to the project? Follow the [maintainer walkthrough](docs/maintainer-workflow.md)
+for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
+verification evidence. The responsibility maps and focused guides below remain
+the reference for each area.
+
 ## Setup
 
 - Node.js 24 (`.node-version`).
@@ -13,11 +18,20 @@ Tauri's operator window or a browser.
   install Xcode Command Line Tools; Windows needs Microsoft C++ Build Tools
   and WebView2; Linux needs the distribution's WebKitGTK and build packages.
 - Rust 1.96.0, including rustfmt and Clippy, is pinned in `rust-toolchain.toml`.
-  Rustup installs it when a Rust command first runs.
+  Install Rustup first, then install the declared toolchain from the repo root.
 
 ```sh
+npm install --global pnpm@10.30.1
+node --version
+pnpm --version
+rustup toolchain install --no-self-update
 pnpm install --frozen-lockfile
 ```
+
+Expect Node `v24.x` and pnpm `10.30.1`, including inside script subprocesses.
+Preserve `pnpm-lock.yaml` and the root `Cargo.lock`; there is no desktop-only
+lockfile. Cargo checks use `--locked`. The walkthrough lists native setup for
+each host; full verification needs native compile tools even without a window.
 
 ## Run and build
 
@@ -151,13 +165,14 @@ bundled dependency and initialization path as desktop startup.
 For the storage runtime check, run `pnpm dev`, inspect the printed path and
 ready message, and confirm the operator window responds. Close and restart:
 the same database should reopen without unexplained errors. Use disposable data
-when investigating failures. Maintainer runtime observations remain pending.
+when investigating failures. Maintainer-reported results are in the
+[verification record](docs/foundation-verification.md#maintainer-acceptance-ledger).
 
 ## Typed calls and failures
 
 See the [integration guide](docs/integration.md) for the React → bridge → desktop
 → application path, generated contracts, diagnostic causes, exact M2/M4/M5/M6
-fixture activation/restoration steps, and pending runtime observations.
+fixture activation/restoration steps, and observation status.
 
 ```sh
 pnpm bindings:generate
@@ -174,7 +189,7 @@ Bundled Inter and JetBrains Mono fonts remain shared too.
 
 See the [shared UI guide](docs/shared-ui.md) for adding components, dependency
 selection, customization, editable versus generated ownership, and the M3
-desktop/browser verification steps. Maintainer M3 observations remain pending.
+desktop/browser verification steps. The maintainer reported M3 passing.
 
 ## Verify and debug
 
@@ -216,6 +231,7 @@ browser developer tools (or the operator window's WebView inspector). Vite
 retains the existing TanStack development plugin, React Fast Refresh,
 Tailwind integration, and TypeScript path aliases.
 
-Maintainer runtime observations remain pending until reported. Final
-host-specific package build/launch verification belongs to the foundation
-walkthrough ticket; a static build alone does not establish that result.
+The maintainer reported M1–M8 passing on 2026-10-22. See the
+[walkthrough evidence](docs/foundation-verification.md) for automated tests,
+static/build checks, the available host's package build/launch result, and the
+separate maintainer acceptance ledger.

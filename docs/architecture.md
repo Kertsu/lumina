@@ -1,6 +1,6 @@
 # Architecture design
 
-The maintainer has confirmed the architecture design and foundation specification. Implementation is specified in [GitHub issue #11](https://github.com/Kertsu/lumina/issues/11). The static frontend slice ([#12](https://github.com/Kertsu/lumina/issues/12)) supplies React/Vite/Router startup, route entry points, and the welcome capability. The Rust startup slice ([#13](https://github.com/Kertsu/lumina/issues/13)) supplies the Cargo workspace, explicit composition root, one blocking execution boundary, and managed bundled SQLite initialization/migrations. The remaining foundation below is the agreed target; see [README](../README.md) for implemented commands and responsibilities. Maintainer runtime verification remains pending.
+The maintainer approved the architecture and [foundation specification](specs/codebase-foundation.md), tracked in [#11](https://github.com/Kertsu/lumina/issues/11). The static frontend, Rust workspace/startup, typed integration, shared Radix UI, and shared local/CI checks are implemented. This document records their responsibility map and rationale. Follow the [maintainer walkthrough](maintainer-workflow.md) for setup and maintenance, and consult the [verification record](foundation-verification.md) for evidence. The maintainer reported M1–M8 passing on 2026-10-22.
 
 ## Maintainer goal
 
@@ -155,7 +155,7 @@ Keep expected failures inspectable by code and retain underlying causes for debu
 
 `pnpm check` covers frontend lint, typechecking, tests, Rust formatting, Clippy, Rust tests, and generated-contract drift. Keep individual commands available for iteration. Preserve the declared Node/pnpm versions and both lockfiles, and pin a Rust toolchain during setup. Document the required native build dependencies.
 
-## Foundation work after design confirmation
+## Foundation implementation sequence
 
 1. Create the Cargo workspace and agreed crate interfaces; fix lint inheritance and wire startup explicitly.
 2. Simplify the frontend to React/Vite/Router and apply the agreed layout with Radix-backed shadcn/ui.
@@ -167,6 +167,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, typed integration, shared UI, and shared verification/CI are implemented in their respective slices; the final maintainer walkthrough remains separate foundation work. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. The [walkthrough](maintainer-workflow.md) joins the delivered slices into one maintenance workflow. Its [evidence record](foundation-verification.md) separates agent checks from maintainer-reported acceptance. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.

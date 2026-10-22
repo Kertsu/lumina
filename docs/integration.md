@@ -179,6 +179,7 @@ cargo test -p lumina-app --locked
 
 Application tests remain native-free. Bridge tests use Tauri's IPC test boundary;
 React tests use the actual client with representative fixtures or unavailable
-IPC. Full-suite commands remain in the README. M2/M4/M5/M6 runtime observations
-remain pending until the maintainer runs and reports them; automated checks do
-not establish native window or browser observations.
+IPC. Full-suite commands remain in the README. The maintainer reported
+M2/M4/M5/M6 passing on 2026-10-22; see the
+[acceptance ledger](foundation-verification.md#maintainer-acceptance-ledger).
+Automated checks alone do not establish native window or browser observations.
