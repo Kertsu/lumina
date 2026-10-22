@@ -114,11 +114,17 @@ Reference pattern: the corporate `ApiError` envelope and policy `ServiceApiError
 ## Generated contracts and dependency checks
 
 - Rust command/event/error declarations are the source of truth. Use `tauri-specta` to generate TypeScript under `src/bridge`; commit the output and treat it as read-only.
-- Binding generation uses the application's command/event registration and works without opening a desktop window. `pnpm bindings:generate` and `pnpm bindings:check` are implemented; run `pnpm typecheck` after regeneration. CI wiring belongs to the shared-verification slice. See the [integration guide](integration.md) for the consumed greeting, adapter selection, diagnostics, and M2/M4/M5/M6 fixtures.
+- Binding generation uses the application's command/event registration and works without opening a desktop window. Run `pnpm bindings:generate` explicitly, then `pnpm typecheck`. `pnpm check` and CI detect drift through `pnpm bindings:check`. See the [integration guide](integration.md) for the consumed greeting, adapter selection, diagnostics, and M2/M4/M5/M6 fixtures.
 - Compatible released prereleases are pinned: Specta/Tauri Specta `=2.0.0-rc.25` and Specta TypeScript `=0.0.12`. Keep generator-specific registration in the desktop integration.
 - Cargo dependency declarations and Rust visibility express crate/module separation. Review changes to crate manifests for forbidden additions.
 - Use a small Biome import-rule set for direct Tauri imports and canonical alias imports across frontend modules. Prefer existing tools over a custom dependency-analysis subsystem.
 - Verified limitation: installed Biome 2.4.14 restrictions match written import paths. Relative paths or alternate aliases can bypass rules unless covered; use one documented cross-module alias convention and retain review for cases simple rules cannot prove. Symbol-visibility rules are not comprehensive feature-folder privacy.
+
+Use `@/features/<feature>` for each feature's public `index.ts`,
+`@/bridge/client` for application access/types, and `@/shared/ui/<component>`
+for editable primitives. Use relative imports within a feature or bridge.
+See [verification](verification.md) for the configured import restrictions,
+command examples, CI setup, and remaining review responsibilities.
 
 Source: [released Tauri Specta setup](https://raw.githubusercontent.com/specta-rs/tauri-specta/v2.0.0-rc.25/src/lib.rs).
 
@@ -136,9 +142,7 @@ Application and persistence tests run independently of Tauri. Test meaningful ob
 
 Keep expected failures inspectable by code and retain underlying causes for debugging. Document one normal terminal/devtools diagnostic path and useful entry points instead of introducing a separate diagnostics framework.
 
-## Planned developer commands
-
-These are target conventions, not scripts already implemented.
+## Developer commands
 
 | Command | Purpose |
 | --- | --- |
@@ -163,6 +167,6 @@ The guide should let a maintainer trace a call from a React feature through the 
 
 ## Review status and scope
 
-The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, typed integration, and shared UI are implemented in their respective slices; shared verification/CI and the final maintainer walkthrough remain separate foundation work. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
+The maintainer approved the [foundation specification](specs/codebase-foundation.md) and its verification scenarios. Static frontend, Rust startup, typed integration, shared UI, and shared verification/CI are implemented in their respective slices; the final maintainer walkthrough remains separate foundation work. See the [shared UI guide](shared-ui.md) for the editable Radix Button and component workflow.
 
 Detailed feature behavior, algorithms, complete schemas, and protocol mechanics belong to feature design. Earlier unanswered feature-level recommendations are not accepted requirements. Existing MVP behavior and accepted ADRs remain authoritative.

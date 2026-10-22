@@ -1,0 +1,79 @@
+name: Checks
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm package manager
+        uses: pnpm/action-setup@v6
+        env:
+          NPM_CONFIG_AUDIT: "false"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify frontend
+        run: pnpm check:frontend
+
+  rust:
+    name: Rust and contracts
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm package manager
+        uses: pnpm/action-setup@v6
+        env:
+          NPM_CONFIG_AUDIT: "false"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Install native compile prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config libwebkit2gtk-4.1-dev \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install declared Rust toolchain and components
+        run: rustup toolchain install --no-self-update
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Verify Rust and contracts
+        run: pnpm check:rust

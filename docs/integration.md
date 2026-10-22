@@ -91,7 +91,7 @@ Temporarily replace its contents with:
 ```tsx
 import { createFileRoute } from "@tanstack/react-router";
 import { createBrowserClient } from "@/bridge/client";
-import { Welcome } from "@/features/welcome/welcome";
+import { Welcome } from "@/features/welcome";
 
 const fixture = createBrowserClient({
     status: "error",
@@ -128,7 +128,7 @@ Temporarily replace that route with:
 ```tsx
 import { createFileRoute } from "@tanstack/react-router";
 import { createDesktopClient } from "@/bridge/client";
-import { Welcome } from "@/features/welcome/welcome";
+import { Welcome } from "@/features/welcome";
 
 const unavailableDesktop = createDesktopClient();
 

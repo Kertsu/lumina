@@ -98,6 +98,71 @@
     },
     "overrides": [
         {
+            "includes": ["src/**", "!src/bridge/**"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "noRestrictedImports": {
+                            "level": "error",
+                            "options": {
+                                "patterns": [
+                                    {
+                                        "group": ["@tauri-apps/**"],
+                                        "message": "Native APIs belong in src/bridge. Use @/bridge/client."
+                                    },
+                                    {
+                                        "group": [
+                                            "@/bridge",
+                                            "@/bridge/**",
+                                            "!@/bridge/client"
+                                        ],
+                                        "message": "Consume the public @/bridge/client interface, not generated bindings or bridge internals."
+                                    },
+                                    {
+                                        "group": ["@/features/*/**"],
+                                        "message": "Import a feature's public @/features/<feature> entry point; use relative imports inside that feature."
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "includes": ["src/shared/ui/**"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "noRestrictedImports": {
+                            "level": "error",
+                            "options": {
+                                "patterns": [
+                                    {
+                                        "group": ["@tauri-apps/**"],
+                                        "message": "Native APIs belong in src/bridge. Shared UI must remain native-independent."
+                                    },
+                                    {
+                                        "group": [
+                                            "@/bridge",
+                                            "@/bridge/**",
+                                            "@/features",
+                                            "@/features/**",
+                                            "@/app",
+                                            "@/app/**",
+                                            "@/routes",
+                                            "@/routes/**"
+                                        ],
+                                        "message": "Shared UI must remain independent of the bridge, features, and application composition."
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
             "includes": ["src/routes/**/*.tsx"],
             "linter": {
                 "rules": {

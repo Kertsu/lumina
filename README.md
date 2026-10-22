@@ -58,7 +58,8 @@ server-rendering process.
 | `src/styles.css`, `public/` | Shared styling, bundled fonts, and static assets |
 | `vite.config.ts`, `src-tauri/tauri.conf.json` | Frontend tooling and desktop entry/output wiring |
 
-Use `@/` imports across frontend modules. Keep related capability UI, interaction
+Use `@/` imports across frontend modules, including `@/features/welcome` for
+the feature's public entry point. Keep related capability UI, interaction
 hooks, and tests together under `src/features/`. Routes compose capabilities;
 they do not own product workflows. Add real modules as responsibilities arise.
 
@@ -178,11 +179,22 @@ desktop/browser verification steps. Maintainer M3 observations remain pending.
 ## Verify and debug
 
 ```sh
-pnpm typecheck
-pnpm lint:ci
-pnpm test
+pnpm check
+# Separate static build check:
 pnpm build:vite
 ```
+
+`pnpm check` runs frontend lint/format checks, TypeScript, Rust formatting,
+contract drift, Clippy, React tests, and Rust tests. It runs `pnpm check:frontend`
+then `pnpm check:rust`; CI runs these same groups in parallel jobs for every
+PR targeting `main` and every push to `main`, including Rust-only changes.
+It checks without rewriting source or launching application windows;
+full verification needs the native compile prerequisites above.
+
+See [verification](docs/verification.md) for individual commands, enforced
+import paths and their limits, Rust dependency/lint inspection, diagnostics,
+and M7 violation/restoration steps. Regenerate changed contracts explicitly
+with `pnpm bindings:generate`; ordinary verification only detects drift.
 
 Router rendering/navigation tests live beside the router in
 `src/app/router.test.tsx`; run just those with
