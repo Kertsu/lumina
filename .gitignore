@@ -19,6 +19,9 @@ count.txt
 .tanstack
 todos.json
 
+# Local scratch work
+/.scratch/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

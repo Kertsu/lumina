@@ -53,7 +53,7 @@ Microsoft provides a standalone offline runtime installer.
 
 ## Cursor visibility qualification
 
-Qualify the [cursor visibility contract](../../.scratch/lumina-mvp/spec.md#cursor-visibility-and-shortcuts)
+Qualify the [cursor visibility contract](../specs/mvp.md#cursor-visibility-and-shortcuts)
 on each supported configuration. With Hide cursor enabled, the pointer image
 must disappear over that audience and remain visible outside it. Disabling the
 setting must restore visibility. Movement across edges, clicks, and normal focus

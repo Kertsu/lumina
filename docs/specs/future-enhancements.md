@@ -1,6 +1,6 @@
 # Future enhancements
 
-These capabilities are outside the [MVP plan](mvp.md). Reasons and reconsideration criteria guide future evaluation; scheduling requires a scope decision. Requirement history belongs in the [specification changelog](../../.scratch/lumina-mvp/spec-changelog.md).
+These capabilities are outside the [MVP specification](mvp.md). Reasons and reconsideration criteria guide future evaluation; scheduling requires a scope decision. Requirement history belongs in the [specification changelog](mvp-changelog.md).
 
 | Capability | Current scope and reason | Reconsider when |
 | --- | --- | --- |
@@ -30,4 +30,4 @@ These capabilities are outside the [MVP plan](mvp.md). Reasons and reconsiderati
 
 Application-level Bible encryption is outside scope. Code licensing, Bible/metadata terms, and dependency notices remain distinct release responsibilities.
 
-Update the plan, implementation specification, and changelog together when requirements change. Detailed engineering/UI review belongs in the [plan's remaining work](mvp.md#work-remaining-before-release), not in the enhancement backlog.
+Update the MVP specification and changelog together when requirements change. Detailed engineering/UI review belongs in the [specification's remaining work](mvp.md#work-remaining-before-release), not in the enhancement backlog.

@@ -45,7 +45,7 @@ identify its actual source artifact rather than only “WEB.”
 ## Evidence limit: book information
 
 Lumina supports optional attributed import metadata for book name, author,
-writing date, and writing location. The [implementation specification](../../.scratch/lumina-mvp/spec.md#book-information-projection)
+writing date, and writing location. The [MVP specification](../specs/mvp.md#book-information-projection)
 defines its display behavior. A curated bundled dataset remains deferred until
 a suitable redistributable source is established. Define the metadata format and
 provenance contract before implementation; attribution alone does not establish
