@@ -1,6 +1,8 @@
-# Lumina MVP plan
+# Lumina MVP specification
 
-This plan defines Lumina's MVP workflow and scope. The [implementation specification](../../.scratch/lumina-mvp/spec.md) contains the detailed behavior rules and acceptance checks. Requirement history is maintained separately in the [specification changelog](../../.scratch/lumina-mvp/spec-changelog.md).
+Status: agreed product baseline; feature-specific design remains.
+
+This is the canonical contract for Lumina's MVP scope, behavior, and acceptance checks. Derive focused feature specifications from it. The implemented [architecture](../architecture.md) and accepted [ADRs](../adr/) constrain implementation. Requirement history belongs in the [specification changelog](mvp-changelog.md).
 
 ## Purpose and scope
 
@@ -10,13 +12,29 @@ Use Tauri for the desktop application and React for the interface. Verify each s
 
 The application ships with the publisher's World English Bible Protestant edition, covering the standard 66 books. Operators can import additional translations through the UI. Bible text remains in its original wording and punctuation for display, copy, export, and projection.
 
+### Operator and maintainer outcomes
+
+| Capability | Operator or maintainer outcome |
+| --- | --- |
+| Offline first use | Install and launch a downloaded build with a bundled Bible, without fetching required assets or creating an account |
+| Local Bible library | Review/import translations with their own chapter/verse numbering, see available coverage, and manage duplicates, replacement, removal, and explicit restoration |
+| Independent audiences | Add and rename workspace tabs, select unrelated content, and control each associated audience without a fixed count cap |
+| Verse choices | Send a reference/search result live directly, or privately inspect the same content and explicitly Send Live; history, translation changes, and current-verse navigation retain direct behavior |
+| Book information | Toggle attributed book metadata onto an audience using its translation's background, then restore the retained verse |
+| Search | Choose a translation, one scope, and a named text-matching preset; inspect complete, highlighted, paged results without query syntax |
+| History | Recall original wording, filter projected verses, copy identifiable text, and export or deliberately clear workspace-specific records |
+| Appearance | Adjust verse formatting, character-count size bands, and translation backgrounds independently per workspace |
+| Display control | Open blank output, place/fullscreen it, use Blank/Resume, and independently show/hide the cursor over each audience |
+| Continuity | Retain saved workspace organization/settings/history and recover display failures without deliberately disrupting other outputs |
+| Release quality | Publish support and capacity claims only with packaged offline, physical-display, and sustained-workflow evidence |
+
 ## Operator workspaces and audiences
 
 One operator window contains tabs. Each tab represents an independent workspace associated with at most one local audience window. Audiences can show different verses, book information, translations, and appearances. The installed Bible library is shared; search state, current verse, book information mode, history, and appearance belong to each workspace.
 
 Start with one workspace. Operators explicitly add more, with default names such as Audience 2 that they can rename. New workspaces have WEB selected, default appearance, empty search/history, no current verse, book information mode off, Hide cursor enabled, and a closed audience. Keep at least one workspace. Removing a tab requires confirmation, closes its audience, and deletes only that workspace's saved state.
 
-There is no application-imposed workspace or audience count cap. Practical capacity depends on hardware and operating-system resources; publish actual tested counts separately. Provide usable tab overflow and report window-creation failures in the affected workspace without deliberately disrupting existing outputs.
+There is no application-imposed workspace or audience count cap. Practical capacity depends on hardware and operating-system resources; publish actual tested counts separately. Provide usable tab overflow and report window-creation and operation failures in the affected workspace without deliberately disrupting existing outputs. Do not promise recovery from arbitrary OS-wide resource exhaustion.
 
 Each tab shows its name and Live, Blank, or Closed status. Repeat the active workspace name beside its projection controls. Workspace names are not extra labels on projected Scripture. Switching tabs changes which workspace is controlled; it does not change any audience's output. Shortcuts and verse actions target the active workspace. Delayed searches and native responses remain associated with the workspace that initiated them.
 
@@ -36,9 +54,9 @@ Each workspace has one current verse, represented in the operator view and retai
 
 | Operator action | Effect |
 | --- | --- |
-| Choose Send Live for a search result | Display that result's original verse text in the operator view and open audience |
+| Choose Send Live for a search result | Display that result's original verse text in the operator view and already-open audience |
 | Choose Check preview for a reference or search result | Inspect its verse text, reference, and translation privately; preserve the current verse, audience content, and blanking state |
-| Choose Send Live from that preview | Display the exact inspected content in its originating workspace and open audience |
+| Choose Send Live from that preview | Display the exact inspected content in its originating workspace and already-open audience |
 | Dismiss the preview | Discard the temporary inspection without changing displayed content |
 | Turn book information on | Display its metadata while retaining the current verse; preserve Blank/Closed state |
 | Turn book information off | Restore the retained verse, or blank output if none exists; preserve Blank/Closed state |
@@ -56,7 +74,7 @@ A verse action counts as Projected only after the intended audience window confi
 
 Blank hides audience content while retaining the current verse and book information mode. Resume shows information when its mode is on, otherwise the retained verse if one exists. Successful Send Live, history recall, current-verse navigation, or displayed-translation changes turn information mode off, end blanking, and show the chosen verse. Check preview and information toggles preserve blanking. With output closed, history recall/navigation/translation changes can update only the operator view; Send Live reports closed output without changing current content. Show closed/blank output status and information mode beside the retained verse so the operator can tell what the audience sees.
 
-Preview is optional and temporary. It does not replace the current verse, create history, or survive restart. Sending it live creates one normal projection/history event using the inspected wording and translation, even if the search selector has since changed. If its source edition has disappeared, identify the captured wording as a Saved copy. Sending requires the originating workspace to be active and its audience open; rejection before dispatch leaves existing output unchanged and retains the candidate for another attempt. Missing confirmation after delivery may have begun is unconfirmed rather than proof that the output stayed unchanged. Tab switches must never redirect a pending preview to a different audience; return to its workspace before sending. Removing its workspace discards it.
+Preview is optional and temporary. Capture the original verse text, reference, translation label, edition, and originating workspace on inspection. It does not replace the current verse, create history, or survive restart. Sending it live creates one normal projection/history event using the inspected wording and translation, even if the search selector has since changed. If its source edition has disappeared, identify the captured wording as a Saved copy. Sending requires the originating workspace to be active and its audience open; rejection before dispatch leaves existing output unchanged and retains the candidate for another attempt. Missing confirmation after delivery may have begun is unconfirmed rather than proof that the output stayed unchanged. Tab switches must never redirect a pending preview to a different audience; return to its workspace before sending. Removing its workspace discards it.
 
 The presentation of these choices, keyboard activation, and the preview surface are UI-design decisions. No modal, panel, drawer, layout, or separate preview navigation is prescribed. Keep the behavior consistent between quick reference and search. There is no verse queue, persistent private/live preparation workflow, mandatory preview step, or second navigation pair. Appearance-settings Apply/Cancel remains a separate styling workflow.
 
@@ -85,7 +103,7 @@ Search one selected installed translation and one Search at scope. Operators sel
 
 For example, `love God` in All words matches both complete words in either order; Phrase requires them consecutively in that order. Word starts `pananampalataya` matches `pananampalatayang`; Contains text `righteous` matches inside `unrighteous`. These are literal matching rules; stemming and semantic assistance remain deferred.
 
-All modes ignore case and accents and treat straight/curly apostrophes equivalently: `Jose`/`José` and `ako'y`/`ako’y` match equivalently. Phrase matching uses normalized word boundaries rather than identical punctuation. Search normalization never rewrites Scripture text. User input does not activate raw FTS operators, SQL wildcards, or regular expressions.
+All modes ignore case and accents and treat straight/curly apostrophes equivalently: `Jose`/`José` and `ako'y`/`ako’y` match equivalently. Phrase matching uses normalized word boundaries rather than identical punctuation. Use consistent Unicode normalization and map match highlights back to original text. Search normalization never rewrites Scripture text. User input does not activate raw FTS operators, SQL wildcards, or regular expressions.
 
 ### Search at and results
 
@@ -113,6 +131,8 @@ When there are no matches, offer deliberate mode/scope changes. Never silently r
 
 Accept one documented SQLite format with `versions`, `books`, and `verses` tables. A file may contain one or several translations. The contract uses one supported book-ID convention for the standard 66-book set; database row IDs remain local to their file and are not cross-translation identities. Each edition retains its own positive-integer chapter/verse coordinates and original text. Conforming files need no manual book mapping.
 
+The format's `versions` table contains translation titles/descriptions; `books` identifies each translation's book number/name; `verses` contains book/translation identity, chapter, verse, original text, and sort order. Define exact field, validation, and optional metadata contracts before implementing them.
+
 Validate the file and show proposed contents before accepting it into managed storage. Check supported book IDs, field types, relationships, duplicate coordinates within each translation, and documented resource/storage limits. Reject invalid records without changing the supplied file or valid installed data. The same coordinate in different translations is valid. Lumina builds its own reference/search indexes; users do not need to supply FTS indexes.
 
 WEB is starter content, not the validation authority for other translations' chapter/verse counts. Converters and the app importer must accept supported native coordinates even when absent from WEB, without dropping or renumbering source verses. Lookup, search, navigation, copy/export, and projection use each selected edition's stored coordinates. Suffixed identifiers such as `3a` and merged identifiers such as `3–4` are outside the current integer-coordinate contract and receive clear errors rather than silent conversion.
@@ -129,6 +149,8 @@ Give installed translations stable identity independent of title and changing te
 | Restore a removed entry | Explicitly reimport into its original installed entry; a separate import must not silently assume its identity |
 
 The bundled WEB entry is protected from Replace/Remove. Other WEB editions can be added as separate imports.
+
+Define exact duplicate comparison, atomic replacement/failure handling, and restoration mechanics with the feature design.
 
 After Replace, affected selectors keep the same installed entry and future lookups use updated data. After Remove, affected search/reference selectors switch to WEB for future lookups. Both operations clear obsolete results while retaining typed queries, modes, and scopes.
 
@@ -148,13 +170,13 @@ Copy includes text, reference, and translation. Export the visible history to CS
 
 ## Appearance and operator interface
 
-The operator needs access to the current verse, search/history, adjacent verses, one Previous/Next pair, quick reference, workspace tabs, book information and its display toggle, and clear audience status/content mode. Their arrangement, action presentation, and preview/book-information surfaces remain open; this plan does not prescribe a layout or container. Evaluate discoverability, workspace/output-state clarity, and readability through operator walkthroughs.
+The operator needs access to the current verse, search/history, adjacent verses, one Previous/Next pair, quick reference, workspace tabs, book information and its display toggle, and clear audience status/content mode. Their arrangement, action presentation, and preview/book-information surfaces remain open; this specification does not prescribe a layout or container. Evaluate discoverability, workspace/output-state clarity, and readability through operator walkthroughs.
 
 Customize verse-text font family, size, bold, italic, color, underline, and strikeout. Reference and translation-label styles/sizes remain fixed. Font defaults are shared within each workspace; changing one workspace never changes another audience.
 
-Use editable character-count size bands: each range of verse lengths shares one font-size setting. Show the current verse length and active band. A manual size adjustment changes that workspace's shared band and persists. Keep a whole verse on one slide using sensible defaults and manual size reduction. Initial ranges and sizes require visual evaluation; per-verse overrides, automatic fitting, and pagination are deferred.
+Use editable character-count size bands: each range of verse lengths shares one font-size setting. Show the current verse length and active band. A manual size adjustment changes that workspace's shared band and persists. Keep a whole verse on one slide using sensible defaults and manual size reduction. Initial ranges, sizes, and rendering units require visual evaluation with representative verses and display sizes; per-verse overrides, automatic fitting, and pagination are deferred.
 
-Backgrounds are per translation within each workspace, with a readable fallback. Accept JPEG, PNG, and BMP copied into managed storage. Fill/crop is the default; Fit shows the whole image. An appearance-settings sample supports Apply and Cancel: Apply changes that workspace's appearance; Cancel discards unconfirmed styling. Its styling sample is distinct from the optional quick-reference/search verse preview.
+Backgrounds are per translation within each workspace, with a readable fallback. Accept JPEG, PNG, and BMP copied into managed storage. Fill/crop is the default; Fit shows the whole image. An appearance-settings sample supports Apply and Cancel: Apply changes that workspace's confirmed appearance; Cancel discards unconfirmed styling. Its styling sample is distinct from the optional quick-reference/search verse preview. Image decoding and resource limits remain feature engineering work. Follow the agreed [application theme](application-theme.md) for shared palette defaults beneath explicit workspace styling.
 
 ## Cursor visibility and shortcuts
 
@@ -162,7 +184,7 @@ Each workspace has an independent **Hide cursor** setting, enabled by default fo
 
 Save the setting per workspace. Switching tabs, fullscreen, or applications preserves the choice. Closing/reopening an audience and restarting the app preserve it too. Changing one workspace never changes another audience's visibility setting.
 
-The native window and rendered audience must agree on visibility. Verify both settings on actual supported displays, including blank output, entering/leaving the audience, focus changes, and audiences using different choices.
+The native window and rendered audience must agree on visibility. Native APIs may have focus-dependent visibility behavior; verify that the user-facing result remains scoped to the audience area. Check actual supported displays, including blank output, entering/leaving the audience, focus changes, and audiences using different choices. See [Tauri cursor visibility](https://docs.rs/tauri/latest/tauri/webview/struct.WebviewWindow.html#method.set_cursor_visible).
 
 While the operator window is focused, F1 opens translation selection, F3 opens search, and F7 opens book information. Preview action bindings remain UI-design decisions.
 
@@ -192,7 +214,7 @@ Associate saved state with stable workspace identity, not tab number or name. Mo
 
 ## Technical direction and release requirements
 
-Keep local Bible storage/reference/search, workspace state, native audience controls, and persistence as clear responsibilities using the native bridge where needed.
+Build on the implemented [foundation](codebase-foundation.md) and [architecture](../architecture.md): React/Vite/TanStack Router provides the static frontend; Rust owns accepted application state and workflow decisions; one managed SQLite database holds durable application data. `lumina-core` owns domain rules, `lumina-app` owns use cases and public contracts, `lumina-persistence` owns SQLite operations, and `src-tauri` owns desktop integration. React uses the typed bridge and generated Rust contracts, including code-based public failures. Feature-specific commands, product schemas, and projection delivery/recovery policies remain feature design work.
 
 Use app-owned lexical indexes. SQLite FTS5 is the recommended foundation for complete-word, phrase, and prefix matching, subject to shipped-build support. Evaluate normalized literal lookup and trigram indexing for Contains text, including short-query handling. Unstemmed Unicode matching is the shared English/Tagalog recommendation. Map highlights back to original text. Ranking weights, page size, and measured performance remain engineering work, not additional feature commitments.
 
@@ -202,7 +224,7 @@ Downloaded packages, plus any supplied offline dependency bundle, must install a
 
 MIT is selected for application code; adding the license file remains release work. Bible text, metadata, and dependencies retain their own terms/notices. Before distribution, record the bundled WEB edition, source, acquisition date, artifact identity, and applicable notices. Application-level Bible encryption is outside scope.
 
-Before publishing each supported build, run a 60-minute packaged-app offline rehearsal with English/Tagalog text and physical extended displays. Cover installation, search, direct projection, long verses, restoration, and display recovery. Record hardware, OS, engine, architecture, display session, tested audience counts, latency, memory, retrieval quality, and operator task time. Set performance targets from measured baselines.
+Before publishing each supported build, run a 60-minute packaged-app offline rehearsal with English/Tagalog text and physical extended displays. Cover offline installation/first use, import, search, navigation, direct projection, long verses, restoration, and display recovery. Record hardware, OS/engine/session/architecture, tested counts/limits, cold/warm latency, memory, intended-verse retrieval within the first five results, task time, and false positives. Performance thresholds require measured baselines. Report observed runs, unverified configurations, and limitations separately from static checks.
 
 ## Work remaining before release
 
@@ -218,38 +240,61 @@ These tasks complete the design, implementation, and verification of the MVP.
 | Native audiences | Dynamic window ownership, display-loss isolation, independent cursor visibility, failure reporting, and measured capacity |
 | Distribution | Offline packages/prerequisites, license and attribution notices, supported-configuration documentation, and release rehearsal |
 
+## Testing decisions
+
+Use the [TDD skill](../../.agents/skills/tdd/SKILL.md) where possible, at pre-agreed public interfaces. Tests verify observable behavior rather than implementation details. Prefer existing interfaces and agree the testing boundaries before implementation.
+
+Cover Bible import, search/reference lookup, workspace state and persistence, projection/history, and appearance/book information through those interfaces. Existing bridge, router, welcome, Rust application, and SQLite initialization tests provide prior art. Follow the [verification guide](../verification.md) and [architecture testing conventions](../architecture.md#testing-and-debugging); [bridge tests](../../src/bridge/client.test.ts) and [persistence integration tests](../../crates/lumina-persistence/tests/initialization.rs) exercise existing public boundaries.
+
+The table below supplies expected behavior for automated tests and packaged operator/audience checks. These are acceptance criteria, not completed verification results. Native windows, physical pointer movement, display behavior, and release qualification still need app checks. Where UI failures cannot reliably be induced, use fixture imports or an observable native boundary without unnecessary production seams.
+
 ### Acceptance checks
 
-Follow the [implementation specification's testing decisions](../../.scratch/lumina-mvp/spec.md#testing-decisions). Use the cases below to guide tests at agreed public interfaces and packaged-app checks. Physical-display behavior and packaged release qualification still require checks on the supported configurations. These are acceptance criteria, not completed verification results.
-
-| Starting condition and action | Expected visible result |
+| Starting condition and action | Expected result |
 | --- | --- |
-| Audience showing John 3:16; choose direct Send Live for a reference/result, recall history, navigate, or change displayed translation | Operator verse and that audience change together; direct projection does not require prior preview |
-| John 3:16 live; Check preview for another reference/result, then dismiss or Send Live | Inspection/dismissal preserves current content and blanking; Send Live displays exactly the inspected text/reference/translation once |
-| Preview in workspace A; switch tabs, change search translation, or remove A | Preview never targets B or silently changes wording; removing A discards its preview |
-| Verse displayed; edit/submit a search, change filters/pages/search translation, or switch tabs | Current audience content remains unchanged |
-| Verse displayed; submit an invalid, ambiguous, or unloaded reference, or request an unavailable translation reference | Inline feedback; both verse surfaces remain unchanged until a valid selection |
-| Audience closed; Check preview, attempt Send Live, then explicitly open output | Preview works; sending reports closed output without opening it; explicit open stays blank until a deliberate display action |
+| Open audience showing John 3:16; direct Send Live for reference/result, history recall, navigation, or displayed-translation change | Operator verse and intended audience change directly; preview is optional, no queue |
+| Check preview from quick reference and search for the same verse; cancel, then inspect and Send Live | Both sources have identical behavior; inspection/cancel preserves current verse/output/blanking/history; sending projects inspected content with one event |
+| Preview in A; change search translation, switch to B, remove A, or close A's audience | No silent wording change or cross-workspace send; removed workspace discards candidate; closed-output send gives feedback without opening an audience |
+| Verse displayed; edit/submit search, change mode/scope/page/search translation, or switch tabs | Existing audience content stays unchanged; late results stay with initiating workspace |
+| Verse displayed; try invalid, unknown, ambiguous, unloaded, or unavailable replacement references | Inline feedback, explicit ambiguity choice, unchanged verse surfaces until valid resolution |
+| Audience closed; inspect a reference/result, attempt Send Live, then explicitly open output | Inspection works, send reports closed output without changing current content, explicit open starts blank until a deliberate display action |
 | Verse update accepted or dispatched, but application is not confirmed | Outcome remains unconfirmed and excluded from Projected; do not assert that previous audience content remained unchanged |
 | Intended audience confirms applying the exact verse action | Mark the matching action Projected, retaining one history record per action |
-| Audience blank; navigate to another available verse | New verse appears directly and blanking ends |
-| John 3:16 live with book metadata; inspect information, toggle on, then off | Inspection preserves output; on shows attributed metadata with its translation background; off restores John 3:16 and records actual verse projection; metadata creates no verse entry |
-| Information on; navigate, Send Live, recall history, change current-verse translation, or try an invalid/unavailable action | Valid actions turn mode off and show chosen verse; Next from John 3:16 shows John 3:17; pre-dispatch rejections preserve existing mode/output |
-| Current verse in A, search selector B; enable information and edit search settings | Information and background remain tied to the verse's book and edition A |
-| No current verse; choose a book in the selected translation with metadata, toggle on, then off | Information can be presented without a verse; navigation unavailable; off returns blank |
-| Partial metadata, then none; toggle while audience is blank/closed | Audience omits missing fields; no supplemental metadata disables toggle with explanation; toggles preserve Blank/Closed and never open output; Resume uses chosen mode |
-| Information on in A; switch tabs, close/reopen, Replace/Remove its source with all audiences closed, then restart | Other workspaces unchanged; reopening starts blank with runtime mode retained; captured metadata can resume as Saved copy; restart resets mode off |
-| Two audiences with different verses/appearance; operate one workspace or disconnect its display | Only the intended/affected workspace changes; the other audience continues |
+| Blank audience; navigate to an available verse | New verse appears directly and blanking ends |
+| John 3:16 live with attributed book metadata; open information, turn display on, then off | Opening alone leaves output unchanged; on shows metadata with its translation background and retains John 3:16; off restores that verse and records its actual projection; no metadata history entry |
+| Information on over John 3:16; use Previous/Next, Send Live, history recall, or current-verse translation change; also try invalid/unavailable actions | Valid actions exit information mode and show the chosen verse; Next yields John 3:17; pre-dispatch rejections preserve mode, verse, and output |
+| Current verse in translation A, search selector B; activate information and later change search settings | Metadata/attribution/background remain bound to the verse's book and edition A |
+| No current verse, selected translation with metadata; explicitly choose a book, toggle on, then off | Book information can be shown without a verse; navigation stays unavailable; off leaves blank output |
+| Information has some missing fields, then no supplemental fields | Audience omits unavailable fields while operator explains them; no supplemental data disables the toggle; Bible use remains available |
+| Audience blank or closed; toggle information, Resume, close/reopen, switch tabs, and restart | Toggles preserve Blank/Closed and never open output; Resume uses chosen mode; reopening retains runtime mode but starts blank; other workspaces unchanged; restart resets mode off |
+| Captured information active, audiences closed; Replace/Remove its source, reopen, and Resume | Reopened output starts blank; captured metadata/attribution retained with operator Saved copy identification; no silent replacement or WEB substitution |
+| Several audiences with different references/translations/history/appearance; operate or disconnect one | Only intended/affected workspace/output changes; other audiences continue |
 | Two windowed audiences on a supported OS; enable always-on-top for A, overlap it with an ordinary window, then disable it | A stays above ordinary windows while enabled and returns to normal stacking when disabled; B's setting is unchanged |
-| New audience; enable/disable Hide cursor and move across its edges | New workspaces default on; pointer visibility follows the setting over content and returns outside; movement/clicks remain available |
-| A hides its cursor and B shows it; toggle A, switch apps/fullscreen, close/reopen, and restart | B is unchanged; each saved choice survives and works on blank output as well as Scripture |
-| Multiple saved workspaces, including a representative 20-workspace case; reorder and restart | Stable identity restores correct history/settings, only operator opens, audiences closed, saved Hide cursor settings retained |
-| Captured imported verse/history; Replace/Remove, including attempts with an inactive audience still open | Maintenance blocked until all audiences close; captured text retained; future lookups reflect replacement or WEB fallback; unavailable adjacent navigation blocked |
-| Import editions with Romans 16:24–27 and Romans 14:24–26 respectively; search, inspect, project, copy/export, and navigate those rows | Both supported imports succeed with original coordinates/text preserved; the first edition navigates beyond 16:24 without a WEB-bounds gate |
-| Display Romans 16:25, then change to an edition without that coordinate | Inline unavailability and unchanged current output; no automatic relocation to 14:24 or substitution |
-| Import duplicate/nonpositive/noninteger coordinates, suffixed/range identifiers, or data exceeding declared limits | Clear failure with source/installed data preserved; identical coordinates across different translations are accepted |
-| Appearance sample open; Cancel, then Apply a band/background change | Cancel preserves confirmed styling; Apply affects only that workspace; fonts/bands/backgrounds persist as specified |
+| Empty/default workspace; rename, close audience, cancel/confirm tab removal, try removing last workspace | WEB/defaults on creation; closure retains state; removal confirmed and isolated; final workspace retained |
+| Multiple workspaces including a representative 20-workspace case; reorder and restart | Stable identity restores matching names/history/settings and last active tab; every audience closed and saved Hide cursor preferences retained |
+| New workspace, then open audience and move the pointer across it | Hide cursor defaults on; pointer hidden over content, visible outside it, free to cross edges and click |
+| A hides its cursor, B shows it; toggle A, switch tabs/apps/fullscreen, close/reopen A, then restart | Only A changes; each saved preference survives; native and rendered visibility agree, including blank output |
+| Fixture imports: one/many translations, differing row IDs, invalid book identities, partial data, duplicates/same titles | Review/validation and explicit choices work; source files/valid installed data survive failures; partial coverage visible |
+| Import fixtures with Romans 16:24–27 in one translation and Romans 14:24–26 in another, with no Romans 16:25 in the latter | Both imports accepted without a WEB-bounds gate; source coordinates/text preserved through lookup, search, preview, projection, copy/export, and navigation from 16:24 to 16:25 in the first edition |
+| Display Romans 16:25 from the first fixture; Change translation to the edition without that coordinate | Inline unavailability; current operator/audience content unchanged; no automatic relocation to 14:24 or WEB substitution |
+| Import duplicate coordinates within one translation, nonpositive/noninteger coordinates, unsupported suffixed/range identifiers, or data exceeding documented limits | Clear validation failure with source/installed data preserved; the same coordinate in different translations remains valid |
+| Add while presenting; attempt Replace/Remove with an inactive audience still open, then close all | Add shared across tabs; maintenance blocked until every output closes; bundled WEB protected |
+| Captured imported current verse/history; Replace/Remove and explicitly restore same entry | Original wording/labels retained, new searches use installed text or WEB fallback, saved copies remain usable, adjacent navigation requires original edition |
+| Repeated selections with open/closed output; Resume, filter, copy/export, cancel/confirm clearing | One entry per selection, correct Projected records and original text, visible-history CSV, workspace-scoped deliberate clearing |
+| Appearance sample; Cancel then Apply font/band/background changes across short/long verses | Cancel preserves confirmed appearance; Apply affects only workspace; band sharing/fixed labels/Fill/Fit/managed files and persistence hold |
 | Packaged build on a proposed supported setup; install offline and perform the 60-minute rehearsal | No required asset download; workflow/recovery observed and actual capacity/limitations recorded |
+
+### Search evaluation
+
+Use English/Tagalog search fixtures covering complete/reordered words, phrases, prefixes, literal substrings, accents, Unicode composition, straight/curly apostrophes, punctuation, and wildcard characters. Include the reference-alias and matching examples above, legitimate no-match cases, and typo/paraphrase negative cases for deferred assistance. Check membership, completeness, ordering, page access, NT jump, normalized matching, broader-match labels, and original-text highlighting. Never silently relax queries or accept stale results after translation changes. Verify reference lookup outside the word-search scope.
+
+Collect representative operator queries with intended verses or independently judged relevant sets, including references, names, remembered words, exact phrases, and fragments. Compare All words with Phrase, Best match with Bible order, and prefix/substring matching against those expected results. Check import/index consistency and measure retrieval quality and performance on supported hardware; use the [release-rehearsal metrics](#technical-direction-and-release-requirements) when recording results.
+
+### Native and packaged checks
+
+Observe physical extended displays, fullscreen, cursor visibility with hiding enabled/disabled, app switching, and disconnection on every release configuration. Exercise operation/creation failures as available without claiming recovery from arbitrary OS exhaustion. Test representative workspace counts; twenty saved workspaces does not require twenty native audiences. Measure actual simultaneous output capacity separately.
+
+Perform the [packaged offline release rehearsal](#technical-direction-and-release-requirements) before publishing each supported build.
 
 ## Outside this iteration
 
@@ -267,6 +312,7 @@ Follow the [implementation specification's testing decisions](../../.scratch/lum
 
 ## Supporting material
 
-- [Implementation specification](../../.scratch/lumina-mvp/spec.md) and [specification changelog](../../.scratch/lumina-mvp/spec-changelog.md).
+- [Specification changelog](mvp-changelog.md).
+- [Architecture](../architecture.md), [implemented foundation](codebase-foundation.md), and [verification guide](../verification.md).
 - [Domain glossary](../../GLOSSARY.md) and [architecture decisions](../adr/).
 - Research: [search foundations](../research/bible-search-foundations.md), [desktop qualification](../research/desktop-release-targets.md), and [open-source release](../research/open-source-release.md).

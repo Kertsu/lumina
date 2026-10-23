@@ -1,6 +1,12 @@
 # Lumina specification changelog
 
-This file records requirement changes and their rationale. The current [specification](spec.md) and [MVP plan](../../docs/specs/mvp.md) contain only the resulting requirements. Historical entries are not implementation instructions.
+This file records requirement changes and their rationale. The canonical [MVP specification](mvp.md) contains the resulting requirements. Historical entries are not implementation instructions.
+
+## 2026-10-23 — One canonical feature baseline
+
+- Merged the MVP plan and scratch implementation specification into `docs/specs/mvp.md`, preserving agreed behavior, detailed acceptance cases, evaluation guidance, the restart matrix, and the remaining-work table.
+- Retired `.scratch/lumina-mvp/spec.md` and moved this changelog beside the canonical specification. Updated incoming links; older entries retain their historical document names.
+- Reconciled foundation ownership and existing test guidance with the implemented architecture. Feature-specific contracts and UI decisions remain open; product scope is unchanged.
 
 ## 2026-10-21 — Audience-confirmed projection
 
@@ -90,7 +96,7 @@ This file records requirement changes and their rationale. The current [specific
 
 ## Earlier MVP planning
 
-Established local/account-free operation, bundled WEB, SQLite imports, English/Tagalog matching presets and scopes, original-text history, appearance controls, and packaged offline verification. Deferred typo/semantic assistance and other enhancements listed in [future enhancements](../../docs/specs/future-enhancements.md).
+Established local/account-free operation, bundled WEB, SQLite imports, English/Tagalog matching presets and scopes, original-text history, appearance controls, and packaged offline verification. Deferred typo/semantic assistance and other enhancements listed in [future enhancements](future-enhancements.md).
 
 ### Foundational decisions
 
@@ -107,4 +113,4 @@ Established local/account-free operation, bundled WEB, SQLite imports, English/T
 
 Early Lumina designs explored an initially-off restriction control per audience, explicit activation/release, and composition across multiple audiences. Tab, fullscreen, and application switches preserved the selected controls; audience closure, display disconnection, and restart released restrictions. A global restriction switch and automatic fullscreen activation were rejected. This design was replaced by persistent per-workspace cursor hiding on October 18.
 
-Native feasibility findings remain in the deferred [cursor restriction research](../../docs/research/cursor-confinement.md). They do not define current MVP behavior or prove platform support.
+Native feasibility findings remain in the deferred [cursor restriction research](../research/cursor-confinement.md). They do not define current MVP behavior or prove platform support.

@@ -4,7 +4,7 @@ Research: 14 October 2026 (Asia/Manila). Documentation/source review only; no
 Lumina confinement implementation or runtime verification exists.
 
 Status: deferred research. Lumina's MVP uses audience-scoped
-[cursor hiding](../../.scratch/lumina-mvp/spec.md#cursor-visibility-and-shortcuts),
+[cursor hiding](../specs/mvp.md#cursor-visibility-and-shortcuts),
 preserving pointer movement and input. Pointer confinement and audience-window
 exclusion are outside MVP; see [future enhancements](../specs/future-enhancements.md).
 
