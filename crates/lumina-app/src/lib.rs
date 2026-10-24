@@ -1,8 +1,11 @@
 //! Application ownership and startup, independent of the desktop and storage adapters.
 
 mod failure;
+mod library;
 
-pub use failure::{ApplicationFailure, AvailabilityData, InvocationData, StartupState};
+pub use failure::*;
+pub use library::*;
+pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};
 
 use std::error::Error;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
@@ -24,13 +27,24 @@ pub trait Storage {
   ///
   /// # Errors
   /// Returns the adapter's typed error if initialization fails.
-  fn initialize(&mut self) -> Result<(), Self::Error>;
+  fn initialize(&mut self) -> Result<StoredState, Self::Error>;
+
+  /// Resolve original text in the selected installed translation edition.
+  ///
+  /// # Errors
+  /// Retains storage failures; absent native coordinates return `None`.
+  fn resolve_reference(
+    &self,
+    translation_id: &TranslationId,
+    coordinate: VerseCoordinate,
+  ) -> Result<Option<ResolvedVerse>, Self::Error>;
 }
 
 /// Owns initialized application storage.
 pub struct Application<S> {
   // Retain storage (and its connection) for the application's lifetime.
-  _storage: S,
+  storage: S,
+  state: ApplicationSnapshot,
 }
 
 /// Application startup failure retaining the storage cause.
@@ -58,16 +72,99 @@ impl<S: Storage> Application<S> {
   /// # Errors
   /// Returns a typed startup error retaining the storage cause.
   pub fn start(mut storage: S) -> Result<Self, StartupError<S::Error>> {
-    storage.initialize().map_err(StartupError::Storage)?;
+    let stored = storage.initialize().map_err(StartupError::Storage)?;
     Ok(Self {
-      _storage: storage,
+      storage,
+      state: ApplicationSnapshot {
+        translations: stored.translations,
+        active_workspace_id: stored.active_workspace_id,
+        workspaces: stored
+          .workspaces
+          .into_iter()
+          .map(|workspace| Workspace {
+            workspace_id: workspace.workspace_id,
+            settings: workspace.settings,
+            current_verse: None,
+            book_information_mode: false,
+            audience: AudienceState::Closed,
+          })
+          .collect(),
+      },
+    })
+  }
+
+  pub fn snapshot(&self) -> &ApplicationSnapshot {
+    &self.state
+  }
+
+  /// Resolve a canonical native coordinate privately in this workspace's selection.
+  /// This does not select current content, create history, or open an audience.
+  ///
+  /// # Errors
+  /// Returns a code-specific rejection or retains the storage diagnostic cause.
+  pub fn resolve_reference(
+    &self,
+    request: ReferenceRequest,
+  ) -> Result<ReferenceResult, OperationError<S::Error>> {
+    let workspace = self
+      .state
+      .workspaces
+      .iter()
+      .find(|workspace| workspace.workspace_id == request.workspace_id)
+      .ok_or_else(|| ApplicationFailure::WorkspaceNotFound {
+        message: "The operator workspace is unavailable.".into(),
+        data: WorkspaceData {
+          workspace_id: request.workspace_id.clone(),
+        },
+      })?;
+    request.coordinate.validate().map_err(|field| ApplicationFailure::InvalidReference {
+      message: "Use book number 1–66 and positive integer chapter and verse coordinates.".into(),
+      data: InvalidReferenceData {
+        coordinate: request.coordinate,
+        field,
+      },
+    })?;
+    let translation_id = &workspace.settings.selected_translation_id;
+    if !self
+      .state
+      .translations
+      .iter()
+      .any(|translation| &translation.translation_id == translation_id)
+    {
+      return Err(
+        ApplicationFailure::TranslationUnavailable {
+          message: "The selected translation is unavailable.".into(),
+          data: TranslationData {
+            translation_id: translation_id.clone(),
+          },
+        }
+        .into(),
+      );
+    }
+    let verse = self
+      .storage
+      .resolve_reference(translation_id, request.coordinate)
+      .map_err(OperationError::Storage)?
+      .ok_or_else(|| ApplicationFailure::ReferenceUnavailable {
+        message: "The selected edition has no verse at this native coordinate.".into(),
+        data: ReferenceData {
+          translation_id: translation_id.clone(),
+          coordinate: request.coordinate,
+        },
+      })?;
+    Ok(ReferenceResult {
+      workspace_id: request.workspace_id,
+      verse,
     })
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::{Application, StartupError, Storage};
+  use super::{
+    Application, ResolvedVerse, StartupError, Storage, StoredState, TranslationId, VerseCoordinate,
+    WorkspaceId,
+  };
   use std::{cell::Cell, convert::Infallible};
 
   struct TestStorage<'a>(&'a Cell<bool>);
@@ -75,9 +172,21 @@ mod tests {
   impl Storage for TestStorage<'_> {
     type Error = Infallible;
 
-    fn initialize(&mut self) -> Result<(), Self::Error> {
+    fn initialize(&mut self) -> Result<StoredState, Self::Error> {
       self.0.set(true);
-      Ok(())
+      Ok(StoredState {
+        translations: Vec::new(),
+        workspaces: Vec::new(),
+        active_workspace_id: WorkspaceId("greeting-fixture".into()),
+      })
+    }
+
+    fn resolve_reference(
+      &self,
+      _: &TranslationId,
+      _: VerseCoordinate,
+    ) -> Result<Option<ResolvedVerse>, Self::Error> {
+      Ok(None)
     }
   }
 
@@ -107,7 +216,15 @@ mod tests {
   impl Storage for UnavailableStorage {
     type Error = std::io::Error;
 
-    fn initialize(&mut self) -> Result<(), Self::Error> {
+    fn initialize(&mut self) -> Result<StoredState, Self::Error> {
+      Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+    }
+
+    fn resolve_reference(
+      &self,
+      _: &TranslationId,
+      _: VerseCoordinate,
+    ) -> Result<Option<ResolvedVerse>, Self::Error> {
       Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
     }
   }

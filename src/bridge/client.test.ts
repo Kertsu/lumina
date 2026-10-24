@@ -40,6 +40,94 @@ it("consumes the generated desktop command and representative browser state", as
 });
 
 it.each([
+    {
+        errorCode: "WORKSPACE_NOT_FOUND",
+        message: "Workspace unavailable",
+        data: {
+            workspaceId: "missing",
+        },
+    },
+    {
+        errorCode: "TRANSLATION_UNAVAILABLE",
+        message: "Translation unavailable",
+        data: {
+            translationId: "missing",
+        },
+    },
+    {
+        errorCode: "INVALID_REFERENCE",
+        message: "Invalid chapter",
+        data: {
+            coordinate: {
+                bookNumber: 43,
+                chapter: 0,
+                verse: 16,
+            },
+            field: "chapter",
+        },
+    },
+    {
+        errorCode: "REFERENCE_UNAVAILABLE",
+        message: "No native verse",
+        data: {
+            translationId: "web",
+            coordinate: {
+                bookNumber: 45,
+                chapter: 16,
+                verse: 25,
+            },
+        },
+    },
+    {
+        errorCode: "STORAGE_FAILURE",
+        message: "Library read failed",
+    },
+] satisfies ApplicationFailure[])("preserves a typed reference failure %j", async (failure) => {
+    mockIPC(() => Promise.reject(failure));
+    const result = await createDesktopClient().greet();
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+        expect(result.error).toEqual(failure);
+        expect(result.diagnostic?.command).toBe("greet");
+    }
+});
+
+it.each([
+    {
+        errorCode: "INVALID_REFERENCE",
+        message: "Missing coordinate",
+        data: {
+            field: "chapter",
+        },
+    },
+    {
+        errorCode: "REFERENCE_UNAVAILABLE",
+        message: "Wrong stored shape",
+        data: {
+            translationId: 1,
+            coordinate: {
+                bookNumber: 43,
+                chapter: "3",
+                verse: 16,
+            },
+        },
+    },
+    {
+        errorCode: "WORKSPACE_NOT_FOUND",
+        message: "Missing identity",
+        data: null,
+    },
+])("normalizes malformed reference rejection %j", async (cause) => {
+    mockIPC(() => Promise.reject(cause));
+    const result = await createDesktopClient().greet();
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+        expect(result.error.errorCode).toBe("INVOCATION_FAILED");
+        expect(result.diagnostic?.cause).toBe(cause);
+    }
+});
+
+it.each([
     new Error("IPC disconnected"),
     "native handler missing",
     null,

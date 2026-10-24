@@ -17,11 +17,30 @@ export type ApplicationFailure =
       }
     | { errorCode: "INTERNAL_ERROR"; message: string }
     /**  Used by the frontend bridge for unrecognized IPC/transport failures. */
-    | { errorCode: "INVOCATION_FAILED"; message: string; data: InvocationData };
+    | { errorCode: "INVOCATION_FAILED"; message: string; data: InvocationData }
+    | { errorCode: "WORKSPACE_NOT_FOUND"; message: string; data: WorkspaceData }
+    | {
+          errorCode: "INVALID_REFERENCE";
+          message: string;
+          data: InvalidReferenceData;
+      }
+    | {
+          errorCode: "TRANSLATION_UNAVAILABLE";
+          message: string;
+          data: TranslationData;
+      }
+    | {
+          errorCode: "REFERENCE_UNAVAILABLE";
+          message: string;
+          data: ReferenceData;
+      }
+    | { errorCode: "STORAGE_FAILURE"; message: string };
 
 export type AvailabilityData = {
     state: StartupState;
 };
+
+export type CoordinateField = "bookNumber" | "chapter" | "verse";
 
 /**  Minimal scaffold response, computed by the initialized application. */
 export type Greeting = {
@@ -30,8 +49,39 @@ export type Greeting = {
     epochMs: string;
 };
 
+export type InvalidReferenceData = {
+    coordinate: VerseCoordinate;
+    field: CoordinateField;
+};
+
 export type InvocationData = {
     command: string;
 };
 
+export type ReferenceData = {
+    translationId: TranslationId;
+    coordinate: VerseCoordinate;
+};
+
 export type StartupState = "starting" | "failed";
+
+export type TranslationData = {
+    translationId: TranslationId;
+};
+
+/**  Stable installed identity, independent of title or source-local IDs. */
+export type TranslationId = string;
+
+/**  Native coordinates within a selected edition; WEB never supplies their bounds. */
+export type VerseCoordinate = {
+    bookNumber: number;
+    chapter: number;
+    verse: number;
+};
+
+export type WorkspaceData = {
+    workspaceId: WorkspaceId;
+};
+
+/**  Stable installed identity, independent of workspace name or position. */
+export type WorkspaceId = string;

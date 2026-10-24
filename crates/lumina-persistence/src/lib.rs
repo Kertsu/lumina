@@ -1,9 +1,10 @@
 //! Managed `SQLite` connections and migrations.
 
+mod library;
 mod migrations;
 
-use lumina_app::Storage;
-use rusqlite::Connection;
+use lumina_app::{EditionId, ResolvedVerse, Storage, StoredState, TranslationId, VerseCoordinate};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use std::{
   fs,
   path::{Path, PathBuf},
@@ -43,6 +44,18 @@ pub enum StorageError {
   Fts5(#[source] rusqlite::Error),
   #[error("could not read database schema version")]
   SchemaVersion(#[source] rusqlite::Error),
+  #[error("could not read bundled WEB provenance")]
+  SeedProvenance(#[source] serde_json::Error),
+  #[error("could not install bundled WEB")]
+  Seed(#[source] rusqlite::Error),
+  #[error("could not restore workspace/library state")]
+  StartupState(#[source] rusqlite::Error),
+  #[error("managed data contains invalid relationships")]
+  InvalidState,
+  #[error("could not commit application bootstrap")]
+  Bootstrap(#[source] rusqlite::Error),
+  #[error("could not resolve native verse reference")]
+  Reference(#[source] rusqlite::Error),
 }
 
 impl SqliteStorage {
@@ -84,7 +97,7 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
   type Error = StorageError;
 
-  fn initialize(&mut self) -> Result<(), Self::Error> {
+  fn initialize(&mut self) -> Result<StoredState, Self::Error> {
     // Exercise FTS5 on this bundled connection without adding product tables.
     self
       .connection
@@ -93,6 +106,41 @@ impl Storage for SqliteStorage {
        DROP TABLE temp.lumina_fts5_probe;",
       )
       .map_err(StorageError::Fts5)?;
-    migrations::apply(&mut self.connection)
+    let transaction = self
+      .connection
+      .transaction_with_behavior(TransactionBehavior::Immediate)
+      .map_err(StorageError::Bootstrap)?;
+    migrations::apply(&transaction)?;
+    let state = library::bootstrap(&transaction)?;
+    transaction.commit().map_err(StorageError::Bootstrap)?;
+    Ok(state)
+  }
+
+  fn resolve_reference(
+    &self,
+    translation_id: &TranslationId,
+    coordinate: VerseCoordinate,
+  ) -> Result<Option<ResolvedVerse>, Self::Error> {
+    self
+      .connection
+      .query_row(
+        "SELECT t.id, t.edition_id, t.title, b.name, v.text FROM verses v
+       JOIN books b ON b.id = v.book_id AND b.translation_id = v.translation_id
+       JOIN translations t ON t.id = v.translation_id
+       WHERE t.id = ?1 AND b.book_number = ?2 AND v.chapter = ?3 AND v.verse = ?4",
+        params![translation_id.0, coordinate.book_number, coordinate.chapter, coordinate.verse],
+        |row| {
+          Ok(ResolvedVerse {
+            translation_id: TranslationId(row.get(0)?),
+            edition_id: EditionId(row.get(1)?),
+            translation_title: row.get(2)?,
+            book_name: row.get(3)?,
+            coordinate,
+            text: row.get(4)?,
+          })
+        },
+      )
+      .optional()
+      .map_err(StorageError::Reference)
   }
 }

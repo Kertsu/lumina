@@ -2024,6 +2024,10 @@ dependencies = [
 [[package]]
 name = "lumina-core"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "specta",
+]
 
 [[package]]
 name = "lumina-persistence"
@@ -2032,6 +2036,8 @@ dependencies = [
  "lumina-app",
  "lumina-core",
  "rusqlite",
+ "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.17",
 ]

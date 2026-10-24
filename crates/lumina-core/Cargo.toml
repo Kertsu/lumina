@@ -11,5 +11,9 @@ readme.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[dependencies]
+serde.workspace = true
+specta.workspace = true
+
 [lints]
 workspace = true

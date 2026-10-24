@@ -1,14 +1,13 @@
 use crate::StorageError;
-use rusqlite::{Connection, TransactionBehavior};
+use rusqlite::Transaction;
 
-const CURRENT_VERSION: u32 = 1;
-const MIGRATIONS: &[(u32, &str)] =
-  &[(1, include_str!("../migrations/V20261021161209_foundation.sql"))];
+pub(crate) const CURRENT_VERSION: u32 = 2;
+const MIGRATIONS: &[(u32, &str)] = &[
+  (1, include_str!("../migrations/V20261021161209_foundation.sql")),
+  (2, include_str!("../migrations/V20261024060038_library_and_workspaces.sql")),
+];
 
-pub(crate) fn apply(connection: &mut Connection) -> Result<(), StorageError> {
-  let transaction = connection
-    .transaction_with_behavior(TransactionBehavior::Immediate)
-    .map_err(StorageError::Migration)?;
+pub(crate) fn apply(transaction: &Transaction<'_>) -> Result<(), StorageError> {
   let version: u32 = transaction
     .pragma_query_value(None, "user_version", |row| row.get(0))
     .map_err(StorageError::Migration)?;
@@ -26,5 +25,5 @@ pub(crate) fn apply(connection: &mut Connection) -> Result<(), StorageError> {
         .map_err(StorageError::Migration)?;
     }
   }
-  transaction.commit().map_err(StorageError::Migration)
+  Ok(())
 }

@@ -56,7 +56,32 @@ function isApplicationFailure(value: unknown): value is ApplicationFailure {
                     value.data.state === "failed")
             );
         case "INTERNAL_ERROR":
+        case "STORAGE_FAILURE":
             return true;
+        case "WORKSPACE_NOT_FOUND":
+            return (
+                isRecord(value.data) &&
+                typeof value.data.workspaceId === "string"
+            );
+        case "TRANSLATION_UNAVAILABLE":
+            return (
+                isRecord(value.data) &&
+                typeof value.data.translationId === "string"
+            );
+        case "INVALID_REFERENCE":
+            return (
+                isRecord(value.data) &&
+                isCoordinate(value.data.coordinate) &&
+                (value.data.field === "bookNumber" ||
+                    value.data.field === "chapter" ||
+                    value.data.field === "verse")
+            );
+        case "REFERENCE_UNAVAILABLE":
+            return (
+                isRecord(value.data) &&
+                typeof value.data.translationId === "string" &&
+                isCoordinate(value.data.coordinate)
+            );
         case "INVOCATION_FAILED":
             return (
                 isRecord(value.data) && typeof value.data.command === "string"
@@ -64,6 +89,15 @@ function isApplicationFailure(value: unknown): value is ApplicationFailure {
         default:
             return false;
     }
+}
+
+function isCoordinate(value: unknown): boolean {
+    return (
+        isRecord(value) &&
+        Number.isInteger(value.bookNumber) &&
+        Number.isInteger(value.chapter) &&
+        Number.isInteger(value.verse)
+    );
 }
 
 function normalizeFailure(

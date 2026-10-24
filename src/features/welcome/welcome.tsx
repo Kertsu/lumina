@@ -15,6 +15,11 @@ function failureLabel(failure: ApplicationFailure): string {
                 ? "Application starting"
                 : "Storage unavailable";
         case "INTERNAL_ERROR":
+        case "WORKSPACE_NOT_FOUND":
+        case "INVALID_REFERENCE":
+        case "TRANSLATION_UNAVAILABLE":
+        case "REFERENCE_UNAVAILABLE":
+        case "STORAGE_FAILURE":
             return "Application error";
         case "INVOCATION_FAILED":
             return "Connection error";

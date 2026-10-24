@@ -1,27 +1,105 @@
 //! Public failures: explicit wire codes survive Rust renames and wording changes.
 
+use lumina_core::{CoordinateField, TranslationId, VerseCoordinate, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 /// The single public code catalog. Messages are display text, never identifiers.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type, thiserror::Error)]
 #[serde(tag = "errorCode")]
 pub enum ApplicationFailure {
   #[serde(rename = "APPLICATION_UNAVAILABLE")]
+  #[error("{message}")]
   Unavailable {
     message: String,
     data: AvailabilityData,
   },
   #[serde(rename = "INTERNAL_ERROR")]
+  #[error("{message}")]
   Internal {
     message: String,
   },
   /// Used by the frontend bridge for unrecognized IPC/transport failures.
   #[serde(rename = "INVOCATION_FAILED")]
+  #[error("{message}")]
   Invocation {
     message: String,
     data: InvocationData,
   },
+  #[serde(rename = "WORKSPACE_NOT_FOUND")]
+  #[error("{message}")]
+  WorkspaceNotFound {
+    message: String,
+    data: WorkspaceData,
+  },
+  #[serde(rename = "INVALID_REFERENCE")]
+  #[error("{message}")]
+  InvalidReference {
+    message: String,
+    data: InvalidReferenceData,
+  },
+  #[serde(rename = "TRANSLATION_UNAVAILABLE")]
+  #[error("{message}")]
+  TranslationUnavailable {
+    message: String,
+    data: TranslationData,
+  },
+  #[serde(rename = "REFERENCE_UNAVAILABLE")]
+  #[error("{message}")]
+  ReferenceUnavailable {
+    message: String,
+    data: ReferenceData,
+  },
+  #[serde(rename = "STORAGE_FAILURE")]
+  #[error("{message}")]
+  Storage {
+    message: String,
+  },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceData {
+  pub workspace_id: WorkspaceId,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
+pub struct InvalidReferenceData {
+  pub coordinate: VerseCoordinate,
+  pub field: CoordinateField,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TranslationData {
+  pub translation_id: TranslationId,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ReferenceData {
+  pub translation_id: TranslationId,
+  pub coordinate: VerseCoordinate,
+}
+
+/// Keep diagnostic causes outside the serialized failure envelope.
+#[derive(Debug, thiserror::Error)]
+pub enum OperationError<E: std::error::Error + 'static> {
+  #[error("{0}")]
+  Rejected(#[from] ApplicationFailure),
+  #[error("application storage operation failed")]
+  Storage(#[source] E),
+}
+
+impl<E: std::error::Error + 'static> OperationError<E> {
+  pub fn public_failure(&self) -> ApplicationFailure {
+    match self {
+      Self::Rejected(failure) => failure.clone(),
+      Self::Storage(_) => ApplicationFailure::Storage {
+        message: "The library could not be read. Check the terminal diagnostics.".into(),
+      },
+    }
+  }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type)]
