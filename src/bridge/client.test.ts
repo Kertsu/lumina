@@ -5,6 +5,7 @@ import {
     createBrowserClient,
     createDesktopClient,
 } from "./client";
+import { browserState } from "./fixtures";
 
 const diagnostics = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -37,6 +38,55 @@ it("consumes the generated desktop command and representative browser state", as
             epochMs: "1234",
         },
     });
+});
+
+it("passes canonical reference requests through the generated native command", async () => {
+    const request = {
+        workspaceId: "workspace-native",
+        coordinate: {
+            bookNumber: 43,
+            chapter: 3,
+            verse: 16,
+        },
+    };
+    const verse = {
+        translationId: "translation-web",
+        editionId: "edition-web",
+        translationTitle: "World English Bible",
+        bookName: "John",
+        coordinate: request.coordinate,
+        text: "Original native text",
+    };
+    mockIPC((command, args) => {
+        expect(command).toBe("resolve_reference");
+        expect(args).toEqual({
+            request,
+        });
+        return {
+            workspaceId: request.workspaceId,
+            verse,
+        };
+    });
+    expect(await createDesktopClient().resolveReference(request)).toEqual({
+        status: "ok",
+        data: {
+            workspaceId: request.workspaceId,
+            verse,
+        },
+    });
+});
+
+it("reads startup state through native IPC and a fixed browser fixture", async () => {
+    mockIPC((command) => {
+        expect(command).toBe("get_application_state");
+        return browserState;
+    });
+    for (const client of [createDesktopClient(), createBrowserClient()]) {
+        expect(await client.getApplicationState()).toEqual({
+            status: "ok",
+            data: browserState,
+        });
+    }
 });
 
 it.each([
@@ -84,11 +134,18 @@ it.each([
     },
 ] satisfies ApplicationFailure[])("preserves a typed reference failure %j", async (failure) => {
     mockIPC(() => Promise.reject(failure));
-    const result = await createDesktopClient().greet();
+    const result = await createDesktopClient().resolveReference({
+        workspaceId: "workspace",
+        coordinate: {
+            bookNumber: 43,
+            chapter: 3,
+            verse: 16,
+        },
+    });
     expect(result.status).toBe("error");
     if (result.status === "error") {
         expect(result.error).toEqual(failure);
-        expect(result.diagnostic?.command).toBe("greet");
+        expect(result.diagnostic?.command).toBe("resolve_reference");
     }
 });
 
@@ -119,7 +176,14 @@ it.each([
     },
 ])("normalizes malformed reference rejection %j", async (cause) => {
     mockIPC(() => Promise.reject(cause));
-    const result = await createDesktopClient().greet();
+    const result = await createDesktopClient().resolveReference({
+        workspaceId: "workspace",
+        coordinate: {
+            bookNumber: 43,
+            chapter: 3,
+            verse: 16,
+        },
+    });
     expect(result.status).toBe("error");
     if (result.status === "error") {
         expect(result.error.errorCode).toBe("INVOCATION_FAILED");

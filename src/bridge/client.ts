@@ -1,11 +1,21 @@
 import { isTauri } from "@tauri-apps/api/core";
 import {
     type ApplicationFailure,
+    type ApplicationSnapshot,
     commands,
     type Greeting,
+    type ReferenceRequest,
+    type ReferenceResult,
 } from "./bindings.gen";
+import { browserReference, browserState } from "./fixtures";
 
-export type { ApplicationFailure, Greeting } from "./bindings.gen";
+export type {
+    ApplicationFailure,
+    ApplicationSnapshot,
+    Greeting,
+    ReferenceRequest,
+    ReferenceResult,
+} from "./bindings.gen";
 
 export type ClientResult<T> =
     | {
@@ -23,21 +33,43 @@ export type ClientResult<T> =
 
 export interface ApplicationClient {
     greet(): Promise<ClientResult<Greeting>>;
+    getApplicationState(): Promise<ClientResult<ApplicationSnapshot>>;
+    resolveReference(
+        request: ReferenceRequest
+    ): Promise<ClientResult<ReferenceResult>>;
 }
 
 export function createDesktopClient(): ApplicationClient {
     return {
         async greet() {
-            try {
-                return {
-                    status: "ok",
-                    data: await commands.greet(),
-                };
-            } catch (cause) {
-                return normalizeFailure(cause, "greet");
-            }
+            return desktopCall("greet", commands.greet);
+        },
+        async getApplicationState() {
+            return desktopCall(
+                "get_application_state",
+                commands.getApplicationState
+            );
+        },
+        async resolveReference(request) {
+            return desktopCall("resolve_reference", () =>
+                commands.resolveReference(request)
+            );
         },
     };
+}
+
+async function desktopCall<T>(
+    command: string,
+    invoke: () => Promise<T>
+): Promise<ClientResult<T>> {
+    try {
+        return {
+            status: "ok",
+            data: await invoke(),
+        };
+    } catch (cause) {
+        return normalizeFailure(cause, command);
+    }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -138,6 +170,18 @@ export function createBrowserClient(
     return {
         async greet() {
             return greeting;
+        },
+        async getApplicationState() {
+            return {
+                status: "ok",
+                data: browserState,
+            };
+        },
+        async resolveReference() {
+            return {
+                status: "ok",
+                data: browserReference,
+            };
         },
     };
 }

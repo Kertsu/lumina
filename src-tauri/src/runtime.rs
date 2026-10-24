@@ -26,6 +26,8 @@ pub(crate) enum RuntimeError {
   Worker(#[source] tauri::Error),
   #[error("system clock is before the Unix epoch")]
   Clock(#[from] std::time::SystemTimeError),
+  #[error("application operation failed")]
+  Application(#[from] lumina_app::OperationError<StorageError>),
 }
 
 impl RuntimeError {
@@ -43,6 +45,7 @@ impl RuntimeError {
           state: StartupState::Failed,
         },
       },
+      Self::Application(error) => error.public_failure(),
       Self::Poisoned | Self::Worker(_) | Self::Clock(_) => ApplicationFailure::Internal {
         message: "The application operation failed. Check the terminal diagnostics.".into(),
       },
@@ -111,5 +114,90 @@ impl DesktopRuntime {
     })
     .await
     .map_err(RuntimeError::Worker)?
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{DesktopRuntime, RuntimeError};
+  use lumina_app::{
+    Application, ApplicationFailure, ReferenceRequest, StartupState, VerseCoordinate,
+  };
+  use lumina_persistence::SqliteStorage;
+
+  #[test]
+  fn native_runtime_exposes_startup_reference_and_code_specific_failures(
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("lumina.sqlite3");
+    tauri::async_runtime::block_on(async move {
+      let runtime = DesktopRuntime::new();
+      let starting = runtime.call(|application| Ok(application.snapshot().clone())).await;
+      assert!(matches!(starting, Err(RuntimeError::Starting)));
+      runtime.initialize(move || Ok(Application::start(SqliteStorage::open(&path)?)?)).await?;
+      let before = runtime.call(|application| Ok(application.snapshot().clone())).await?;
+      let workspace_id = before.active_workspace_id.clone();
+      let reference = runtime
+        .call(move |application| {
+          application
+            .resolve_reference(ReferenceRequest {
+              workspace_id,
+              coordinate: VerseCoordinate {
+                book_number: 43,
+                chapter: 3,
+                verse: 16,
+              },
+            })
+            .map_err(RuntimeError::Application)
+        })
+        .await?;
+      assert_eq!(reference.verse.book_name, "John");
+      assert_eq!(reference.verse.translation_id, before.translations[0].translation_id);
+      let workspace_id = before.active_workspace_id.clone();
+      let failure = runtime
+        .call(move |application| {
+          application
+            .resolve_reference(ReferenceRequest {
+              workspace_id,
+              coordinate: VerseCoordinate {
+                book_number: 43,
+                chapter: 0,
+                verse: 16,
+              },
+            })
+            .map_err(RuntimeError::Application)
+        })
+        .await
+        .err()
+        .ok_or("malformed coordinate was accepted")?;
+      assert!(matches!(failure.public_failure(), ApplicationFailure::InvalidReference { .. }));
+      assert_eq!(runtime.call(|application| Ok(application.snapshot().clone())).await?, before);
+      Ok(())
+    })
+  }
+
+  #[test]
+  fn failed_native_startup_never_exposes_a_partial_application(
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("lumina.sqlite3");
+    std::fs::write(&path, b"not a SQLite database")?;
+    tauri::async_runtime::block_on(async move {
+      let runtime = DesktopRuntime::new();
+      assert!(runtime
+        .initialize(move || Ok(Application::start(SqliteStorage::open(&path)?)?))
+        .await
+        .is_err());
+      let failure = runtime
+        .call(|application| Ok(application.snapshot().clone()))
+        .await
+        .err()
+        .ok_or("failed startup exposed application state")?;
+      assert!(
+        matches!(failure.public_failure(), ApplicationFailure::Unavailable { data, .. } if data.state == StartupState::Failed)
+      );
+      assert!(std::error::Error::source(&failure).is_some());
+      Ok(())
+    })
   }
 }

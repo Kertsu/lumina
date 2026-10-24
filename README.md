@@ -127,13 +127,25 @@ the generated public failure contract.
 
 Persistence creates missing directories, opens the managed file with bundled
 SQLite, enables foreign keys, and sets a five-second busy timeout. Initialization
-probes FTS5 using a temporary virtual table, then applies migrations atomically
-in an immediate transaction. `PRAGMA user_version` tracks the schema; version 1
-reserves the foundation and adds no product tables. Reopening is idempotent;
+probes FTS5 using a temporary virtual table. One immediate transaction applies
+migrations, installs bundled WEB if absent, and restores/creates workspace defaults.
+`PRAGMA user_version` tracks the schema: version 1 reserves the foundation;
+version 2 adds the library and durable workspace settings. Relaunch preserves
+workspace, translation and edition IDs, selected translation, active workspace,
+names/order and Hide cursor. Runtime content resets and audiences remain closed.
+No startup/reference operation needs network access. Reopening is idempotent;
 newer schemas are rejected without downgrading. Name SQL files using the
 [migration convention](CONTRIBUTING.md#database-migrations) and register their
 sequential versions in `crates/lumina-persistence/src/migrations.rs` with
 feature work. SQLite connections, rows, and SQL stay inside persistence.
+
+The public `get_application_state` and `resolve_reference` commands expose the
+backend library/default workspace and canonical native-coordinate lookup.
+Lookup is private/read-only and preserves current content. Product reference UI,
+alias parsing, imports and audience receivers are later work. See the
+[backend guide](docs/library-bootstrap.md) for DevTools commands and verification,
+and the [seed record](crates/lumina-persistence/seed/README.md) for the retained
+publisher artifact, extraction decisions, offline reproduction and notices.
 
 The root `Cargo.lock` covers all four packages; the former desktop lockfile
 has moved there. Root Cargo commands default to the three native-free libraries.

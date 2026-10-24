@@ -2,7 +2,11 @@
 
 pub(crate) fn registration() -> tauri_specta::Builder<tauri::Wry> {
   tauri_specta::Builder::new()
-    .commands(tauri_specta::collect_commands![super::greet])
+    .commands(tauri_specta::collect_commands![
+      super::greet,
+      super::get_application_state,
+      super::resolve_reference
+    ])
     .events(tauri_specta::collect_events![])
     // Rejections stay unknown until the frontend bridge validates their shape.
     .error_handling(tauri_specta::ErrorHandlingMode::Throw)

@@ -1,7 +1,9 @@
 mod bindings;
 mod runtime;
 
-use lumina_app::{Application, ApplicationFailure, Greeting};
+use lumina_app::{
+  Application, ApplicationFailure, ApplicationSnapshot, Greeting, ReferenceRequest, ReferenceResult,
+};
 use lumina_persistence::SqliteStorage;
 use runtime::DesktopRuntime;
 use std::error::Error;
@@ -16,6 +18,34 @@ async fn greet(runtime: tauri::State<'_, DesktopRuntime>) -> Result<Greeting, Ap
     .await
     .map_err(|error| {
       report_error("greet", &error);
+      error.public_failure()
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn get_application_state(
+  runtime: tauri::State<'_, DesktopRuntime>,
+) -> Result<ApplicationSnapshot, ApplicationFailure> {
+  runtime.call(|application| Ok(application.snapshot().clone())).await.map_err(|error| {
+    report_error("get_application_state", &error);
+    error.public_failure()
+  })
+}
+
+#[tauri::command]
+#[specta::specta]
+async fn resolve_reference(
+  runtime: tauri::State<'_, DesktopRuntime>,
+  request: ReferenceRequest,
+) -> Result<ReferenceResult, ApplicationFailure> {
+  runtime
+    .call(move |application| {
+      application.resolve_reference(request).map_err(runtime::RuntimeError::Application)
+    })
+    .await
+    .map_err(|error| {
+      report_error("resolve_reference", &error);
       error.public_failure()
     })
 }

@@ -5,6 +5,10 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
     greet: () => __TAURI_INVOKE<Greeting>("greet"),
+    getApplicationState: () =>
+        __TAURI_INVOKE<ApplicationSnapshot>("get_application_state"),
+    resolveReference: (request: ReferenceRequest) =>
+        __TAURI_INVOKE<ReferenceResult>("resolve_reference", { request }),
 };
 
 /* Types */
@@ -36,11 +40,23 @@ export type ApplicationFailure =
       }
     | { errorCode: "STORAGE_FAILURE"; message: string };
 
+export type ApplicationSnapshot = {
+    translations: Translation[];
+    workspaces: Workspace[];
+    activeWorkspaceId: WorkspaceId;
+};
+
+/**  Audience creation belongs to the subsequent native lifecycle feature. */
+export type AudienceState = "closed";
+
 export type AvailabilityData = {
     state: StartupState;
 };
 
 export type CoordinateField = "bookNumber" | "chapter" | "verse";
+
+/**  Identifies the original installed text captured by a verse. */
+export type EditionId = string;
 
 /**  Minimal scaffold response, computed by the initialized application. */
 export type Greeting = {
@@ -63,7 +79,37 @@ export type ReferenceData = {
     coordinate: VerseCoordinate;
 };
 
+export type ReferenceRequest = {
+    workspaceId: WorkspaceId;
+    coordinate: VerseCoordinate;
+};
+
+export type ReferenceResult = {
+    workspaceId: WorkspaceId;
+    verse: ResolvedVerse;
+};
+
+export type ResolvedVerse = {
+    translationId: TranslationId;
+    editionId: EditionId;
+    translationTitle: string;
+    bookName: string;
+    coordinate: VerseCoordinate;
+    text: string;
+};
+
 export type StartupState = "starting" | "failed";
+
+export type Translation = {
+    translationId: TranslationId;
+    editionId: EditionId;
+    title: string;
+    description: string;
+    bundled: boolean;
+    bookCount: number;
+    verseCount: number;
+    source: TranslationSource;
+};
 
 export type TranslationData = {
     translationId: TranslationId;
@@ -72,11 +118,28 @@ export type TranslationData = {
 /**  Stable installed identity, independent of title or source-local IDs. */
 export type TranslationId = string;
 
+export type TranslationSource = {
+    publisherEditionId: string | null;
+    artifactSha256: string | null;
+    editionLabel: string | null;
+    sourceName: string | null;
+    sourceUrl: string | null;
+    rightsNotice: string | null;
+};
+
 /**  Native coordinates within a selected edition; WEB never supplies their bounds. */
 export type VerseCoordinate = {
     bookNumber: number;
     chapter: number;
     verse: number;
+};
+
+export type Workspace = {
+    workspaceId: WorkspaceId;
+    settings: WorkspaceSettings;
+    currentVerse: ResolvedVerse | null;
+    bookInformationMode: boolean;
+    audience: AudienceState;
 };
 
 export type WorkspaceData = {
@@ -85,3 +148,9 @@ export type WorkspaceData = {
 
 /**  Stable installed identity, independent of workspace name or position. */
 export type WorkspaceId = string;
+
+export type WorkspaceSettings = {
+    name: string;
+    selectedTranslationId: TranslationId;
+    hideCursor: boolean;
+};
