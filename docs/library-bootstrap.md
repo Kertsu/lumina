@@ -128,10 +128,18 @@ Do not commit the test configuration or enable global API access in production.
 | Build/package | Static Vite build and macOS native debug build/app bundle passed; all three notice resources present |
 | Native startup | Isolated profile reached `managed database ready` with macOS sandbox denying network; repeated launches reopened successfully |
 | Native IPC | macOS 27.0.1 WebKit DevTools: WEB/default snapshot, John 3:16 original wording, `INVALID_REFERENCE`, `REFERENCE_UNAVAILABLE`, and unchanged snapshot observed through actual native commands |
-| Native relaunch | Automated restart coverage passes; final DevTools inspection is pending because computer control reported the Mac locked |
+| Native relaunch | Passed in WebKit DevTools after reopening the isolated native app: workspace/translation/edition IDs matched the earlier run; WEB selection, 66 books/31,098 verses and Hide cursor persisted; current verse remained absent, information mode off and audience closed |
+| Offline native IPC | Passed at 16:09:10 Asia/Manila with Wi-Fi `en0` off: external fetch failed with “The Internet connection appears to be offline”; real startup/reference commands returned stable identities, exact John 3:16 wording, typed invalid/missing-reference failures and an unchanged accepted snapshot |
+| Network restoration | Wi-Fi automatically restored after the approved 20-second check; power On and the default route through `en0` confirmed |
 | Receiver/physical/release | Deferred: no audience receiver/UI exists here; no physical-display, cross-platform or release qualification claimed |
 
-The command-line network-denied process was not discoverable through computer
-control. The native IPC observation used Finder to register/launch the debug
-bundle. These are separate observations; a fully combined offline DevTools run
-is not yet recorded.
+The combined offline IPC check ran in the visible native debug bundle. A
+temporary console snippet was armed before disconnection and ran from
+08:09:10.395 to 08:09:10.456 UTC, inside the observed Wi-Fi-off interval
+08:09:09–08:09:29 UTC (16:09:09–16:09:29 Asia/Manila). It checked the native
+commands after an uncached external fetch failed, then compared the accepted
+snapshot before and after valid/invalid lookups. A local shell timer and exit
+trap restored Wi-Fi independently of agent connectivity. WebKit did not emit
+the `offline` event in this run; the evidence uses actual Wi-Fi power and the
+failed external request instead. No verification code or launcher was added
+to the product.
