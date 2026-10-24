@@ -24,6 +24,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../LICENSE": "notices/LICENSE",
+      "../crates/lumina-persistence/seed/NOTICE.html": "notices/WEB-NOTICE.html",
+      "../crates/lumina-persistence/seed/provenance.json": "notices/WEB-provenance.json"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
