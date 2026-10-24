@@ -2,6 +2,16 @@
 
 This file records requirement changes and their rationale. The canonical [MVP specification](mvp.md) contains the resulting requirements. Historical entries are not implementation instructions.
 
+## 2026-10-24 — Finalize backend-first feature contracts
+
+- Adopt the documented `translations`/`books`/`verses` interchange format, `translation_id` relationships, native book/verse rules, resource ceilings, and official WEB conversion/provenance scope from [#27](https://github.com/Kertsu/lumina/issues/27) and [#33](https://github.com/Kertsu/lumina/issues/33). These complete the earlier open import design; they do not change the one-managed-database architecture.
+- Simplify translation management to import/create and delete. Accept every valid repeated import with fresh IDs and numbered filename labels, instead of duplicate skipping or Add-versus-Replace choices. Protect bundled WEB and require every audience closed for confirmed deletion. Preserve original Saved copies/assets; reimport never silently reconnects old captures or settings. Replace and explicit Restore leave MVP scope.
+- Make book-information source credit optional. Missing optional fields/credit produce no warning or import/projection block and prescribe no operator placeholder. Keep the requirement for at least one usable author/date/location field; retain supplied credit and warnings for invalid present optional values.
+- Keep the newly selected verse when delivery may have begun, report unconfirmed after a five-second wait, and allow subsequent deliberate actions without automatic resend/rollback. Confirm only the matching history record; late or obsolete callbacks cannot revert newer output. Retain durable original intent, instance/revision correlation, and separate storage failures under the existing projection ADR.
+- Accept documented English/Tagalog names and abbreviations, plus exact selected-edition imported names, with explicit ambiguity selection. Do not infer arbitrary partial names. Specify reference grammar, empty/punctuation input, literal substring whitespace, normalized token behavior, and original-text highlight offsets in line with [#35](https://github.com/Kertsu/lumina/issues/35) and [#37](https://github.com/Kertsu/lumina/issues/37).
+- Count original verse graphemes including spaces/punctuation and excluding reference/translation labels. Define shared-band validation, explicit units, optional overrides, and managed-image limits. Defer final fonts, size presets, rendered scale, metadata arrangement, and readability to integrated UI evaluation.
+- Sequence the 24 published `[Tauri]` tickets as the backend phase. Keep React components/integration, actual receiver application, and release qualification for later work. Preserve main's automated testing/TDD guidance, real SQLite integration tests, and `pnpm check`; native/physical checks supplement automated coverage. All accepted ADRs and the implemented foundation remain in force.
+
 ## 2026-10-23 — One canonical feature baseline
 
 - Merged the MVP plan and scratch implementation specification into `docs/specs/mvp.md`, preserving agreed behavior, detailed acceptance cases, evaluation guidance, the restart matrix, and the remaining-work table.

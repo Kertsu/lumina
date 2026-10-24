@@ -24,7 +24,7 @@ These capabilities are outside the [MVP specification](mvp.md). Reasons and reco
 | Split/suffixed and merged verse identifiers | The import contract supports positive-integer chapter/verse coordinates; unsupported identifier forms fail clearly without silent coercion | Source editions require identifiers such as `3a` or `3–4`; define a faithful representation before claiming compatibility |
 | Automatic passage-equivalence mapping | Translation changes look up the same numbered coordinate and report unavailability when absent | Operators need equivalent content across numbering schemes; evaluate declared versification profiles and explicit maps |
 | Separate font Script selector | Font selection/rendering covers the supported text | A writing-system requirement cannot be addressed through the current controls |
-| Curated book-information dataset | Inspect and optionally project attributed import metadata | A suitable redistributable dataset is established |
+| Curated book-information dataset | Inspect and optionally project imported book information, retaining source credit when supplied | A suitable redistributable dataset is established |
 | Per-verse size overrides | Share size bands within each workspace | Operators need individual adjustments without affecting similar-length verses |
 | Remote/network/browser/mobile audiences | Use local native outputs on extended displays | A concrete deployment requires remote receivers |
 
