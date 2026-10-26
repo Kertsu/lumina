@@ -3,11 +3,15 @@
 mod catalog;
 mod failure;
 mod library;
+mod workflow;
+mod workflow_catalog;
 
 pub use catalog::*;
 pub use failure::*;
 pub use library::*;
 pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};
+pub use workflow::*;
+pub use workflow_catalog::*;
 
 use std::error::Error;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
@@ -47,6 +51,8 @@ pub struct Application<S> {
   // Retain storage (and its connection) for the application's lifetime.
   storage: S,
   state: ApplicationSnapshot,
+  session_id: String,
+  sequence: u32,
 }
 
 /// Application startup failure retaining the storage cause.
@@ -77,6 +83,8 @@ impl<S: Storage> Application<S> {
     let stored = storage.initialize().map_err(StartupError::Storage)?;
     Ok(Self {
       storage,
+      session_id: workflow::session_identity(),
+      sequence: 0,
       state: ApplicationSnapshot {
         translations: stored.translations,
         active_workspace_id: stored.active_workspace_id,
@@ -87,8 +95,18 @@ impl<S: Storage> Application<S> {
             workspace_id: workspace.workspace_id,
             settings: workspace.settings,
             current_verse: None,
+            current_background: None,
             book_information_mode: false,
             audience: AudienceState::Closed,
+            owner: None,
+            output_revision: 0,
+            output_action_id: None,
+            preview: None,
+            history: Vec::new(),
+            appearance: Appearance::default(),
+            information: None,
+            fullscreen: false,
+            always_on_top: false,
           })
           .collect(),
       },
