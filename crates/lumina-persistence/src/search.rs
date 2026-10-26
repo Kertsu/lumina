@@ -4,21 +4,22 @@ use lumina_app::{
   OperationError, SearchHit, SearchMode, SearchOrder, SearchRequest, SearchResult,
 };
 use rusqlite::{params, Transaction};
+use unicode_casefold::UnicodeCaseFold;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 use unicode_segmentation::UnicodeSegmentation;
 
-/// NFKD, Unicode lowercase, sharp-s folding and apostrophe equivalence.
-/// Original grapheme coordinates are retained separately; whitespace is literal.
+/// NFKD, full non-Turkic case folding and apostrophe equivalence. Newer simple
+/// lowercase mappings come from the pinned Rust toolchain. Whitespace is literal.
 pub(crate) fn normalize(value: &str) -> String {
   value
     .nfkd()
-    .filter(|c| !is_combining_mark(*c))
     .flat_map(char::to_lowercase)
-    .flat_map(|c| match c {
-      'ß' => "ss".chars().collect::<Vec<_>>(),
-      'ς' => vec!['σ'],
-      '’' | '‘' | 'ʼ' => vec!['\''],
-      _ => vec![c],
+    .case_fold()
+    .nfkd()
+    .filter(|character| !is_combining_mark(*character))
+    .map(|character| match character {
+      '’' | '‘' | 'ʼ' => '\'',
+      _ => character,
     })
     .collect()
 }

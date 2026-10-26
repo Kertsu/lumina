@@ -111,10 +111,10 @@ impl LibraryStorage for SqliteStorage {
   fn delete_translation(
     &mut self,
     translation_id: &TranslationId,
-  ) -> Result<(), OperationError<Self::Error>> {
+  ) -> Result<Vec<Translation>, OperationError<Self::Error>> {
     let transaction = self
       .connection
-      .transaction()
+      .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
       .map_err(StorageError::Catalog)
       .map_err(OperationError::Storage)?;
     let row: Option<(bool, Option<String>)> = transaction
@@ -161,6 +161,11 @@ impl LibraryStorage for SqliteStorage {
       .execute("UPDATE catalog_meta SET revision=revision+1", [])
       .map_err(StorageError::Catalog)
       .map_err(OperationError::Storage)?;
-    transaction.commit().map_err(StorageError::Catalog).map_err(OperationError::Storage)
+    let translations = crate::library::read_state(&transaction)
+      .map_err(StorageError::Catalog)
+      .map_err(OperationError::Storage)?
+      .translations;
+    transaction.commit().map_err(StorageError::Catalog).map_err(OperationError::Storage)?;
+    Ok(translations)
   }
 }

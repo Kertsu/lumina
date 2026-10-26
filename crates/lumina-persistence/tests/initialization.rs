@@ -9,7 +9,7 @@ fn initializes_a_managed_database_with_bundled_fts5() -> Result<(), Box<dyn std:
   storage.initialize()?;
 
   assert!(path.is_file());
-  assert_eq!(storage.schema_version()?, 2);
+  assert_eq!(storage.schema_version()?, 3);
   Ok(())
 }
 
@@ -24,9 +24,9 @@ fn reopens_and_initializes_the_same_database_again() -> Result<(), Box<dyn std::
     storage.initialize()?;
   }
   let mut reopened = SqliteStorage::open(&path)?;
-  assert_eq!(reopened.schema_version()?, 2);
+  assert_eq!(reopened.schema_version()?, 3);
   reopened.initialize()?;
-  assert_eq!(reopened.schema_version()?, 2);
+  assert_eq!(reopened.schema_version()?, 3);
   Ok(())
 }
 
@@ -37,17 +37,17 @@ fn rejects_a_newer_schema_without_downgrading_it() -> Result<(), Box<dyn std::er
   {
     // A fixture produced by a future release, prepared before opening the adapter.
     let fixture = rusqlite::Connection::open(&path)?;
-    fixture.pragma_update(None, "user_version", 3)?;
+    fixture.pragma_update(None, "user_version", 99)?;
   }
   let mut storage = SqliteStorage::open(&path)?;
   assert!(matches!(
     storage.initialize(),
     Err(StorageError::NewerSchema {
-      found: 3,
-      supported: 2,
+      found: 99,
+      supported: 3,
     })
   ));
-  assert_eq!(storage.schema_version()?, 3);
+  assert_eq!(storage.schema_version()?, 99);
   Ok(())
 }
 

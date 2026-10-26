@@ -20,6 +20,7 @@ pub struct Translation {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranslationSource {
+  pub import_filename: Option<String>,
   pub publisher_edition_id: Option<String>,
   pub artifact_sha256: Option<String>,
   pub edition_label: Option<String>,

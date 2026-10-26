@@ -65,13 +65,7 @@ fn parse_input(input: &str) -> Result<(&str, i32, i32), OperationError<StorageEr
     .find(|(_, c)| !c.is_ascii_digit())
     .map_or(0, |(index, c)| index + c.len_utf8());
   let book_input = left[..chapter_start].trim();
-  if book_input.is_empty()
-    || book_input.ends_with('-')
-    || book_input.contains(':')
-    || book_input.chars().any(|c| {
-      !(c.is_alphabetic() || c.is_ascii_digit() || c.is_whitespace() || matches!(c, '.' | '-'))
-    })
-  {
+  if book_input.is_empty() {
     return Err(malformed().into());
   }
   let chapter: i32 = left[chapter_start..].parse().map_err(|_| malformed())?;
@@ -107,6 +101,16 @@ fn candidates(
   }
   candidates.sort_by_key(|candidate| candidate.book_number);
   if candidates.is_empty() {
+    if book_input.ends_with('-')
+      || book_input
+        .strip_suffix('.')
+        .is_some_and(|prefix| prefix.chars().last().is_some_and(|c| c.is_ascii_digit()))
+      || crate::search::normalize(book_input).chars().any(|c| {
+        !(c.is_alphabetic() || c.is_ascii_digit() || c.is_whitespace() || matches!(c, '.' | '-'))
+      })
+    {
+      return Err(malformed().into());
+    }
     return Err(
       ApplicationFailure::UnknownBook {
         message: "This book name is not a documented alias or a name in the selected edition."

@@ -7,6 +7,7 @@ use lumina_app::{
 use rusqlite::{params, types::ValueRef, Connection, OpenFlags, OptionalExtension, Row};
 use std::{
   collections::{BTreeMap, HashMap, HashSet},
+  io::Read,
   path::Path,
 };
 
@@ -60,25 +61,34 @@ fn columns(
   table: &str,
   required: &[&str],
 ) -> Result<HashSet<String>, OperationError<StorageError>> {
-  let sql: Option<String> = connection
-    .query_row("SELECT sql FROM sqlite_schema WHERE type='table' AND name=?1", [table], |row| {
-      row.get(0)
-    })
+  let table_type: Option<String> = connection
+    .query_row(
+      "SELECT type FROM pragma_table_list WHERE schema='main' AND name=?1",
+      [table],
+      |row| row.get(0),
+    )
     .optional()
     .map_err(|error| rejected(error.to_string()))?;
-  if sql.as_deref().is_none_or(|sql| sql.to_ascii_uppercase().contains("CREATE VIRTUAL")) {
+  if table_type.as_deref() != Some("table") {
     return Err(rejected(format!("{table} must be an ordinary stored table.")));
   }
   let pragma = format!("PRAGMA table_xinfo('{table}')");
   let values = connection
     .prepare(&pragma)
     .map_err(|error| rejected(error.to_string()))?
-    .query_map([], |row| Ok((row.get::<_, String>(1)?, row.get::<_, i32>(6)?)))
+    .query_map([], |row| {
+      Ok((row.get::<_, String>(1)?, row.get::<_, i32>(6)?, row.get::<_, i32>(5)?))
+    })
     .map_err(|error| rejected(error.to_string()))?
     .collect::<rusqlite::Result<Vec<_>>>()
     .map_err(|error| rejected(error.to_string()))?;
+  if values.iter().filter(|(_, _, primary)| *primary > 0).count() != 1
+    || !values.iter().any(|(name, hidden, primary)| name == "id" && *hidden == 0 && *primary == 1)
+  {
+    return Err(rejected(format!("{table}.id must be the stored primary key.")));
+  }
   let columns: HashSet<_> =
-    values.into_iter().filter(|(_, hidden)| *hidden == 0).map(|(name, _)| name).collect();
+    values.into_iter().filter(|(_, hidden, _)| *hidden == 0).map(|(name, _, _)| name).collect();
   if let Some(missing) = required.iter().find(|column| !columns.contains(**column)) {
     return Err(rejected(format!("Missing stored column {table}.{missing}.")));
   }
@@ -118,8 +128,14 @@ pub fn stage_import(path: &str) -> Result<StagedImport, OperationError<StorageEr
       ));
     }
   }
-  let bytes =
-    std::fs::read(path).map_err(StorageError::ImportIo).map_err(OperationError::Storage)?;
+  let mut bytes = Vec::new();
+  std::fs::File::open(path)
+    .map_err(StorageError::ImportIo)
+    .map_err(OperationError::Storage)?
+    .take(268_435_457)
+    .read_to_end(&mut bytes)
+    .map_err(StorageError::ImportIo)
+    .map_err(OperationError::Storage)?;
   if bytes.len() > 268_435_456 {
     return Err(rejected("Source exceeds the 256 MiB limit."));
   }
@@ -329,6 +345,12 @@ pub(crate) fn register(
     .query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0))
     .map_err(StorageError::Catalog)
     .map_err(OperationError::Storage)?;
+  let mut coverage = HashMap::<i64, BTreeMap<i32, u32>>::new();
+  let mut verse_counts = HashMap::<i64, u32>::new();
+  for verse in &staged.verses {
+    *coverage.entry(verse.book_id).or_default().entry(verse.chapter).or_default() += 1;
+    *verse_counts.entry(verse.translation_id).or_default() += 1;
+  }
   let translations = staged
     .translations
     .iter()
@@ -337,26 +359,25 @@ pub(crate) fn register(
         .books
         .iter()
         .filter(|book| book.translation_id == translation.id)
-        .map(|book| {
-          let mut chapters = BTreeMap::<i32, u32>::new();
-          for verse in staged.verses.iter().filter(|verse| verse.book_id == book.id) {
-            *chapters.entry(verse.chapter).or_default() += 1;
-          }
-          ImportBookCoverage {
-            book_number: book.book_number,
-            name: book.name.clone(),
-            chapters: chapters
-              .into_iter()
-              .map(|(chapter, verse_count)| ImportChapterCoverage {
-                chapter,
-                verse_count,
-              })
-              .collect(),
-            author: book.author.clone(),
-            writing_date: book.writing_date.clone(),
-            writing_location: book.writing_location.clone(),
-            metadata_attribution: book.metadata_attribution.clone(),
-          }
+        .map(|book| ImportBookCoverage {
+          book_number: book.book_number,
+          name: book.name.clone(),
+          chapters: coverage
+            .get(&book.id)
+            .map(|chapters| {
+              chapters
+                .iter()
+                .map(|(&chapter, &verse_count)| ImportChapterCoverage {
+                  chapter,
+                  verse_count,
+                })
+                .collect()
+            })
+            .unwrap_or_default(),
+          author: book.author.clone(),
+          writing_date: book.writing_date.clone(),
+          writing_location: book.writing_location.clone(),
+          metadata_attribution: book.metadata_attribution.clone(),
         })
         .collect::<Vec<_>>();
       Ok(ImportTranslationSummary {
@@ -367,10 +388,7 @@ pub(crate) fn register(
         source_url: translation.source_url.clone(),
         rights_notice: translation.rights_notice.clone(),
         book_count: u32::try_from(books.len()).map_err(|_| rejected("Too many books."))?,
-        verse_count: u32::try_from(
-          staged.verses.iter().filter(|verse| verse.translation_id == translation.id).count(),
-        )
-        .map_err(|_| rejected("Too many verses."))?,
+        verse_count: verse_counts.get(&translation.id).copied().unwrap_or(0),
         books,
       })
     })
@@ -407,7 +425,7 @@ pub(crate) fn commit(
   })?;
   let transaction = storage
     .connection
-    .transaction()
+    .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
     .map_err(StorageError::Catalog)
     .map_err(OperationError::Storage)?;
   let path = Path::new(&staged.filename);
@@ -471,6 +489,10 @@ pub(crate) fn commit(
     .query_row("SELECT revision FROM catalog_meta", [], |row| row.get(0))
     .map_err(StorageError::Catalog)
     .map_err(OperationError::Storage)?;
+  let translations = crate::library::read_state(&transaction)
+    .map_err(StorageError::Catalog)
+    .map_err(OperationError::Storage)?
+    .translations;
   transaction.commit().map_err(StorageError::Catalog).map_err(OperationError::Storage)?;
   let translation_ids = staged
     .translations
@@ -479,6 +501,7 @@ pub(crate) fn commit(
     .collect();
   storage.staged_imports.remove(token);
   Ok(ImportResult {
+    translations,
     filename,
     translation_ids,
     library_revision: revision,

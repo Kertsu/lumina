@@ -209,6 +209,7 @@ pub struct ImportReview {
 #[derive(Clone, Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportResult {
+  pub translations: Vec<Translation>,
   pub filename: String,
   pub translation_ids: Vec<TranslationId>,
   pub library_revision: u32,
@@ -289,7 +290,7 @@ pub trait LibraryStorage: Storage {
   fn delete_translation(
     &mut self,
     translation_id: &TranslationId,
-  ) -> Result<(), OperationError<Self::Error>>;
+  ) -> Result<Vec<Translation>, OperationError<Self::Error>>;
 }
 
 // Owned operation requests cross the asynchronous desktop execution boundary.
@@ -381,7 +382,7 @@ impl<S: LibraryStorage> Application<S> {
   }
   pub fn commit_import(&mut self, token: String) -> Result<ImportResult, OperationError<S::Error>> {
     let result = self.storage.commit_import(&token)?;
-    self.state.translations = self.storage.list_translations().map_err(OperationError::Storage)?;
+    self.state.translations.clone_from(&result.translations);
     Ok(result)
   }
   pub fn cancel_import(&mut self, token: String) {
@@ -418,8 +419,7 @@ impl<S: LibraryStorage> Application<S> {
         .into(),
       );
     }
-    self.storage.delete_translation(&translation_id)?;
-    self.state.translations = self.storage.list_translations().map_err(OperationError::Storage)?;
+    self.state.translations = self.storage.delete_translation(&translation_id)?;
     if let Some(web) = self.state.translations.iter().find(|translation| translation.bundled) {
       for workspace in &mut self.state.workspaces {
         if workspace.settings.selected_translation_id == translation_id {
