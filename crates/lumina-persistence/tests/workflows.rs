@@ -799,3 +799,69 @@ fn invalid_size_profiles() -> Vec<Vec<lumina_app::SizeBand>> {
     }],
   ]
 }
+
+#[test]
+fn image_headers_enforce_dimensions_pixels_and_decoded_bytes_before_pixel_allocation(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+    1,
+    1,
+    image::Rgba([1, 2, 3, 255]),
+  ));
+  for (format, mime) in [
+    (image::ImageFormat::Png, "image/png"),
+    (image::ImageFormat::Bmp, "image/bmp"),
+    (image::ImageFormat::Jpeg, "image/jpeg"),
+  ] {
+    let mut encoded = std::io::Cursor::new(Vec::new());
+    if format == image::ImageFormat::Jpeg {
+      image::DynamicImage::ImageRgb8(image.to_rgb8()).write_to(&mut encoded, format)?;
+    } else {
+      image.write_to(&mut encoded, format)?;
+    }
+    let asset = app.import_background_bytes(encoded.into_inner())?;
+    assert_eq!((asset.width, asset.height, asset.mime_type.as_str()), (1, 1, mime));
+  }
+  for (width, height, depth) in [(8193_u32, 1_u32, 8_u8), (8192, 4096, 8), (4097, 4096, 16)] {
+    let mut encoded = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut encoded, image::ImageFormat::Png)?;
+    let mut bytes = encoded.into_inner();
+    bytes[16..20].copy_from_slice(&width.to_be_bytes());
+    bytes[20..24].copy_from_slice(&height.to_be_bytes());
+    bytes[24] = depth;
+    let crc = png_fixture_crc(&bytes[12..29]);
+    bytes[29..33].copy_from_slice(&crc.to_be_bytes());
+    let failure =
+      app.import_background_bytes(bytes).err().ok_or("resource fixture unexpectedly accepted")?;
+    let lumina_app::ApplicationFailure::AssetRejected {
+      data,
+      ..
+    } = failure.public_failure()
+    else {
+      return Err("expected typed resource rejection".into());
+    };
+    assert!(
+      data.reason.contains("ceiling"),
+      "resource header reached pixel decoding: {}",
+      data.reason
+    );
+  }
+  Ok(())
+}
+
+fn png_fixture_crc(bytes: &[u8]) -> u32 {
+  let mut crc = u32::MAX;
+  for byte in bytes {
+    crc ^= u32::from(*byte);
+    for _ in 0..8 {
+      crc = if crc & 1 == 1 {
+        (crc >> 1) ^ 0xedb8_8320
+      } else {
+        crc >> 1
+      };
+    }
+  }
+  !crc
+}
