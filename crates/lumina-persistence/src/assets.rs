@@ -43,6 +43,13 @@ impl AssetStorage for SqliteStorage {
         source,
       })
     })?;
+    self.import_background_bytes(bytes)
+  }
+
+  fn import_background_bytes(
+    &mut self,
+    bytes: Vec<u8>,
+  ) -> Result<ManagedAsset, OperationError<StorageError>> {
     if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > MAX_SOURCE {
       return Err(rejected("source exceeds 20 MiB").into());
     }

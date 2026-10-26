@@ -55,6 +55,7 @@ pub struct AudienceOutput {
   pub revision: u32,
   pub action_id: Option<String>,
   pub content: AudienceContent,
+  pub background: Option<TranslationBackground>,
   pub appearance: Appearance,
   pub hide_cursor: bool,
 }
@@ -114,6 +115,8 @@ pub struct HistoryEntry {
   pub action_id: String,
   pub workspace_id: WorkspaceId,
   pub verse: ResolvedVerse,
+  #[serde(default)]
+  pub background: Option<TranslationBackground>,
   pub timestamp_ms: f64,
   pub kind: VerseActionKind,
   pub outcome: ProjectionOutcome,
@@ -153,6 +156,7 @@ pub struct PreviewCandidate {
   pub workspace_id: WorkspaceId,
   pub verse: ResolvedVerse,
   pub origin: PreviewOrigin,
+  pub background: Option<TranslationBackground>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Type)]
@@ -252,6 +256,7 @@ fn native_failure(id: &WorkspaceId, operation: &str, message: String) -> Applica
   }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<S: Storage> Application<S> {
   fn identity(&mut self, prefix: &str) -> String {
     self.sequence = self.sequence.wrapping_add(1);
@@ -299,6 +304,15 @@ impl<S: Storage> Application<S> {
       owner,
       revision: workspace.output_revision,
       action_id: workspace.output_action_id.clone(),
+      background: match &content {
+        AudienceContent::Verse {
+          ..
+        } => workspace.current_background.clone(),
+        AudienceContent::BookInformation {
+          information,
+        } => information.background.clone(),
+        AudienceContent::Blank => None,
+      },
       content,
       appearance: workspace.appearance.clone(),
       hide_cursor: workspace.settings.hide_cursor,
@@ -359,6 +373,29 @@ impl<S: Storage> Application<S> {
     };
     native.close(&owner).map_err(|message| native_failure(id, "closeAudience", message))?;
     self.retire_instance(index);
+    Ok(())
+  }
+
+  /// Publish accepted style/cursor/information changes with a fresh output
+  /// revision and no verse-action identity. Delayed cosmetic messages cannot
+  /// overwrite a newer content operation; previous exact ACKs remain independent.
+  /// # Errors
+  /// Reports native dispatch uncertainty without reverting accepted appearance.
+  pub fn refresh_audience(
+    &mut self,
+    id: &WorkspaceId,
+    native: &mut impl NativeAudience,
+  ) -> Result<(), OperationError<S::Error>> {
+    let index = self.workspace_index(id)?;
+    if self.state.workspaces[index].owner.is_none() {
+      return Ok(());
+    }
+    self.state.workspaces[index].output_revision =
+      self.state.workspaces[index].output_revision.saturating_add(1);
+    self.state.workspaces[index].output_action_id = None;
+    native
+      .dispatch(&self.audience_output(id)?)
+      .map_err(|message| native_failure(id, "refreshAudience", message))?;
     Ok(())
   }
 
@@ -453,6 +490,12 @@ impl<S: Storage> Application<S> {
     let candidate = PreviewCandidate {
       candidate_id: self.identity("candidate"),
       workspace_id: id.clone(),
+      background: self.state.workspaces[index]
+        .appearance
+        .backgrounds
+        .iter()
+        .find(|background| background.translation_id == verse.translation_id)
+        .cloned(),
       verse,
       origin,
     };
@@ -468,10 +511,10 @@ impl<S: Storage> Application<S> {
     candidate_id: &str,
   ) -> Result<(), ApplicationFailure> {
     let index = self.workspace_index(id)?;
-    if !self.state.workspaces[index]
+    if self.state.workspaces[index]
       .preview
       .as_ref()
-      .is_some_and(|candidate| candidate.candidate_id == candidate_id)
+      .is_none_or(|candidate| candidate.candidate_id != candidate_id)
     {
       return Err(rejection(id, "dismissPreview", "The preview candidate is unavailable."));
     }
@@ -480,6 +523,7 @@ impl<S: Storage> Application<S> {
   }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<S: WorkspaceStorage> Application<S> {
   fn durable(workspaces: &[Workspace]) -> Vec<DurableWorkspace> {
     workspaces
@@ -545,6 +589,39 @@ impl<S: WorkspaceStorage> Application<S> {
     native: &mut impl NativeAudience,
   ) -> Result<VerseActionResult, OperationError<S::Error>> {
     let index = self.workspace_index(id)?;
+    let background = self.state.workspaces[index]
+      .appearance
+      .backgrounds
+      .iter()
+      .find(|background| background.translation_id == verse.translation_id)
+      .cloned();
+    self.send_captured_verse(
+      id,
+      CapturedVerse {
+        verse,
+        background,
+      },
+      kind,
+      require_open,
+      now_ms,
+      native,
+    )
+  }
+
+  pub(crate) fn send_captured_verse(
+    &mut self,
+    id: &WorkspaceId,
+    capture: CapturedVerse,
+    kind: VerseActionKind,
+    require_open: bool,
+    now_ms: f64,
+    native: &mut impl NativeAudience,
+  ) -> Result<VerseActionResult, OperationError<S::Error>> {
+    let CapturedVerse {
+      verse,
+      background,
+    } = capture;
+    let index = self.workspace_index(id)?;
     if !now_ms.is_finite() || now_ms < 0.0 {
       return Err(rejection(id, "sendVerse", "The action timestamp is invalid.").into());
     }
@@ -563,6 +640,7 @@ impl<S: WorkspaceStorage> Application<S> {
     let mut proposal = self.state.workspaces.clone();
     let workspace = &mut proposal[index];
     workspace.current_verse = Some(verse.clone());
+    workspace.current_background.clone_from(&background);
     workspace.book_information_mode = false;
     workspace.output_revision = workspace.output_revision.saturating_add(1);
     workspace.output_action_id = Some(action_id.clone());
@@ -579,6 +657,7 @@ impl<S: WorkspaceStorage> Application<S> {
         action_id: action_id.clone(),
         workspace_id: id.clone(),
         verse,
+        background,
         timestamp_ms: now_ms,
         kind,
         outcome: outcome.clone(),
@@ -640,7 +719,17 @@ impl<S: WorkspaceStorage> Application<S> {
       .filter(|candidate| candidate.candidate_id == candidate_id)
       .cloned()
       .ok_or_else(|| rejection(id, "sendPreview", "The preview candidate is unavailable."))?;
-    self.send_verse(id, candidate.verse, VerseActionKind::SendLive, true, now_ms, native)
+    self.send_captured_verse(
+      id,
+      CapturedVerse {
+        verse: candidate.verse,
+        background: candidate.background,
+      },
+      VerseActionKind::SendLive,
+      true,
+      now_ms,
+      native,
+    )
   }
 
   /// Exact caller-bound confirmation updates its own durable record once. It
@@ -729,7 +818,20 @@ impl<S: WorkspaceStorage> Application<S> {
       .current_verse
       .clone()
       .ok_or_else(|| rejection(id, "resume", "No retained verse is available."))?;
-    self.send_verse(id, verse, VerseActionKind::Resume, true, now_ms, native).map(Some)
+    let background = self.state.workspaces[index].current_background.clone();
+    self
+      .send_captured_verse(
+        id,
+        CapturedVerse {
+          verse,
+          background,
+        },
+        VerseActionKind::Resume,
+        true,
+        now_ms,
+        native,
+      )
+      .map(Some)
   }
 
   /// # Errors
@@ -744,8 +846,8 @@ impl<S: WorkspaceStorage> Application<S> {
         .history
         .iter()
         .filter(|entry| {
-          (!entry.record_on_confirmation || entry.outcome == ProjectionOutcome::Projected)
-            && (!projected_only || entry.outcome == ProjectionOutcome::Projected)
+          entry.outcome == ProjectionOutcome::Projected
+            || !entry.record_on_confirmation && !projected_only
         })
         .cloned()
         .collect(),
@@ -753,6 +855,7 @@ impl<S: WorkspaceStorage> Application<S> {
   }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<S: WorkspaceStorage> Application<S> {
   /// # Errors
   /// Returns invalid naming or atomic storage failure.
@@ -779,6 +882,7 @@ impl<S: WorkspaceStorage> Application<S> {
         hide_cursor: true,
       },
       current_verse: None,
+      current_background: None,
       book_information_mode: false,
       audience: AudienceState::Closed,
       owner: None,
@@ -1057,13 +1161,22 @@ impl<S: WorkspaceStorage> Application<S> {
     now_ms: f64,
     native: &mut impl NativeAudience,
   ) -> Result<VerseActionResult, OperationError<S::Error>> {
-    let verse = self
+    let entry = self
       .history(id, false)?
       .into_iter()
       .find(|entry| entry.action_id == action_id)
-      .ok_or_else(|| rejection(id, "recallHistory", "The history entry is unavailable."))?
-      .verse;
-    self.send_verse(id, verse, VerseActionKind::Recall, false, now_ms, native)
+      .ok_or_else(|| rejection(id, "recallHistory", "The history entry is unavailable."))?;
+    self.send_captured_verse(
+      id,
+      CapturedVerse {
+        verse: entry.verse,
+        background: entry.background,
+      },
+      VerseActionKind::Recall,
+      false,
+      now_ms,
+      native,
+    )
   }
 }
 
@@ -1109,8 +1222,15 @@ pub trait AssetStorage: Storage {
   /// # Errors
   /// Retains managed resource read errors; absent identities return `None`.
   fn managed_asset(&self, asset_id: &str) -> Result<Option<ManagedAssetData>, Self::Error>;
+  /// # Errors
+  /// Returns the same validation/storage failures as file-based ingestion.
+  fn import_background_bytes(
+    &mut self,
+    bytes: Vec<u8>,
+  ) -> Result<ManagedAsset, OperationError<Self::Error>>;
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<S: Storage> Application<S> {
   /// # Errors
   /// Returns a missing workspace. Counts captured original text with Unicode 17.0
@@ -1177,6 +1297,20 @@ impl<S: WorkspaceStorage + AssetStorage> Application<S> {
       }
     }
     let mut proposal = self.state.workspaces.clone();
+    proposal[index].current_background = proposal[index].current_verse.as_ref().and_then(|verse| {
+      appearance
+        .backgrounds
+        .iter()
+        .find(|background| background.translation_id == verse.translation_id)
+        .cloned()
+    });
+    if let Some(information) = &mut proposal[index].information {
+      information.background = appearance
+        .backgrounds
+        .iter()
+        .find(|background| background.translation_id == information.translation_id)
+        .cloned();
+    }
     proposal[index].appearance = appearance;
     let active = self.state.active_workspace_id.clone();
     self.persist_proposal(&proposal, &active)?;
@@ -1185,6 +1319,7 @@ impl<S: WorkspaceStorage + AssetStorage> Application<S> {
   }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 impl<S: AssetStorage> Application<S> {
   /// # Errors
   /// Returns typed invalid image or retained storage diagnostics.
@@ -1193,6 +1328,15 @@ impl<S: AssetStorage> Application<S> {
     path: String,
   ) -> Result<ManagedAsset, OperationError<S::Error>> {
     self.storage.import_background_asset(&path)
+  }
+
+  /// # Errors
+  /// Returns bounded image validation/storage failures; builtins use the same pipeline.
+  pub fn import_background_bytes(
+    &mut self,
+    bytes: Vec<u8>,
+  ) -> Result<ManagedAsset, OperationError<S::Error>> {
+    self.storage.import_background_bytes(bytes)
   }
 
   /// # Errors
@@ -1294,4 +1438,9 @@ fn validate_appearance(
     translations.push(background.translation_id.clone());
   }
   Ok(())
+}
+
+pub(crate) struct CapturedVerse {
+  pub(crate) verse: ResolvedVerse,
+  pub(crate) background: Option<TranslationBackground>,
 }

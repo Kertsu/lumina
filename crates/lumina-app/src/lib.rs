@@ -4,12 +4,14 @@ mod catalog;
 mod failure;
 mod library;
 mod workflow;
+mod workflow_catalog;
 
 pub use catalog::*;
 pub use failure::*;
 pub use library::*;
 pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};
 pub use workflow::*;
+pub use workflow_catalog::*;
 
 use std::error::Error;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
@@ -93,6 +95,7 @@ impl<S: Storage> Application<S> {
             workspace_id: workspace.workspace_id,
             settings: workspace.settings,
             current_verse: None,
+            current_background: None,
             book_information_mode: false,
             audience: AudienceState::Closed,
             owner: None,

@@ -1,6 +1,9 @@
 //! Startup/reference contracts shared by storage, application, and generated IPC.
 
-use crate::{Appearance, AudienceOwner, HistoryEntry, InformationCapture, PreviewCandidate};
+use crate::{
+  Appearance, AudienceOwner, HistoryEntry, InformationCapture, PreviewCandidate,
+  TranslationBackground,
+};
 use lumina_core::{EditionId, TranslationId, VerseCoordinate, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -63,6 +66,7 @@ pub struct Workspace {
   pub workspace_id: WorkspaceId,
   pub settings: WorkspaceSettings,
   pub current_verse: Option<ResolvedVerse>,
+  pub current_background: Option<TranslationBackground>,
   pub book_information_mode: bool,
   pub audience: AudienceState,
   pub owner: Option<AudienceOwner>,

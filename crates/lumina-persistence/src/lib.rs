@@ -6,9 +6,9 @@ mod imports;
 mod library;
 pub use imports::stage_import;
 mod migrations;
-mod workspaces;
 mod references;
 mod search;
+mod workspaces;
 
 use lumina_app::{EditionId, ResolvedVerse, Storage, StoredState, TranslationId, VerseCoordinate};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
