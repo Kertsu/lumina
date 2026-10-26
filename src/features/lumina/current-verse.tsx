@@ -27,7 +27,7 @@ export function CurrentVerse() {
         translations,
         installed,
         setAppearanceOpen,
-        setInformationOpen,
+        showInformation,
         notify,
         isInstalled,
         previewVerse,
@@ -107,11 +107,11 @@ export function CurrentVerse() {
                         <h2>
                             {current
                                 ? referenceLabel(current)
-                                : "Ready when you are."}
+                                : "No verse selected"}
                         </h2>
                         <IconButton
                             label="Book information · F7"
-                            onClick={() => setInformationOpen(true)}
+                            onClick={showInformation}
                             active={workspace.information}
                         >
                             <Info />
@@ -135,7 +135,7 @@ export function CurrentVerse() {
                                 }
                             </>
                         ) : (
-                            "Find a reference or search the words you remember."
+                            "Enter a reference or search for a verse."
                         )}
                     </p>
                 </div>

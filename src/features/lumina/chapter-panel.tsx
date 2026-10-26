@@ -63,7 +63,7 @@ export function ChapterPanel() {
             <BookOpen />
             <span>
                 {savedCopy
-                    ? "Reinstall the original edition to navigate this saved copy."
+                    ? "The original edition is unavailable for navigation."
                     : "Select a verse to see the rest of its chapter."}
             </span>
             <Button

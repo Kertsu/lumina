@@ -1,5 +1,4 @@
 import {
-    ChevronDown,
     Eye,
     EyeOff,
     Monitor,
@@ -25,7 +24,6 @@ export function WorkspaceBody() {
         sidebar,
         sideTab,
         setSideTab,
-        setLibraryOpen,
         chapterView,
         chapterStripCollapsed,
         setChapterStripCollapsed,
@@ -49,8 +47,9 @@ export function WorkspaceBody() {
     return (
         <TabsContent
             value={activeId}
+            tabIndex={-1}
             ref={panelLayout.containerRef}
-            className={`desk-body ${panelLayout.overlay ? "uses-panel-sheets" : ""}`}
+            className={`desk-body focus-visible:ring-0 ${panelLayout.overlay ? "uses-panel-sheets" : ""}`}
         >
             <main className="operator-content">
                 <div className="stage-heading">
@@ -202,16 +201,6 @@ export function WorkspaceBody() {
                         <ChapterPanel />
                     )}
                 </div>
-                <div className="workspace-footer">
-                    <span>
-                        <span className="offline-dot" />
-                        All local. Ready for your gathering.
-                    </span>
-                    <button type="button" onClick={() => setLibraryOpen(true)}>
-                        Bible library
-                        <ChevronDown />
-                    </button>
-                </div>
             </main>
             <SidePanel
                 key={workspace.id}
@@ -236,7 +225,10 @@ export function WorkspaceBody() {
                 onRecall={(verse) => selectVerse(verse, "Recalled history")}
                 translations={translations}
                 onSearch={() =>
-                    dispatch({ type: "search", workspaceId: activeId })
+                    dispatch({
+                        type: "search",
+                        workspaceId: activeId,
+                    })
                 }
                 onReference={(input) =>
                     dispatch({
@@ -247,10 +239,22 @@ export function WorkspaceBody() {
                     })
                 }
                 onClearHistory={() =>
-                    dispatch({ type: "clearHistory", workspaceId: activeId })
+                    dispatch({
+                        type: "clearHistory",
+                        workspaceId: activeId,
+                    })
+                }
+                onCopyHistory={() =>
+                    dispatch({
+                        type: "copyHistory",
+                        workspaceId: activeId,
+                    })
                 }
                 onExportHistory={() =>
-                    dispatch({ type: "exportHistory", workspaceId: activeId })
+                    dispatch({
+                        type: "exportHistory",
+                        workspaceId: activeId,
+                    })
                 }
             />
         </TabsContent>

@@ -118,14 +118,27 @@ export function DeskDialogs() {
                 )}
                 review={controller.importReview}
                 onRemove={(translationId) =>
-                    dispatch({ type: "deleteTranslation", translationId })
+                    dispatch({
+                        type: "deleteTranslation",
+                        translationId,
+                    })
                 }
-                onReview={() => dispatch({ type: "importBible" })}
+                onReview={() =>
+                    dispatch({
+                        type: "importBible",
+                    })
+                }
                 onPublish={(reviewId) =>
-                    dispatch({ type: "publishImport", reviewId })
+                    dispatch({
+                        type: "publishImport",
+                        reviewId,
+                    })
                 }
                 onCancel={(reviewId) =>
-                    dispatch({ type: "cancelImport", reviewId })
+                    dispatch({
+                        type: "cancelImport",
+                        reviewId,
+                    })
                 }
             />
             <PreviewDialog />

@@ -26,6 +26,7 @@ export type HistoryEntry = {
     verse: Verse;
     timestamp: number;
     projected: boolean;
+    outcome?: "selected" | "awaitingConfirmation" | "unconfirmed" | "projected";
     action: string;
 };
 
@@ -76,6 +77,7 @@ export type DeskAction =
           choiceToken: string;
           bookNumber: number;
       }
+    | (ScopedAction<"inspectInformation"> & { bookId?: number })
     | ScopedAction<
           | "activate"
           | "remove"
@@ -153,10 +155,71 @@ export function defaultAppearance(): Appearance {
         backgrounds: {},
         fit: "cover",
         bands: [
-            { min: 0, max: 100, size: 72 },
-            { min: 101, max: 220, size: 64 },
-            { min: 221, max: 400, size: 48 },
-            { min: 401, max: 100000, size: 40 },
+            {
+                min: 0,
+                max: 50,
+                size: 60,
+            },
+            {
+                min: 51,
+                max: 100,
+                size: 58,
+            },
+            {
+                min: 101,
+                max: 150,
+                size: 57,
+            },
+            {
+                min: 151,
+                max: 200,
+                size: 59,
+            },
+            {
+                min: 201,
+                max: 250,
+                size: 51,
+            },
+            {
+                min: 251,
+                max: 300,
+                size: 53,
+            },
+            {
+                min: 301,
+                max: 400,
+                size: 48,
+            },
+            {
+                min: 401,
+                max: 450,
+                size: 38,
+            },
+            {
+                min: 451,
+                max: 500,
+                size: 34,
+            },
+            {
+                min: 501,
+                max: 550,
+                size: 33,
+            },
+            {
+                min: 551,
+                max: 600,
+                size: 24,
+            },
+            {
+                min: 601,
+                max: 650,
+                size: 24,
+            },
+            {
+                min: 651,
+                max: Number.POSITIVE_INFINITY,
+                size: 30,
+            },
         ],
     };
 }

@@ -1,4 +1,5 @@
 :root {
+  /* Default application palette */
   --background: #f5f3ed;
   --foreground: #2b302e;
   --card: #fdfcf9;
@@ -32,9 +33,9 @@
   --sidebar-border: #dcd7cc;
   --sidebar-ring: #8a612f;
 }
-
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Default application palette */
     --background: #111820;
     --foreground: #e9e4da;
     --card: #18212b;

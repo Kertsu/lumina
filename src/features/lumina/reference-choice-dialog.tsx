@@ -18,7 +18,9 @@ export function ReferenceChoiceDialog() {
             open={Boolean(choice)}
             onOpenChange={(open) => {
                 if (!open) {
-                    dispatch({ type: "cancelReferenceChoice" });
+                    dispatch({
+                        type: "cancelReferenceChoice",
+                    });
                 }
             }}
         >
@@ -54,7 +56,9 @@ export function ReferenceChoiceDialog() {
                     <Button
                         variant="ghost"
                         onClick={() =>
-                            dispatch({ type: "cancelReferenceChoice" })
+                            dispatch({
+                                type: "cancelReferenceChoice",
+                            })
                         }
                     >
                         Cancel

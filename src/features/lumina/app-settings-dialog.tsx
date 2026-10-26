@@ -34,19 +34,19 @@ function MiniatureDesk({ theme }: { theme: "light" | "dark" }) {
             ? {
                   background: "#f5f3ed",
                   toolbar: "#fdfcf9",
-                  tabbar: "#e9e6de",
+                  tabbar: "#e8e5dc",
                   border: "#dcd7cc",
-                  muted: "#a8afa3",
-                  foreground: "#505c57",
-                  primary: "#8a612f",
+                  muted: "#636a66",
+                  foreground: "#2b302e",
+                  primary: "#714722",
               }
             : {
                   background: "#111820",
                   toolbar: "#18212b",
-                  tabbar: "#0c1219",
+                  tabbar: "#111820",
                   border: "#2b3540",
-                  muted: "#526370",
-                  foreground: "#a5b0bb",
+                  muted: "#8e9ba9",
+                  foreground: "#e9e4da",
                   primary: "#d8b782",
               };
 

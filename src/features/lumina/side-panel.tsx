@@ -5,6 +5,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock3,
+    Copy,
     Eye,
     History,
     Search,
@@ -65,6 +66,7 @@ type Props = {
     onSearch: () => void;
     onReference: (input: string) => void;
     onExportHistory: () => void;
+    onCopyHistory: () => void;
     onClearHistory: () => void;
 };
 
@@ -113,6 +115,7 @@ export function SidePanel({
     onSearch,
     onReference,
     onExportHistory,
+    onCopyHistory,
     onClearHistory,
 }: Props) {
     const searchId = useId();
@@ -425,7 +428,6 @@ export function SidePanel({
                                         ]),
                                     ].map((pageNumber) => (
                                         <Button
-                                            // biome-ignore lint/suspicious/noArrayIndexKey: Page numbers are fixed identities.
                                             key={pageNumber}
                                             size="icon-sm"
                                             variant={
@@ -545,6 +547,15 @@ export function SidePanel({
                     <Button
                         variant="ghost"
                         size="icon"
+                        aria-label="Copy visible history"
+                        disabled={!history.length}
+                        onClick={onCopyHistory}
+                    >
+                        <Copy />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         aria-label="Export visible history to CSV"
                         disabled={!history.length}
                         onClick={onExportHistory}
@@ -632,7 +643,12 @@ export function SidePanel({
                                     ) : (
                                         <>
                                             <Clock3 />
-                                            Unconfirmed
+                                            {entry.outcome === "selected"
+                                                ? "Selected"
+                                                : entry.outcome ===
+                                                    "awaitingConfirmation"
+                                                  ? "Awaiting confirmation"
+                                                  : "Unconfirmed"}
                                         </>
                                     )}
                                 </span>

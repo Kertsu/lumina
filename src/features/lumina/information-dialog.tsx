@@ -22,6 +22,7 @@ export function InformationDialog() {
     const {
         workspace,
         informationOpen,
+        inspectInformation,
         setInformationOpen,
         informationBook,
         setInformationBook,
@@ -44,7 +45,14 @@ export function InformationDialog() {
                 {!current && (
                     <Select
                         value={informationBook}
-                        onValueChange={setInformationBook}
+                        onValueChange={(name) => {
+                            setInformationBook(name);
+                            inspectInformation(
+                                workspace.books.find(
+                                    (book) => book.name === name
+                                )?.id
+                            );
+                        }}
                     >
                         <SelectTrigger aria-label="Choose a book for information">
                             <SelectValue />
@@ -83,8 +91,8 @@ export function InformationDialog() {
                     !isInstalled(metadataSource) &&
                     !workspace.information && (
                         <p className="subtle">
-                            Reinstall the original translation edition to
-                            display new book information.
+                            The original translation edition is unavailable for
+                            new book information.
                         </p>
                     )}
                 <div className="info-toggle-row">
@@ -104,7 +112,9 @@ export function InformationDialog() {
                             )
                         }
                         onCheckedChange={(information) =>
-                            patch({ information })
+                            patch({
+                                information,
+                            })
                         }
                     />
                 </div>

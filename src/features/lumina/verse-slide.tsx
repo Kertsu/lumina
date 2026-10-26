@@ -35,6 +35,9 @@ export function VerseSlide({
             ? `linear-gradient(180deg,rgba(7,16,23,.3),rgba(7,16,23,.72)),url("${image}")`
             : undefined,
         backgroundSize: appearance.fit,
+        backgroundColor: /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(background)
+            ? background
+            : undefined,
         "--verse-size": `${(band?.size ?? appearance.fontSize) / 12.8}cqw`,
         "--verse-font": appearance.fontFamily,
         "--verse-color": appearance.color,
@@ -45,64 +48,58 @@ export function VerseSlide({
             className={`verse-slide ${miniature ? "miniature" : ""} ${background === "midnight" ? "slide-midnight" : ""} ${background === "linen" ? "slide-linen" : ""}`}
             style={style}
         >
-            {verse ? (
-                information && metadata ? (
-                    <div className="book-slide">
-                        <BookOpen />
-                        <h2>{metadata.name}</h2>
-                        <div className="book-slide-fields">
-                            {[
-                                ["Author", metadata.author],
-                                ["Written", metadata.date],
-                                ["Location", metadata.location],
-                            ]
-                                .filter(
-                                    ([, value]) =>
-                                        value &&
-                                        value !== "Information unavailable"
-                                )
-                                .map(([label, value]) => (
-                                    <p key={label}>
-                                        <span>{label}</span>
-                                        {value}
-                                    </p>
-                                ))}
-                        </div>
-                        <small>{metadata.attribution}</small>
+            {information && metadata ? (
+                <div className="book-slide">
+                    <BookOpen />
+                    <h2>{metadata.name}</h2>
+                    <div className="book-slide-fields">
+                        {[
+                            ["Author", metadata.author],
+                            ["Written", metadata.date],
+                            ["Location", metadata.location],
+                        ]
+                            .filter(
+                                ([, value]) =>
+                                    value && value !== "Information unavailable"
+                            )
+                            .map(([label, value]) => (
+                                <p key={label}>
+                                    <span>{label}</span>
+                                    {value}
+                                </p>
+                            ))}
                     </div>
-                ) : (
-                    <>
-                        <div className="slide-heading">
-                            <span>{referenceLabel(verse)}</span>
-                            <span>
-                                {verse.translationTitle ?? verse.translation}
-                            </span>
-                        </div>
-                        <p
-                            className="scripture"
-                            style={{
-                                fontWeight: appearance.bold ? 700 : 500,
-                                fontStyle: appearance.italic
-                                    ? "italic"
-                                    : "normal",
-                                textDecoration:
-                                    [
-                                        appearance.underline ? "underline" : "",
-                                        appearance.strike ? "line-through" : "",
-                                    ]
-                                        .filter(Boolean)
-                                        .join(" ") || "none",
-                            }}
-                        >
-                            {verse.text}
-                        </p>
-                        <div className="slide-rule" />
-                    </>
-                )
+                    <small>{metadata.attribution}</small>
+                </div>
+            ) : verse ? (
+                <>
+                    <div className="slide-heading">
+                        <span>{referenceLabel(verse)}</span>
+                        <span>
+                            {verse.translationTitle ?? verse.translation}
+                        </span>
+                    </div>
+                    <p
+                        className="scripture"
+                        style={{
+                            fontWeight: appearance.bold ? 700 : 500,
+                            fontStyle: appearance.italic ? "italic" : "normal",
+                            textDecoration:
+                                [
+                                    appearance.underline ? "underline" : "",
+                                    appearance.strike ? "line-through" : "",
+                                ]
+                                    .filter(Boolean)
+                                    .join(" ") || "none",
+                        }}
+                    >
+                        {verse.text}
+                    </p>
+                </>
             ) : (
                 <div className="slide-empty">
                     <BookOpen />
-                    <p>A place for the Word.</p>
+                    <p>No verse selected</p>
                     <span>Find a verse to begin</span>
                 </div>
             )}

@@ -85,7 +85,11 @@ export function WorkspaceBar() {
                 onMove={moveWorkspace}
                 onClose={setRemoveId}
             />
-            <IconButton label="Add workspace" onClick={addWorkspace}>
+            <IconButton
+                className="workspace-add"
+                label="Add workspace"
+                onClick={addWorkspace}
+            >
                 <Plus />
             </IconButton>
             <WorkspaceSearch

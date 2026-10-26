@@ -12,7 +12,10 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const { workspaces, activeId, translations, dispatch } = controller;
     const installed = translations.map((translation) => translation.id);
     const setActiveId = (workspaceId: string) =>
-        dispatch({ type: "activate", workspaceId });
+        dispatch({
+            type: "activate",
+            workspaceId,
+        });
     const [sidebar, setSidebar] = useState(true);
     const [sideTab, setSideTab] = useState("search");
     const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -78,9 +81,22 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const searchSheetTrigger = useRef<HTMLButtonElement>(null);
     const focusReferenceAfterSheet = useRef(false);
     const notify = (message: string) => setNotification(message);
+    const inspectInformation = (bookId?: number) =>
+        dispatch({
+            type: "inspectInformation",
+            workspaceId: activeId,
+            bookId,
+        });
+    const showInformation = () => {
+        inspectInformation(workspace.current?.bookId);
+        setInformationOpen(true);
+    };
     const patch = (value: Partial<Workspace>) => {
         if (value.preview === null) {
-            dispatch({ type: "clearPreview", workspaceId: activeId });
+            dispatch({
+                type: "clearPreview",
+                workspaceId: activeId,
+            });
         } else if (value.appearance) {
             dispatch({
                 type: "appearance",
@@ -109,22 +125,43 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
                 translationId: value.translation,
             });
         } else {
-            dispatch({ type: "patchUi", workspaceId: activeId, patch: value });
+            dispatch({
+                type: "patchUi",
+                workspaceId: activeId,
+                patch: value,
+            });
         }
     };
     const isInstalled = (verse: Verse) => installed.includes(verse.translation);
     const selectVerse = (verse: Verse, action = "Selected verse") =>
-        dispatch({ type: "select", workspaceId: activeId, verse, action });
+        dispatch({
+            type: "select",
+            workspaceId: activeId,
+            verse,
+            action,
+        });
     const previewVerse = (verse: Verse) => {
         if (panelLayout.overlay) {
             setActivePanelSheet(null);
         }
-        dispatch({ type: "preview", workspaceId: activeId, verse });
+        dispatch({
+            type: "preview",
+            workspaceId: activeId,
+            verse,
+        });
     };
     const sendLive = (verse: Verse) =>
-        dispatch({ type: "send", workspaceId: activeId, verse });
+        dispatch({
+            type: "send",
+            workspaceId: activeId,
+            verse,
+        });
     const navigate = (direction: -1 | 1) =>
-        dispatch({ type: "navigate", workspaceId: activeId, direction });
+        dispatch({
+            type: "navigate",
+            workspaceId: activeId,
+            direction,
+        });
     const submitReference = (preview: boolean) =>
         dispatch({
             type: "reference",
@@ -138,10 +175,19 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             workspaceId: activeId,
         });
     const closeAudience = (workspaceId: string) =>
-        dispatch({ type: "closeAudience", workspaceId });
+        dispatch({
+            type: "closeAudience",
+            workspaceId,
+        });
     const openAudience = () =>
-        dispatch({ type: "openAudience", workspaceId: activeId });
-    const addWorkspace = () => dispatch({ type: "add" });
+        dispatch({
+            type: "openAudience",
+            workspaceId: activeId,
+        });
+    const addWorkspace = () =>
+        dispatch({
+            type: "add",
+        });
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: A workspace switch resets its quick-entry field.
     useEffect(() => {
@@ -327,7 +373,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             ignoreInputs: false,
         }
     );
-    useHotkey("F7", () => setInformationOpen(true), {
+    useHotkey("F7", showInformation, {
         enabled: !dialogOpen,
         ignoreInputs: false,
     });
@@ -437,6 +483,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         });
     };
     return {
+        inspectInformation,
+        showInformation,
         chapterPanelId,
         controller,
         workspace,

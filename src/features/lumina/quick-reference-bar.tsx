@@ -1,4 +1,4 @@
-import { BookOpen, Eye, Send } from "lucide-react";
+import { BookOpen, CornerDownLeft, Eye, Send } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
     Select,
@@ -103,16 +103,14 @@ export function QuickReferenceBar() {
                     <Eye />
                     Check preview
                 </Button>
-                <Button type="submit">
+                <Button type="submit" aria-keyshortcuts="Enter">
                     <Send />
-                    Send Live<kbd>↵</kbd>
+                    Send Live
+                    <kbd>
+                        <CornerDownLeft />
+                    </kbd>
                 </Button>
             </form>
-            <span className="reference-bar-hint">
-                References only.
-                <br />
-                Enter sends live.
-            </span>
         </footer>
     );
 }
