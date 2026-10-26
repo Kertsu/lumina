@@ -1,7 +1,12 @@
 //! Managed `SQLite` connections and migrations.
 
+mod catalog;
+mod imports;
 mod library;
+pub use imports::stage_import;
 mod migrations;
+mod references;
+mod search;
 
 use lumina_app::{EditionId, ResolvedVerse, Storage, StoredState, TranslationId, VerseCoordinate};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -14,6 +19,7 @@ use std::{
 /// Owns one connection; the desktop serializes access on blocking tasks.
 pub struct SqliteStorage {
   connection: Connection,
+  staged_imports: std::collections::HashMap<String, lumina_app::StagedImport>,
 }
 
 /// Internal adapter failures retain paths and original causes for diagnostics.
@@ -54,6 +60,10 @@ pub enum StorageError {
   InvalidState,
   #[error("could not commit application bootstrap")]
   Bootstrap(#[source] rusqlite::Error),
+  #[error("could not access the Bible catalog")]
+  Catalog(#[source] rusqlite::Error),
+  #[error("could not stage a Bible import")]
+  ImportIo(#[source] std::io::Error),
   #[error("could not resolve native verse reference")]
   Reference(#[source] rusqlite::Error),
 }
@@ -79,6 +89,7 @@ impl SqliteStorage {
     connection.pragma_update(None, "foreign_keys", true).map_err(StorageError::Configure)?;
     Ok(Self {
       connection,
+      staged_imports: std::collections::HashMap::new(),
     })
   }
 
@@ -112,6 +123,7 @@ impl Storage for SqliteStorage {
       .map_err(StorageError::Bootstrap)?;
     migrations::apply(&transaction)?;
     let state = library::bootstrap(&transaction)?;
+    search::index_missing(&transaction).map_err(StorageError::Catalog)?;
     transaction.commit().map_err(StorageError::Bootstrap)?;
     Ok(state)
   }

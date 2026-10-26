@@ -1,10 +1,11 @@
 use crate::StorageError;
 use rusqlite::Transaction;
 
-pub(crate) const CURRENT_VERSION: u32 = 2;
+pub(crate) const CURRENT_VERSION: u32 = 3;
 const MIGRATIONS: &[(u32, &str)] = &[
   (1, include_str!("../migrations/V20261021161209_foundation.sql")),
   (2, include_str!("../migrations/V20261024060038_library_and_workspaces.sql")),
+  (3, include_str!("../migrations/V20261026060000_catalog.sql")),
 ];
 
 pub(crate) fn apply(transaction: &Transaction<'_>) -> Result<(), StorageError> {

@@ -122,13 +122,14 @@ fn install_web(transaction: &Transaction<'_>, provenance: &Provenance) -> rusqli
   Ok(translation_id)
 }
 
-fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<StoredState> {
+pub(crate) fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<StoredState> {
   let mut translations = transaction.prepare(
     "SELECT t.id, t.edition_id, t.title, t.description, t.bundled,
        (SELECT count(*) FROM books b WHERE b.translation_id = t.id),
        (SELECT count(*) FROM verses v WHERE v.translation_id = t.id),
        t.publisher_edition_id, t.artifact_sha256, t.edition_label,
-       t.source_name, t.source_url, t.rights_notice
+       t.source_name, t.source_url, t.rights_notice,
+       (SELECT filename FROM imports i WHERE i.id=t.import_id)
      FROM translations t ORDER BY t.bundled DESC, t.id",
   )?;
   let translations = translations
@@ -142,6 +143,7 @@ fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<StoredState> {
         book_count: row.get(5)?,
         verse_count: row.get(6)?,
         source: TranslationSource {
+          import_filename: row.get(13)?,
           publisher_edition_id: row.get(7)?,
           artifact_sha256: row.get(8)?,
           edition_label: row.get(9)?,
