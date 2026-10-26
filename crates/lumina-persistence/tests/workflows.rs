@@ -356,6 +356,10 @@ fn immutable_previews_information_and_assets_survive_source_deletion_and_restart
   assert_eq!(app.snapshot().workspaces[0].audience, AudienceState::Blank);
   app.close_audience(&id, &mut native)?;
   app.delete_imported_translation(id.clone(), translation_id.clone(), true)?;
+  assert_eq!(
+    app.book_information(id.clone(), None)?.and_then(|information| information.author),
+    Some("Paul".into())
+  );
   assert!(!app.navigation_state(&id)?.can_next);
   let second_import = app.review_import(source_path.to_string_lossy().into())?;
   let reimported = app.commit_import(second_import.token)?;
@@ -466,4 +470,332 @@ fn image_validation_and_cosmetic_updates_preserve_history_and_revision_order(
   assert_eq!(app.history(&id, true)?.len(), 1);
   assert_eq!(app.audience_output(&id)?.revision, cosmetic.revision);
   Ok(())
+}
+
+struct FaultStorage {
+  storage: SqliteStorage,
+  fail: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+impl lumina_app::Storage for FaultStorage {
+  type Error = std::io::Error;
+  fn initialize(&mut self) -> Result<lumina_app::StoredState, Self::Error> {
+    self.storage.initialize().map_err(std::io::Error::other)
+  }
+  fn resolve_reference(
+    &self,
+    translation: &lumina_app::TranslationId,
+    coordinate: VerseCoordinate,
+  ) -> Result<Option<lumina_app::ResolvedVerse>, Self::Error> {
+    self.storage.resolve_reference(translation, coordinate).map_err(std::io::Error::other)
+  }
+}
+impl lumina_app::WorkspaceStorage for FaultStorage {
+  fn load_workflow_state(&self) -> Result<Vec<lumina_app::DurableWorkspace>, Self::Error> {
+    self.storage.load_workflow_state().map_err(std::io::Error::other)
+  }
+  fn save_workflow_state(
+    &mut self,
+    workspaces: &[lumina_app::DurableWorkspace],
+    active: &lumina_app::WorkspaceId,
+  ) -> Result<(), Self::Error> {
+    if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+      return Err(std::io::Error::other("injected storage failure"));
+    }
+    self.storage.save_workflow_state(workspaces, active).map_err(std::io::Error::other)
+  }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NativeFault {
+  Open,
+  Close,
+  Delivery,
+  Preference,
+}
+
+#[derive(Default)]
+struct FaultAudience {
+  inner: Audience,
+  fault: Option<NativeFault>,
+  fail_storage_on_delivery: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
+impl NativeAudience for FaultAudience {
+  fn open(&mut self, owner: &AudienceOwner, hidden: bool) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Open) {
+      Err("injected creation failure".into())
+    } else {
+      self.inner.open(owner, hidden)
+    }
+  }
+  fn close(&mut self, owner: &AudienceOwner) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Close) {
+      Err("injected closure failure".into())
+    } else {
+      self.inner.close(owner)
+    }
+  }
+  fn dispatch(&mut self, output: &AudienceOutput) -> Result<(), String> {
+    self.inner.dispatch(output)?;
+    if let Some(fail) = &self.fail_storage_on_delivery {
+      fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    if self.fault == Some(NativeFault::Delivery) {
+      Err("delivery may have begun".into())
+    } else {
+      Ok(())
+    }
+  }
+  fn set_cursor(&mut self, owner: &AudienceOwner, hidden: bool) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Preference) {
+      Err("injected visibility failure".into())
+    } else {
+      self.inner.set_cursor(owner, hidden)
+    }
+  }
+  fn set_fullscreen(&mut self, owner: &AudienceOwner, enabled: bool) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Preference) {
+      Err("unsupported fullscreen".into())
+    } else {
+      self.inner.set_fullscreen(owner, enabled)
+    }
+  }
+  fn set_always_on_top(&mut self, owner: &AudienceOwner, enabled: bool) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Preference) {
+      Err("unsupported stacking".into())
+    } else {
+      self.inner.set_always_on_top(owner, enabled)
+    }
+  }
+}
+
+#[test]
+fn durable_intent_rejects_before_dispatch_and_reports_storage_uncertainty_after_delivery(
+) -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_app::OperationError;
+  let directory = tempfile::tempdir()?;
+  let fail = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+  let storage = FaultStorage {
+    storage: SqliteStorage::open(&directory.path().join("managed.sqlite"))?,
+    fail: fail.clone(),
+  };
+  let mut app = Application::start(storage)?;
+  app.restore_workflows()?;
+  let id = app.snapshot().active_workspace_id.clone();
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: id.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  let mut native = FaultAudience::default();
+  app.open_audience(&id, &mut native)?;
+  fail.store(true, std::sync::atomic::Ordering::SeqCst);
+  assert!(matches!(
+    app.send_verse(&id, verse.clone(), VerseActionKind::SendLive, true, 0.0, &mut native),
+    Err(OperationError::Storage(_))
+  ));
+  assert!(app.snapshot().workspaces[0].current_verse.is_none());
+  assert!(app.history(&id, false)?.is_empty());
+  assert_eq!(native.inner.outputs.len(), 1);
+  fail.store(false, std::sync::atomic::Ordering::SeqCst);
+  native.fault = Some(NativeFault::Delivery);
+  native.fail_storage_on_delivery = Some(fail.clone());
+  let result = app.send_verse(&id, verse, VerseActionKind::SendLive, true, 1.0, &mut native);
+  assert!(matches!(result, Err(OperationError::StorageAfterDelivery { .. })));
+  assert_eq!(app.history(&id, false)?[0].outcome, ProjectionOutcome::Unconfirmed);
+  assert_eq!(
+    app.snapshot().workspaces[0].current_verse.as_ref().map(|verse| verse.coordinate.verse),
+    Some(16)
+  );
+  fail.store(false, std::sync::atomic::Ordering::SeqCst);
+  native.fault = None;
+  native.fail_storage_on_delivery = None;
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: id.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 17,
+      },
+    })?
+    .verse;
+  app.send_verse(&id, verse, VerseActionKind::SendLive, true, 2.0, &mut native)?;
+  assert_eq!(app.history(&id, false)?.len(), 2);
+  assert_eq!(
+    app.snapshot().workspaces[0].current_verse.as_ref().map(|verse| verse.coordinate.verse),
+    Some(17)
+  );
+  Ok(())
+}
+
+#[test]
+fn native_failures_and_display_loss_retire_only_the_intended_audience(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  app.restore_workflows()?;
+  let first = app.snapshot().active_workspace_id.clone();
+  let mut native = FaultAudience {
+    fault: Some(NativeFault::Open),
+    ..Default::default()
+  };
+  assert!(app.open_audience(&first, &mut native).is_err());
+  assert!(app.snapshot().workspaces[0].owner.is_none());
+  native.fault = None;
+  let first_owner = app.open_audience(&first, &mut native)?;
+  let second = app.add_workspace(None)?;
+  let second_owner = app.open_audience(&second.workspace_id, &mut native)?;
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: first.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  app.send_verse(&first, verse, VerseActionKind::SendLive, true, 0.0, &mut native)?;
+  native.fault = Some(NativeFault::Preference);
+  assert!(app.set_hide_cursor(&first, false, &mut native).is_err());
+  assert!(app.set_fullscreen(&first, true, &mut native).is_err());
+  assert!(app.set_always_on_top(&first, true, &mut native).is_err());
+  assert!(app.snapshot().workspaces[0].settings.hide_cursor);
+  assert!(!app.snapshot().workspaces[0].fullscreen);
+  assert!(!app.snapshot().workspaces[0].always_on_top);
+  native.fault = Some(NativeFault::Close);
+  assert!(app.close_audience(&first, &mut native).is_err());
+  assert_eq!(app.snapshot().workspaces[0].owner, Some(first_owner.clone()));
+  assert!(app.audience_closed(&first_owner.instance_id));
+  assert!(app.snapshot().workspaces[0].current_verse.is_some());
+  assert_eq!(app.history(&first, false)?[0].outcome, ProjectionOutcome::Unconfirmed);
+  assert_eq!(app.snapshot().workspaces[1].owner, Some(second_owner));
+  native.fault = None;
+  native.fault = None;
+  let recovered = app.open_audience(&first, &mut native)?;
+  assert_ne!(recovered.instance_id, first_owner.instance_id);
+  assert!(!app.audience_closed(&first_owner.instance_id));
+  assert!(matches!(
+    native.inner.outputs.last().map(|output| &output.content),
+    Some(AudienceContent::Blank)
+  ));
+  Ok(())
+}
+
+#[test]
+fn unicode_counts_and_invalid_profiles_do_not_change_confirmed_appearance(
+) -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_app::{Appearance, SizeBand};
+  let directory = tempfile::tempdir()?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  app.restore_workflows()?;
+  let id = app.snapshot().active_workspace_id.clone();
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: id.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  for (text, count) in [
+    ("God is love.", 12),
+    (" God is love. ", 14),
+    ("e\u{301}", 1),
+    ("é", 1),
+    ("a\r\nb", 3),
+    ("👩‍👩‍👧‍👦", 1),
+    ("🇵🇭", 1),
+    ("👍🏽", 1),
+  ] {
+    let mut capture = verse.clone();
+    capture.text = text.into();
+    app.send_verse(
+      &id,
+      capture,
+      VerseActionKind::Navigation,
+      false,
+      0.0,
+      &mut Audience::default(),
+    )?;
+    assert_eq!(app.appearance_state(&id)?.grapheme_count, Some(count), "{text:?}");
+  }
+  let confirmed = Appearance {
+    color: Some("#abcdef01".into()),
+    bands: Some(vec![SizeBand {
+      lower: 0,
+      upper: None,
+      font_size_px: 64.0,
+    }]),
+    ..Default::default()
+  };
+  app.apply_appearance(&id, confirmed)?;
+  let confirmed = app.discard_appearance(&id)?;
+  assert_eq!(confirmed.color.as_deref(), Some("#ABCDEF01"));
+  for bands in invalid_size_profiles() {
+    let mut proposal = confirmed.clone();
+    proposal.bands = Some(bands);
+    assert!(app.apply_appearance(&id, proposal).is_err());
+    assert_eq!(app.discard_appearance(&id)?, confirmed);
+  }
+  let mut invalid = confirmed.clone();
+  invalid.color = Some("#ffffff".into());
+  assert!(app.apply_appearance(&id, invalid).is_err());
+  assert_eq!(app.discard_appearance(&id)?, confirmed);
+  Ok(())
+}
+
+fn invalid_size_profiles() -> Vec<Vec<lumina_app::SizeBand>> {
+  use lumina_app::SizeBand;
+  vec![
+    vec![SizeBand {
+      lower: 1,
+      upper: None,
+      font_size_px: 64.0,
+    }],
+    vec![SizeBand {
+      lower: 0,
+      upper: Some(12),
+      font_size_px: 64.0,
+    }],
+    vec![
+      SizeBand {
+        lower: 0,
+        upper: Some(12),
+        font_size_px: 64.0,
+      },
+      SizeBand {
+        lower: 11,
+        upper: None,
+        font_size_px: 64.0,
+      },
+    ],
+    vec![SizeBand {
+      lower: 0,
+      upper: None,
+      font_size_px: 0.0,
+    }],
+    vec![SizeBand {
+      lower: 0,
+      upper: None,
+      font_size_px: f64::NAN,
+    }],
+    vec![SizeBand {
+      lower: 0,
+      upper: None,
+      font_size_px: f64::INFINITY,
+    }],
+    vec![SizeBand {
+      lower: 0,
+      upper: None,
+      font_size_px: 513.0,
+    }],
+  ]
 }

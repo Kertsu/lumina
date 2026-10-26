@@ -435,6 +435,21 @@ impl<S: LibraryStorage> Application<S> {
     book_number: Option<i32>,
   ) -> Result<Option<BookInformation>, OperationError<S::Error>> {
     let workspace = self.catalog_workspace(&workspace_id)?;
+    if let Some(information) = &workspace.information {
+      let captured_mode = workspace.book_information_mode;
+      let original_source_removed = workspace.current_verse.as_ref().is_some_and(|verse| {
+        verse.translation_id == information.translation_id
+          && verse.edition_id == information.edition_id
+          && verse.coordinate.book_number == information.book_number
+          && !self.state.translations.iter().any(|translation| {
+            translation.translation_id == verse.translation_id
+              && translation.edition_id == verse.edition_id
+          })
+      });
+      if captured_mode || original_source_removed {
+        return Ok(Some(BookInformation::from(information)));
+      }
+    }
     let (translation_id, number) = if let Some(verse) = &workspace.current_verse {
       (&verse.translation_id, verse.coordinate.book_number)
     } else {

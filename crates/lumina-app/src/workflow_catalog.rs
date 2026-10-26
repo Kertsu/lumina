@@ -280,3 +280,21 @@ fn capture_information(
     background,
   }
 }
+
+impl From<&InformationCapture> for crate::BookInformation {
+  fn from(information: &InformationCapture) -> Self {
+    Self {
+      translation_id: information.translation_id.clone(),
+      edition_id: information.edition_id.clone(),
+      translation_title: information.translation_title.clone(),
+      book_number: information.book_number,
+      name: information.name.clone(),
+      author: information.author.clone(),
+      writing_date: information.writing_date.clone(),
+      writing_location: information.writing_location.clone(),
+      metadata_attribution: information.metadata_attribution.clone(),
+      metadata_source_url: information.metadata_source_url.clone(),
+      metadata_rights_notice: information.metadata_rights_notice.clone(),
+    }
+  }
+}

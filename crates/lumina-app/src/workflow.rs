@@ -688,7 +688,13 @@ impl<S: WorkspaceStorage> Application<S> {
       // Intent remains durable if this follow-up write fails; restart settles it
       // Unconfirmed. Never roll accepted content backwards after possible delivery.
       let accepted = self.state.workspaces.clone();
-      self.persist_proposal(&accepted, &active)?;
+      self.storage.save_workflow_state(&Self::durable(&accepted), &active).map_err(|source| {
+        OperationError::StorageAfterDelivery {
+          workspace_id: id.clone(),
+          action_id: result.action_id.clone(),
+          source: Box::new(source),
+        }
+      })?;
     }
     Ok(result)
   }
@@ -1443,4 +1449,11 @@ fn validate_appearance(
 pub(crate) struct CapturedVerse {
   pub(crate) verse: ResolvedVerse,
   pub(crate) background: Option<TranslationBackground>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionStorageData {
+  pub workspace_id: WorkspaceId,
+  pub action_id: String,
 }
