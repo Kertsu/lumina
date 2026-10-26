@@ -1,9 +1,11 @@
 //! Application ownership and startup, independent of the desktop and storage adapters.
 
+mod catalog;
 mod failure;
 mod library;
 mod workflow;
 
+pub use catalog::*;
 pub use failure::*;
 pub use library::*;
 pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};

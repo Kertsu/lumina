@@ -9,6 +9,73 @@ use specta::Type;
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, Type, thiserror::Error)]
 #[serde(tag = "errorCode")]
 pub enum ApplicationFailure {
+  #[serde(rename = "INVALID_SEARCH")]
+  #[error("{message}")]
+  InvalidSearch {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "STALE_LIBRARY")]
+  #[error("{message}")]
+  StaleLibrary {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "INVALID_IMPORT")]
+  #[error("{message}")]
+  InvalidImport {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "IMPORT_REVIEW_UNAVAILABLE")]
+  #[error("{message}")]
+  ImportReviewUnavailable {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "CONFIRMATION_REQUIRED")]
+  #[error("{message}")]
+  ConfirmationRequired {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "TRANSLATION_PROTECTED")]
+  #[error("{message}")]
+  TranslationProtected {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "AUDIENCES_OPEN")]
+  #[error("{message}")]
+  AudiencesOpen {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "INVALID_REFERENCE_INPUT")]
+  #[error("{message}")]
+  InvalidReferenceInput {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "UNKNOWN_BOOK")]
+  #[error("{message}")]
+  UnknownBook {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "BOOK_UNAVAILABLE")]
+  #[error("{message}")]
+  BookUnavailable {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+  #[serde(rename = "STALE_REFERENCE_CHOICE")]
+  #[error("{message}")]
+  StaleReferenceChoice {
+    message: String,
+    data: crate::CatalogFailureData,
+  },
+
   #[serde(rename = "APPLICATION_UNAVAILABLE")]
   #[error("{message}")]
   Unavailable {

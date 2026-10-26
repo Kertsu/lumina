@@ -5,6 +5,7 @@ pub(crate) const CURRENT_VERSION: u32 = 4;
 const MIGRATIONS: &[(u32, &str)] = &[
   (1, include_str!("../migrations/V20261021161209_foundation.sql")),
   (2, include_str!("../migrations/V20261024060038_library_and_workspaces.sql")),
+  (3, include_str!("../migrations/V20261026060000_catalog.sql")),
   (4, include_str!("../migrations/V20261026060000_workspace_history.sql")),
 ];
 

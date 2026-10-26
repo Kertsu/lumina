@@ -122,7 +122,7 @@ fn install_web(transaction: &Transaction<'_>, provenance: &Provenance) -> rusqli
   Ok(translation_id)
 }
 
-fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<StoredState> {
+pub(crate) fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<StoredState> {
   let mut translations = transaction.prepare(
     "SELECT t.id, t.edition_id, t.title, t.description, t.bundled,
        (SELECT count(*) FROM books b WHERE b.translation_id = t.id),
