@@ -12,6 +12,8 @@ pub(crate) enum StartupError {
   OpenStorage(#[from] StorageError),
   #[error("application startup failed")]
   Application(#[from] lumina_app::StartupError<StorageError>),
+  #[error("could not restore workspace state")]
+  Workflows(#[from] lumina_app::OperationError<StorageError>),
 }
 
 #[derive(Debug, thiserror::Error)]

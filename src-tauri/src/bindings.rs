@@ -5,9 +5,51 @@ pub(crate) fn registration() -> tauri_specta::Builder<tauri::Wry> {
     .commands(tauri_specta::collect_commands![
       super::greet,
       super::get_application_state,
-      super::resolve_reference
+      super::resolve_reference,
+      super::commands::open_audience,
+      super::commands::audience_state,
+      super::commands::acknowledge_audience,
+      super::commands::close_audience,
+      super::commands::blank_audience,
+      super::commands::resume_audience,
+      super::commands::add_workspace,
+      super::commands::rename_workspace,
+      super::commands::activate_workspace,
+      super::commands::reorder_workspaces,
+      super::commands::remove_workspace,
+      super::commands::select_translation,
+      super::commands::change_current_translation,
+      super::commands::dismiss_preview,
+      super::commands::send_preview,
+      super::commands::navigate_verse,
+      super::commands::set_hide_cursor,
+      super::commands::set_audience_fullscreen,
+      super::commands::set_audience_always_on_top,
+      super::commands::read_history,
+      super::commands::recall_history,
+      super::commands::copy_history,
+      super::commands::export_history,
+      super::commands::clear_history,
+      super::commands::apply_appearance,
+      super::commands::appearance_state,
+      super::commands::resolve_reference_input,
+      super::commands::search_verses,
+      super::commands::review_import,
+      super::commands::commit_import,
+      super::commands::cancel_import,
+      super::commands::delete_translation,
+      super::commands::book_information,
+      super::commands::preview_verse,
+      super::commands::select_verse,
+      super::commands::list_books,
+      super::commands::chapter_verses,
+      super::commands::pick_bible_import,
+      super::commands::save_history
     ])
-    .events(tauri_specta::collect_events![])
+    .events(tauri_specta::collect_events![
+      super::native::AudienceUpdated,
+      super::native::ApplicationChanged
+    ])
     // Rejections stay unknown until the frontend bridge validates their shape.
     .error_handling(tauri_specta::ErrorHandlingMode::Throw)
     .typ::<lumina_app::ApplicationFailure>()

@@ -1,4 +1,6 @@
 mod bindings;
+mod commands;
+mod native;
 mod runtime;
 
 use lumina_app::{
@@ -9,6 +11,7 @@ use runtime::DesktopRuntime;
 use std::error::Error;
 use std::time::SystemTime;
 use tauri::Manager;
+use tauri_specta::Event;
 
 #[tauri::command]
 #[specta::specta]
@@ -61,22 +64,62 @@ pub fn run() -> tauri::Result<()> {
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
     .invoke_handler(bindings.invoke_handler())
+    .on_window_event(|window, event| {
+      if window.label() == "main" && matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+        window.app_handle().exit(0);
+        return;
+      }
+      if matches!(event, tauri::WindowEvent::Destroyed) && window.label() != "main" {
+        let windows = window.state::<native::NativeWindows>();
+        if let Some(owner) = windows.retire(window.label()) {
+          let runtime = window.state::<DesktopRuntime>().inner().clone();
+          let app = window.app_handle().clone();
+          tauri::async_runtime::spawn(async move {
+            let result = runtime
+              .call(move |application| {
+                application.audience_closed(&owner.instance_id);
+                Ok(())
+              })
+              .await;
+            if let Err(error) = result {
+              report_error("audience closure", &error);
+            }
+            let _ = (native::ApplicationChanged {
+              workspace_id: None,
+            })
+            .emit_to(&app, "main");
+          });
+        }
+      }
+    })
     .setup(move |app| {
       bindings.mount_events(app);
       let database_path = app.path().app_data_dir()?.join("lumina.sqlite3");
       let runtime = DesktopRuntime::new();
       app.manage(runtime.clone());
+      let windows = native::NativeWindows::default();
+      app.manage(windows.clone());
+      let app_handle = app.handle().clone();
+      start_runtime_notifications(app_handle.clone(), runtime.clone(), windows);
       eprintln!("Lumina: initializing managed database {}", database_path.display());
       // Returning immediately keeps the native event loop free during startup.
       tauri::async_runtime::spawn(async move {
         let result = runtime
           .initialize(move || {
             let storage = SqliteStorage::open(&database_path)?;
-            Ok(Application::start(storage)?)
+            let mut application = Application::start(storage)?;
+            application.restore_workflows()?;
+            Ok(application)
           })
           .await;
         match result {
-          Ok(()) => eprintln!("Lumina: managed database ready"),
+          Ok(()) => {
+            eprintln!("Lumina: managed database ready");
+            let _ = (native::ApplicationChanged {
+              workspace_id: None,
+            })
+            .emit_to(&app_handle, "main");
+          }
           Err(error) => report_error("startup", &error),
         }
       });
@@ -102,4 +145,44 @@ pub fn report_error(context: &str, error: &dyn Error) {
     eprintln!("  caused by: {cause}");
     source = cause.source();
   }
+}
+
+fn start_runtime_notifications(
+  app: tauri::AppHandle,
+  runtime: DesktopRuntime,
+  windows: native::NativeWindows,
+) {
+  tauri::async_runtime::spawn(async move {
+    loop {
+      tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+      let disconnected = windows.disconnected(&app);
+      let mut native = windows.adapter(app.clone());
+      let result = runtime
+        .call(move |application| {
+          let mut changed = false;
+          for owner in disconnected {
+            application
+              .close_audience(&owner.workspace_id, &mut native)
+              .map_err(runtime::RuntimeError::Application)?;
+            changed = true;
+          }
+          let before = application.snapshot().clone();
+          application
+            .expire_projections(commands::now_ms())
+            .map_err(runtime::RuntimeError::Application)?;
+          Ok(changed || before != *application.snapshot())
+        })
+        .await;
+      match result {
+        Ok(true) => {
+          let _ = (native::ApplicationChanged {
+            workspace_id: None,
+          })
+          .emit_to(&app, "main");
+        }
+        Err(runtime::RuntimeError::Starting | runtime::RuntimeError::Startup(_)) | Ok(false) => {}
+        Err(error) => report_error("audience state", &error),
+      }
+    }
+  });
 }
