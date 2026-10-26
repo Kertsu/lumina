@@ -1,7 +1,9 @@
 //! Managed `SQLite` connections and migrations.
 
+mod assets;
 mod library;
 mod migrations;
+mod workspaces;
 
 use lumina_app::{EditionId, ResolvedVerse, Storage, StoredState, TranslationId, VerseCoordinate};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -19,6 +21,18 @@ pub struct SqliteStorage {
 /// Internal adapter failures retain paths and original causes for diagnostics.
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
+  #[error("could not read background asset {path}")]
+  AssetIo {
+    path: PathBuf,
+    #[source]
+    source: std::io::Error,
+  },
+
+  #[error("could not persist workspace state")]
+  WorkspaceSql(#[source] rusqlite::Error),
+  #[error("could not encode/decode workspace state")]
+  WorkspaceCodec(#[source] serde_json::Error),
+
   #[error("could not create database directory {path}")]
   CreateDirectory {
     path: PathBuf,

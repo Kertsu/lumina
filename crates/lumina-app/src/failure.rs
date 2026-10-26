@@ -1,5 +1,6 @@
 //! Public failures: explicit wire codes survive Rust renames and wording changes.
 
+use crate::{AssetData, WorkflowData};
 use lumina_core::{CoordinateField, TranslationId, VerseCoordinate, WorkspaceId};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -50,6 +51,36 @@ pub enum ApplicationFailure {
     message: String,
     data: ReferenceData,
   },
+  #[serde(rename = "WORKFLOW_REJECTED")]
+  #[error("{message}")]
+  WorkflowRejected {
+    message: String,
+    data: WorkflowData,
+  },
+  #[serde(rename = "AUDIENCE_CLOSED")]
+  #[error("{message}")]
+  AudienceClosed {
+    message: String,
+    data: WorkspaceData,
+  },
+  #[serde(rename = "NATIVE_OPERATION_FAILED")]
+  #[error("{message}")]
+  NativeOperationFailed {
+    message: String,
+    data: WorkflowData,
+  },
+  #[serde(rename = "ASSET_REJECTED")]
+  #[error("{message}")]
+  AssetRejected {
+    message: String,
+    data: AssetData,
+  },
+  #[serde(rename = "INVALID_APPEARANCE")]
+  #[error("{message}")]
+  InvalidAppearance {
+    message: String,
+    data: WorkflowData,
+  },
   #[serde(rename = "STORAGE_FAILURE")]
   #[error("{message}")]
   Storage {
@@ -96,7 +127,8 @@ impl<E: std::error::Error + 'static> OperationError<E> {
     match self {
       Self::Rejected(failure) => failure.clone(),
       Self::Storage(_) => ApplicationFailure::Storage {
-        message: "The library could not be read. Check the terminal diagnostics.".into(),
+        message: "Application data could not be read or saved. Check the terminal diagnostics."
+          .into(),
       },
     }
   }

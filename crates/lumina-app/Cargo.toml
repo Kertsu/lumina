@@ -16,6 +16,7 @@ lumina-core.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 specta.workspace = true
+unicode-segmentation = "=1.13.2"
 
 [dev-dependencies]
 serde_json.workspace = true
