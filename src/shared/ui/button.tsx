@@ -1,29 +1,28 @@
-import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "radix-ui";
 import type { ComponentProps } from "react";
 import { cn } from "@/shared/ui/utils";
 
 const buttonVariants = cva(
-    "group/button inline-flex shrink-0 items-center justify-center rounded border border-transparent bg-clip-padding whitespace-nowrap transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
     {
         variants: {
             variant: {
                 default:
-                    "bg-primary text-primary-foreground hover:bg-primary/80",
-                outline:
-                    "border-border bg-background text-foreground hover:bg-muted",
+                    "bg-primary text-primary-foreground hover:bg-primary/90",
                 secondary:
                     "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                ghost: "hover:bg-muted hover:text-foreground",
+                outline:
+                    "border border-border bg-transparent hover:bg-accent hover:text-accent-foreground",
+                ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 destructive:
-                    "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive focus-visible:ring-destructive/20",
-                link: "text-primary underline-offset-4 hover:underline",
+                    "bg-destructive text-white hover:bg-destructive/90",
             },
             size: {
-                default: "gap-2 px-4 py-2",
-                sm: "h-8 gap-1 rounded px-3 text-sm",
-                lg: "h-10 gap-2 rounded px-6",
+                default: "h-9 px-3.5 py-2",
+                sm: "h-8 gap-1.5 px-2.5 text-xs",
                 icon: "size-9",
+                "icon-sm": "size-8",
             },
         },
         defaultVariants: {
@@ -38,18 +37,19 @@ export function Button({
     variant = "default",
     size = "default",
     asChild = false,
+    type,
     ...props
 }: ComponentProps<"button"> &
     VariantProps<typeof buttonVariants> & {
         asChild?: boolean;
     }) {
-    const Component = asChild ? Slot : "button";
-
+    const Component = asChild ? Slot.Root : "button";
     return (
         <Component
             data-slot="button"
             data-variant={variant}
             data-size={size}
+            type={asChild ? type : (type ?? "button")}
             className={cn(
                 buttonVariants({
                     variant,
