@@ -253,7 +253,7 @@ fn failed_migration_preserves_the_old_schema_and_can_be_retried(
   drop(fixture);
   let application = Application::start(SqliteStorage::open(&path)?)?;
   assert_eq!(application.snapshot().translations.len(), 1);
-  assert_eq!(SqliteStorage::open(&path)?.schema_version()?, 4);
+  assert_eq!(SqliteStorage::open(&path)?.schema_version()?, 5);
   Ok(())
 }
 

@@ -8,14 +8,14 @@ use unicode_casefold::UnicodeCaseFold;
 use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 use unicode_segmentation::UnicodeSegmentation;
 
-/// NFKD, full non-Turkic case folding and apostrophe equivalence. Newer simple
+/// NFD, full non-Turkic case folding and apostrophe equivalence. Newer simple
 /// lowercase mappings come from the pinned Rust toolchain. Whitespace is literal.
 pub(crate) fn normalize(value: &str) -> String {
   value
-    .nfkd()
+    .nfd()
     .flat_map(char::to_lowercase)
     .case_fold()
-    .nfkd()
+    .nfd()
     .filter(|character| !is_combining_mark(*character))
     .map(|character| match character {
       '’' | '‘' | 'ʼ' => '\'',
@@ -183,6 +183,7 @@ fn validate_request(
   let valid_scope =
     !matches!(request.scope, lumina_app::SearchScope::Book(book) if !(1..=66).contains(&book));
   if request.query.trim().is_empty()
+    || query.is_empty()
     || (request.mode != SearchMode::ContainsText && words(&query).is_empty())
     || request.page == 0
     || !(1..=200).contains(&request.page_size)
@@ -202,22 +203,17 @@ fn validate_request(
   Ok((revision, query))
 }
 
-pub(crate) fn search(
+struct MatchedVerse {
+  verse: lumina_app::ResolvedVerse,
+  ranges: Vec<(usize, usize)>,
+}
+
+fn matching_verses(
   storage: &crate::SqliteStorage,
   request: &SearchRequest,
-) -> Result<SearchResult, OperationError<StorageError>> {
-  let (revision, query) = validate_request(storage, request)?;
-  let translation = storage
-    .list_translations()
-    .map_err(OperationError::Storage)?
-    .into_iter()
-    .find(|translation| translation.translation_id == request.translation_id)
-    .ok_or_else(|| ApplicationFailure::TranslationUnavailable {
-      message: "The selected translation is unavailable.".into(),
-      data: lumina_app::TranslationData {
-        translation_id: request.translation_id.clone(),
-      },
-    })?;
+  translation: &lumina_app::Translation,
+  query: &str,
+) -> Result<Vec<MatchedVerse>, OperationError<StorageError>> {
   let mut rows = storage.connection.prepare("SELECT b.book_number,v.chapter,v.verse,v.text,s.normalized,b.name FROM verses v JOIN books b ON b.id=v.book_id JOIN verse_search s ON s.verse_id=v.id WHERE v.translation_id=?1 ORDER BY b.book_number,v.chapter,v.verse").map_err(StorageError::Catalog).map_err(OperationError::Storage)?;
   let candidates = rows
     .query_map([&request.translation_id.0], |row| {
@@ -239,12 +235,11 @@ pub(crate) fn search(
     if !request.scope.includes(book_number) {
       continue;
     }
-    let ranges = matched_ranges(&normalized, &query, request.mode);
+    let ranges = matched_ranges(&normalized, query, request.mode);
     if ranges.is_empty() {
       continue;
     }
-    let highlights = original_highlights(&text, &ranges);
-    hits.push(SearchHit {
+    hits.push(MatchedVerse {
       verse: lumina_app::ResolvedVerse {
         translation_id: request.translation_id.clone(),
         edition_id: translation.edition_id.clone(),
@@ -257,13 +252,33 @@ pub(crate) fn search(
         },
         text,
       },
-      highlights,
+      ranges,
     });
   }
+  Ok(hits)
+}
+
+pub(crate) fn search(
+  storage: &crate::SqliteStorage,
+  request: &SearchRequest,
+) -> Result<SearchResult, OperationError<StorageError>> {
+  let (revision, query) = validate_request(storage, request)?;
+  let translation = storage
+    .list_translations()
+    .map_err(OperationError::Storage)?
+    .into_iter()
+    .find(|translation| translation.translation_id == request.translation_id)
+    .ok_or_else(|| ApplicationFailure::TranslationUnavailable {
+      message: "The selected translation is unavailable.".into(),
+      data: lumina_app::TranslationData {
+        translation_id: request.translation_id.clone(),
+      },
+    })?;
+  let mut hits = matching_verses(storage, request, &translation, &query)?;
   if request.order == SearchOrder::BestMatch {
     hits.sort_by_key(|hit| {
       (
-        std::cmp::Reverse(hit.highlights.len()),
+        std::cmp::Reverse(hit.ranges.len()),
         hit.verse.coordinate.book_number,
         hit.verse.coordinate.chapter,
         hit.verse.coordinate.verse,
@@ -286,8 +301,15 @@ pub(crate) fn search(
     .map(|index| index / request.page_size + 1);
   let offset = u64::from(request.page - 1) * u64::from(request.page_size);
   let offset = usize::try_from(offset).unwrap_or(usize::MAX);
-  let results =
-    hits.into_iter().skip(offset).take(usize::try_from(request.page_size).unwrap_or(200)).collect();
+  let results = hits
+    .into_iter()
+    .skip(offset)
+    .take(usize::try_from(request.page_size).unwrap_or(200))
+    .map(|hit| SearchHit {
+      highlights: original_highlights(&hit.verse.text, &hit.ranges),
+      verse: hit.verse,
+    })
+    .collect();
   Ok(SearchResult {
     workspace_id: request.workspace_id.clone(),
     translation_id: request.translation_id.clone(),

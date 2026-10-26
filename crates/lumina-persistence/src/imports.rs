@@ -298,6 +298,9 @@ fn validate_relationships(
   books: &[StagedBook],
   verses: &[StagedVerse],
 ) -> Result<(), OperationError<StorageError>> {
+  if translations.is_empty() || translations.len() > 64 || verses.len() > 1_000_000 {
+    return Err(rejected("Staged content exceeds the accepted translation/verse limits."));
+  }
   let ids: HashSet<_> = translations.iter().map(|translation| translation.id).collect();
   if ids.len() != translations.len() {
     return Err(rejected("Duplicate translation IDs."));
@@ -340,6 +343,7 @@ pub(crate) fn register(
   storage: &mut SqliteStorage,
   staged: StagedImport,
 ) -> Result<ImportReview, OperationError<StorageError>> {
+  validate_relationships(&staged.translations, &staged.books, &staged.verses)?;
   let token: String = storage
     .connection
     .query_row("SELECT lower(hex(randomblob(16)))", [], |row| row.get(0))

@@ -399,3 +399,221 @@ fn unicode_full_folding_expansion_highlights_the_original_grapheme(
   );
   Ok(())
 }
+
+#[test]
+fn every_documented_alias_resolves_or_explicitly_reports_its_shared_identity(
+) -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_app::{ReferenceInputRequest, ReferenceInputResult};
+  let directory = tempfile::tempdir()?;
+  let app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  for line in
+    include_str!("../../../docs/reference-aliases.md").lines().filter(|line| line.starts_with('|'))
+  {
+    let fields: Vec<_> = line.split('|').map(str::trim).collect();
+    let Ok(book) = fields[1].parse::<i32>() else {
+      continue;
+    };
+    for alias in fields[2..5].iter().flat_map(|field| field.split(';')).map(str::trim) {
+      let input = format!("{}. 1 : 1", alias.to_uppercase());
+      let result = app.resolve_reference_input(ReferenceInputRequest {
+        workspace_id: app.snapshot().active_workspace_id.clone(),
+        translation_id: None,
+        input,
+        choice: None,
+        choice_token: None,
+      })?;
+      match result {
+        ReferenceInputResult::Resolved(result) => {
+          assert_eq!(result.verse.coordinate.book_number, book, "{alias}");
+          assert_eq!(result.verse.translation_id, app.snapshot().translations[0].translation_id);
+        }
+        ReferenceInputResult::Ambiguous(result) => assert!(
+          result.candidates.iter().any(|candidate| candidate.book_number == book),
+          "{alias}"
+        ),
+      }
+    }
+  }
+  Ok(())
+}
+
+#[test]
+fn normalization_only_input_cannot_match_every_verse() -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_app::{ApplicationFailure, OperationError};
+  let directory = tempfile::tempdir()?;
+  let app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  let request = search_request(
+    &app,
+    app.snapshot().translations[0].translation_id.clone(),
+    "\u{301}",
+    SearchMode::ContainsText,
+  );
+  assert!(matches!(
+    app.search(request),
+    Err(OperationError::Rejected(ApplicationFailure::InvalidSearch { .. }))
+  ));
+  Ok(())
+}
+
+#[test]
+fn multiple_source_editions_keep_local_row_ids_and_delete_independently(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("Bible.sqlite");
+  source(&path, &[(43, 16, "First wording")])?;
+  let fixture = rusqlite::Connection::open(&path)?;
+  fixture.execute_batch(
+    "UPDATE books SET id=943; UPDATE verses SET book_id=943;
+    INSERT INTO translations VALUES (900,'Same title','Other source edition');
+    INSERT INTO books VALUES (765,900,43,'Juan','John');
+    INSERT INTO verses VALUES (999,900,765,16,25,'Second wording',999999);",
+  )?;
+  drop(fixture);
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  let review = app.review_import(path.to_string_lossy().into())?;
+  assert_eq!(review.translations.len(), 2);
+  let committed = app.commit_import(review.token)?;
+  assert_eq!(committed.translation_ids.len(), 2);
+  let current = app.resolve_verse(
+    committed.translation_ids[0].clone(),
+    None,
+    lumina_app::VerseCoordinate {
+      book_number: 43,
+      chapter: 16,
+      verse: 16,
+    },
+  )?;
+  let other = app.resolve_verse(
+    committed.translation_ids[1].clone(),
+    None,
+    lumina_app::VerseCoordinate {
+      book_number: 43,
+      chapter: 16,
+      verse: 25,
+    },
+  )?;
+  assert_eq!(current.text, "First wording");
+  assert_eq!(other.text, "Second wording");
+  assert_ne!(current.edition_id, other.edition_id);
+  let workspace = app.snapshot().active_workspace_id.clone();
+  app.delete_imported_translation(workspace, committed.translation_ids[0].clone(), true)?;
+  assert_eq!(
+    app.resolve_verse(other.translation_id.clone(), Some(other.edition_id), other.coordinate)?.text,
+    "Second wording"
+  );
+  assert_eq!(
+    app
+      .snapshot()
+      .translations
+      .iter()
+      .find(|translation| translation.translation_id == other.translation_id)
+      .and_then(|translation| translation.source.import_filename.as_deref()),
+    Some("Bible.sqlite")
+  );
+  let review = app.review_import(path.to_string_lossy().into())?;
+  assert_eq!(app.commit_import(review.token)?.filename, "Bible (1).sqlite");
+  Ok(())
+}
+
+#[test]
+fn simultaneous_publications_allocate_distinct_live_filename_labels(
+) -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_app::{LibraryStorage, Storage};
+  let directory = tempfile::tempdir()?;
+  let source_path = directory.path().join("Bible.sqlite");
+  source(&source_path, &[(43, 16, "Original")])?;
+  let managed = directory.path().join("managed.sqlite");
+  let mut first = SqliteStorage::open(&managed)?;
+  first.initialize()?;
+  let mut second = SqliteStorage::open(&managed)?;
+  second.initialize()?;
+  let first_review = first.review_import(source_path.to_str().ok_or("invalid fixture path")?)?;
+  let second_review = second.review_import(source_path.to_str().ok_or("invalid fixture path")?)?;
+  let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+  let first_barrier = std::sync::Arc::clone(&barrier);
+  let first_thread = std::thread::spawn(move || {
+    first_barrier.wait();
+    first.commit_import(&first_review.token)
+  });
+  let second_thread = std::thread::spawn(move || {
+    barrier.wait();
+    second.commit_import(&second_review.token)
+  });
+  let first = first_thread.join().map_err(|_| "first publication panicked")??;
+  let second = second_thread.join().map_err(|_| "second publication panicked")??;
+  let mut labels = vec![first.filename, second.filename];
+  labels.sort();
+  assert_eq!(labels, vec!["Bible (1).sqlite", "Bible.sqlite"]);
+  assert_ne!(first.translation_ids, second.translation_ids);
+  Ok(())
+}
+
+#[test]
+fn source_byte_limits_and_native_coordinate_ceiling_are_enforced_before_publication(
+) -> Result<(), Box<dyn std::error::Error>> {
+  use lumina_persistence::stage_import;
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("Limits.sqlite");
+  source(&path, &[(43, 16, "Original")])?;
+  let fixture = rusqlite::Connection::open(&path)?;
+  fixture.execute(
+    "UPDATE verses SET chapter=2147483647,verse=2147483647,text=?1",
+    ["é".repeat(32768)],
+  )?;
+  assert_eq!(stage_import(path.to_str().ok_or("invalid path")?)?.verses[0].text.len(), 65536);
+  fixture.execute("UPDATE verses SET text=?1", ["a".repeat(65537)])?;
+  assert!(stage_import(path.to_str().ok_or("invalid path")?).is_err());
+  fixture.execute("UPDATE verses SET text='Original',chapter=2147483648", [])?;
+  assert!(stage_import(path.to_str().ok_or("invalid path")?).is_err());
+  fixture.execute("UPDATE verses SET chapter=16", [])?;
+  fixture.execute("UPDATE translations SET title=?1", ["é".repeat(256)])?;
+  assert_eq!(stage_import(path.to_str().ok_or("invalid path")?)?.translations[0].title.len(), 512);
+  fixture.execute("UPDATE translations SET title=?1", ["a".repeat(513)])?;
+  assert!(stage_import(path.to_str().ok_or("invalid path")?).is_err());
+  let oversized = directory.path().join("oversized.sqlite");
+  std::fs::File::create(&oversized)?.set_len(268_435_457)?;
+  assert!(stage_import(oversized.to_str().ok_or("invalid path")?).is_err());
+  Ok(())
+}
+
+#[test]
+fn literal_substrings_preserve_unicode_whitespace_without_changing_word_boundaries(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("Spaces.sqlite");
+  source(&path, &[(43, 1, "love God"), (43, 2, "love\u{a0}God"), (43, 3, "love\u{2003}God")])?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("managed.sqlite"))?)?;
+  let review = app.review_import(path.to_string_lossy().into())?;
+  let id = app.commit_import(review.token)?.translation_ids.remove(0);
+  for (query, verse) in [("love God", 1), ("love\u{a0}God", 2), ("love\u{2003}God", 3)] {
+    let result = app.search(search_request(&app, id.clone(), query, SearchMode::ContainsText))?;
+    assert_eq!(result.total, 1, "{query}");
+    assert_eq!(result.results[0].verse.coordinate.verse, verse);
+  }
+  assert_eq!(app.search(search_request(&app, id, "love God", SearchMode::Phrase))?.total, 3);
+  Ok(())
+}
+
+// Append to persistence/tests/catalog.rs after registering derived-search
+// migration5 on the integration branch. It reuses that file's source() helper.
+#[test]
+fn old_compatibility_indexes_rebuild_without_collapsing_literal_whitespace(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("Spaces.sqlite");
+  let managed = directory.path().join("managed.sqlite");
+  source(&path, &[(43, 1, "love God"), (43, 2, "love\u{a0}God")])?;
+  let mut app = Application::start(SqliteStorage::open(&managed)?)?;
+  let review = app.review_import(path.to_string_lossy().into())?;
+  let id = app.commit_import(review.token)?.translation_ids.remove(0);
+  drop(app);
+  let fixture = rusqlite::Connection::open(&managed)?;
+  fixture.execute("UPDATE verse_search SET normalized=replace(normalized,char(160),' ')", [])?;
+  fixture.pragma_update(None, "user_version", 4)?;
+  drop(fixture);
+  let app = Application::start(SqliteStorage::open(&managed)?)?;
+  let result = app.search(search_request(&app, id, "love God", SearchMode::ContainsText))?;
+  assert_eq!(result.total, 1);
+  assert_eq!(result.results[0].verse.coordinate.verse, 1);
+  Ok(())
+}
