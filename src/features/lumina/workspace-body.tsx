@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { ChapterPanel } from "./chapter-panel";
 import { CurrentVerse } from "./current-verse";
 import { useDeskContext } from "./desk-context";
+import { audienceStatus } from "./model";
 import { PanelDivider } from "./panel-divider";
 import { SidePanel } from "./side-panel";
 import { CHAPTER_PANEL_MIN_WIDTH } from "./use-panel-layout";
@@ -57,12 +58,13 @@ export function WorkspaceBody() {
                 <div className="stage-heading">
                     <div>
                         <span
-                            className={`stage-dot ${workspace.status === "live" ? "live" : ""}`}
+                            aria-hidden="true"
+                            className={`stage-dot status-${audienceStatus(workspace).className}`}
                         />
                         <h1>Current verse</h1>
                         {workspace.information && (
                             <span className="info-badge">
-                                Book information on audience
+                                Book information requested
                             </span>
                         )}
                     </div>
@@ -96,7 +98,18 @@ export function WorkspaceBody() {
                                 ? "Audience closed"
                                 : workspace.status === "blank"
                                   ? "Audience is blank"
-                                  : "Audience is live"}
+                                  : workspace.information
+                                    ? "Book information requested"
+                                    : workspace.projectionOutcome ===
+                                        "projected"
+                                      ? "Audience is live"
+                                      : workspace.projectionOutcome ===
+                                          "unconfirmed"
+                                        ? "Unconfirmed projection"
+                                        : workspace.projectionOutcome ===
+                                            "awaitingConfirmation"
+                                          ? "Awaiting confirmation"
+                                          : "Audience output requested"}
                         </span>
                         <fieldset
                             className="audience-controls"

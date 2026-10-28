@@ -1,26 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import {
+    type ApplicationTheme,
+    client,
+    deskClient,
+    isDesktopHost,
+    onApplicationChanged,
+} from "@/bridge/client";
 
-export type AppTheme = "system" | "light" | "dark";
+export type AppTheme = ApplicationTheme;
 
-const STORAGE_KEY = "lumina-app-theme";
+// The browser's palette preview is session-only; confirmed desktop settings live in Rust.
+let previewTheme: AppTheme = "system";
+const previewListeners = new Set<() => void>();
 
 export const initializeAppTheme = `(() => {
-    let theme;
-    try { theme = localStorage.getItem("${STORAGE_KEY}"); } catch {}
-    if (theme !== "light" && theme !== "dark") {
-        theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-    }
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 })();`;
-
-function getSavedTheme(): AppTheme {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved === "light" || saved === "dark" ? saved : "system";
-    } catch {
-        return "system";
-    }
-}
 
 function applyTheme(theme: AppTheme) {
     document.documentElement.dataset.theme =
@@ -32,49 +27,99 @@ function applyTheme(theme: AppTheme) {
 }
 
 export function useAppTheme() {
-    const [theme, setThemeState] = useState<AppTheme>("system");
-    const preference = useRef<AppTheme>("system");
+    const [theme, setThemeState] = useState<AppTheme>(
+        isDesktopHost ? "system" : previewTheme
+    );
+    const [themeError, setThemeError] = useState("");
+    const preference = useRef(theme);
+    const refreshPreference = useRef(async () => {});
 
     useEffect(() => {
+        let active = true;
+        let generation = 0;
+        let unsubscribe: (() => void) | undefined;
         const system = window.matchMedia("(prefers-color-scheme: light)");
-        const syncPreference = () => {
-            preference.current = getSavedTheme();
-            applyTheme(preference.current);
-            setThemeState(preference.current);
+        const accept = (next: AppTheme) => {
+            preference.current = next;
+            applyTheme(next);
+            setThemeState(next);
+            setThemeError("");
         };
-        const onStorage = (event: StorageEvent) => {
-            if (event.key === STORAGE_KEY || event.key === null) {
-                syncPreference();
+        const refresh = async () => {
+            const request = ++generation;
+            const result = await client.getApplicationState();
+            if (!active || request !== generation) {
+                return;
+            }
+            if (result.status === "ok") {
+                accept(result.data.applicationTheme);
+            } else {
+                setThemeError(result.error.message);
             }
         };
+        refreshPreference.current = refresh;
+        const syncPreview = () => accept(previewTheme);
         const onSystemChange = () => {
             if (preference.current === "system") {
                 applyTheme("system");
             }
         };
-
-        syncPreference();
-        window.addEventListener("storage", onStorage);
+        if (isDesktopHost) {
+            void onApplicationChanged(() => {
+                void refresh();
+            })
+                .then((dispose) => {
+                    if (active) {
+                        unsubscribe = dispose;
+                        void refresh();
+                    } else {
+                        dispose();
+                    }
+                })
+                .catch((cause: unknown) => {
+                    if (active) {
+                        setThemeError(
+                            cause instanceof Error
+                                ? cause.message
+                                : "Could not subscribe to application preferences."
+                        );
+                    }
+                });
+        } else {
+            syncPreview();
+            previewListeners.add(syncPreview);
+        }
         system.addEventListener("change", onSystemChange);
         return () => {
-            window.removeEventListener("storage", onStorage);
+            active = false;
+            generation += 1;
+            unsubscribe?.();
+            previewListeners.delete(syncPreview);
             system.removeEventListener("change", onSystemChange);
         };
     }, []);
 
     const setTheme = (next: AppTheme) => {
-        preference.current = next;
-        applyTheme(next);
-        setThemeState(next);
-        try {
-            localStorage.setItem(STORAGE_KEY, next);
-        } catch {
-            // Keep the selected theme for this session if storage is unavailable.
+        if (!isDesktopHost) {
+            previewTheme = next;
+            for (const listener of previewListeners) {
+                listener();
+            }
+            return;
         }
+        setThemeError("");
+        void deskClient.setApplicationTheme(next).then(async (result) => {
+            if (result.status === "error") {
+                setThemeError(result.error.message);
+            } else {
+                await refreshPreference.current();
+            }
+        });
     };
 
     return {
         theme,
         setTheme,
+        themeError,
     };
 }

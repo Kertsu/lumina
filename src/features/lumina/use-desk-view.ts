@@ -9,7 +9,7 @@ import { useAppTheme } from "./use-app-theme";
 import { usePanelLayout } from "./use-panel-layout";
 
 export function useDeskView(controller: DeskController, workspace: Workspace) {
-    const { theme, setTheme } = useAppTheme();
+    const { theme, setTheme, themeError } = useAppTheme();
     const { workspaces, activeId, translations, dispatch } = controller;
     const installed = translations.map((translation) => translation.id);
     const setActiveId = (workspaceId: string) =>
@@ -71,6 +71,11 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const [reference, setReference] = useState("");
     const [referenceError, setReferenceError] = useState("");
     const [notification, setNotification] = useState("");
+    useEffect(() => {
+        if (themeError) {
+            setNotification(themeError);
+        }
+    }, [themeError]);
     const [informationBook, setInformationBook] = useState("John");
     const referenceInput = useRef<HTMLInputElement>(null);
     const selectedThumbnail = useRef<HTMLButtonElement>(null);
@@ -90,7 +95,12 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             bookId,
         });
     const showInformation = () => {
-        inspectInformation(workspace.current?.bookId);
+        inspectInformation(
+            workspace.current?.bookId ??
+                workspace.books.find((book) => book.name === informationBook)
+                    ?.id ??
+                workspace.books[0]?.id
+        );
         setInformationOpen(true);
     };
     const patch = (value: Partial<Workspace>) => {
@@ -158,6 +168,16 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             workspaceId: activeId,
             verse,
         });
+    const canSendPreview = Boolean(
+        workspace.preview &&
+            workspace.status !== "closed" &&
+            !controller.pending
+    );
+    const sendPreview = () => {
+        if (canSendPreview && workspace.preview) {
+            sendLive(workspace.preview);
+        }
+    };
     const navigate = (direction: -1 | 1) =>
         dispatch({
             type: "navigate",
@@ -395,8 +415,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     useHotkey(
         "Mod+Enter",
         () => {
-            if (workspace?.preview) {
-                sendLive(workspace.preview);
+            if (workspace.preview) {
+                sendPreview();
             } else if (!dialogOpen) {
                 submitReference(false);
             }
@@ -542,6 +562,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         selectVerse,
         previewVerse,
         sendLive,
+        canSendPreview,
+        sendPreview,
         navigate,
         submitReference,
         toggleBlank,

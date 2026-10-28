@@ -107,6 +107,17 @@ Define code variants and their payloads together so generated TypeScript preserv
 
 Internal modules retain appropriate typed errors and source causes. Translate them into application failures at integration seams and preserve diagnostic context. The Tauri shell serializes the public contract; the frontend bridge handles unexpected invocation/transport failures centrally, exposing code-based failures to UI callers. UI code never parses error-message text or blindly casts an unknown rejection into a known application error.
 
+The native audience adapter reports original Tauri/registry error chains through
+`report_error` before returning display text from its capability boundary.
+Rendered confirmation write failures remain typed `PROJECTION_STORAGE_UNCERTAIN`
+notices in the runtime snapshot, preserving owner/action/revision without marking
+history as projected or retrying automatically.
+
+Confirmed System/Light/Dark preferences live in Rust and SQLite application
+settings. `set_application_theme` writes before publishing to both windows;
+workspace appearance overrides remain separate. Browser palette preview is
+session-local.
+
 The contract does not carry HTTP status. Specific feature codes and exact signatures are defined with their implementations; this design establishes the convention and ownership.
 
 Reference pattern: the corporate `ApiError` envelope and policy `ServiceApiErrorCode` catalog. Lumina strengthens that pattern with mandatory codes and per-code typed payloads in place of nullable codes and untyped data.

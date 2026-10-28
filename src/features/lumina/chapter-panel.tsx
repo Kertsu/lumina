@@ -105,7 +105,7 @@ export function ChapterPanel() {
                         </h3>
                         <span>
                             {chapterVerses.length
-                                ? `${chapterVerses.length} verses`
+                                ? `${chapterVerses.length} ${chapterVerses.length === 1 ? "verse" : "verses"}`
                                 : "Bible library"}
                         </span>
                     </div>
@@ -148,7 +148,7 @@ export function ChapterPanel() {
                     <span className="filmstrip-hint">
                         {chapterStripCollapsed
                             ? "Verse thumbnails hidden"
-                            : "Select a verse to display"}
+                            : "Select to show on audience"}
                     </span>
                     <fieldset
                         className="chapter-view-toggle"

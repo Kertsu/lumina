@@ -25,6 +25,24 @@ appearance, spacing, layout, and bundled fonts.
 - Shared UI stays independent of native integration and application rules.
   Keep capability compositions in their `src/features/` capability.
 
+The workspace tab menu is composed in `src/features/lumina/workspace-tab-menu.tsx`.
+One action list supplies the native desktop popup through `@/bridge/client`
+and the Radix browser preview. Right-click and Shift+F10 use the same actions;
+renaming, moving and closing still pass through the workspace controller.
+The bridge retains one native popup until the next request because GTK returns
+before dismissal. Stable action IDs keep native callback registrations bounded.
+
+`DeskStatus` is custom feedback UI. Errors have an explicit dismiss action;
+dismissal hides the current notice without changing its projection outcome.
+New failures remain visible, including a new audience revision with the same
+message.
+
+`SizeBandEditor` owns contiguous draft boundaries and font-size editing. It shows
+the current grapheme count and can reset to the reference profile before Apply.
+Existing accepted profiles remain intact. The reference omits 301–400 characters;
+that default range uses 48px. The final 651+ range uses 30px without an upper
+limit, and the first range includes zero internally for the IPC contract.
+
 ## Add a component
 
 Preview one component with the pinned CLI and configured Radix style:
@@ -80,23 +98,28 @@ chart colors, and sidebar colors. This includes the exported
 `text-primary-foreground` in components. Keep literal palette colors in the
 palette stylesheet.
 
-Light values live in `:root`; dark values override the same roles inside
-`@media (prefers-color-scheme: dark)`. System changes update the rendered colors
-without JavaScript or a restart. There is one bundled application theme and no
-manual mode preference or persistence yet.
+Light and dark values live once in `src/themes/default.css` as
+`--palette-light-*` and `--palette-dark-*` tokens. `src/themes/preferences.css`
+maps them to the same semantic roles for System and manual modes. Edit palette
+values only in `default.css`; mode selectors contain references, never colors.
+
+Rust owns the confirmed System/Light/Dark preference in `application_settings`.
+`set_application_theme` saves before publishing; both windows refresh accepted
+state on `ApplicationChanged`. System follows the window's media query live.
+Browser development keeps only a session-local palette preview.
 
 When editing a palette or copying values from tweakcn, update the color variables
-in both mode blocks. Retain the existing role names and mappings. Keep fonts,
+in both palette token sets. Retain the existing role names and mappings. Keep fonts,
 spacing, radii, shadows, and base rules separate; importing tweakcn's complete
 stylesheet would also replace settings outside the palette. Future palettes
 supply values for these same roles. Theme selection, a registry, and the public
 import format will be designed with their implementations.
 
 The application palette supplies shared defaults for windows importing the global
-stylesheet. Future audience rendering must give explicit workspace verse colors
-and translation background images precedence. Audience defaults, image fallback,
-and live reaction to application theme changes remain audience implementation
-decisions.
+stylesheet. Explicit workspace verse colors and translation backgrounds retain
+precedence. Audience windows follow the shared application preference without
+changing those overrides. A missing image uses its captured fallback color or
+the existing visual default.
 
 Check rendered component states after color changes. The palette is adjusted
 around Button's existing hover opacity and focus-ring styles. The sole Button

@@ -121,6 +121,7 @@ export function SidePanel({
     const searchId = useId();
     const searchContentId = useId();
     const searchPanelId = useId();
+    const translationId = useId();
     const modeId = useId();
     const scopeId = useId();
     const projectedOnly = workspace.historyProjectedOnly;
@@ -203,6 +204,31 @@ export function SidePanel({
                         >
                             <ChevronRight />
                         </Button>
+                    </div>
+                    <div className="search-translation">
+                        <label htmlFor={translationId}>Find in</label>
+                        <Select
+                            value={workspace.translation}
+                            onValueChange={(translation) =>
+                                onChange({
+                                    translation,
+                                })
+                            }
+                        >
+                            <SelectTrigger id={translationId}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {translations.map((translation) => (
+                                    <SelectItem
+                                        key={translation.id}
+                                        value={translation.id}
+                                    >
+                                        {translation.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="search-filters">
                         <div>
@@ -622,17 +648,28 @@ export function SidePanel({
                             <p>{entry.verse.text}</p>
                             <div>
                                 <span>
-                                    {
-                                        translations.find(
-                                            (translation) =>
-                                                translation.id ===
-                                                entry.verse.translation
-                                        )?.shortName
-                                    }
+                                    {translations.find(
+                                        (translation) =>
+                                            translation.id ===
+                                            entry.verse.translation
+                                    )?.shortName ??
+                                        entry.verse.translationTitle ??
+                                        entry.verse.translation}
                                 </span>
+                                {!translations.some(
+                                    (translation) =>
+                                        translation.id ===
+                                        entry.verse.translation
+                                ) && (
+                                    <span className="info-badge">
+                                        Saved copy
+                                    </span>
+                                )}
                                 <span
                                     className={
-                                        entry.projected ? "text-live" : ""
+                                        entry.projected
+                                            ? "history-projected"
+                                            : ""
                                     }
                                 >
                                     {entry.projected ? (

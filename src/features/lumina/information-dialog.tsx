@@ -68,7 +68,11 @@ export function InformationDialog() {
                 )}
                 <div className="book-info-heading">
                     <BookOpen />
-                    <h3>{metadataSource?.book ?? "Choose a book"}</h3>
+                    <h3>
+                        {metadata?.name ??
+                            metadataSource?.book ??
+                            "Choose a book"}
+                    </h3>
                 </div>
                 <dl className="book-metadata">
                     {(
@@ -86,7 +90,20 @@ export function InformationDialog() {
                             </div>
                         ))}
                 </dl>
-                <p className="metadata-attribution">{metadata?.attribution}</p>
+                {metadata?.translationTitle && (
+                    <p>{metadata.translationTitle}</p>
+                )}
+                {metadata?.attribution && (
+                    <p className="metadata-attribution">
+                        {metadata.attribution}
+                    </p>
+                )}
+                {metadata?.sourceUrl && (
+                    <p>
+                        <a href={metadata.sourceUrl}>{metadata.sourceUrl}</a>
+                    </p>
+                )}
+                {metadata?.rightsNotice && <p>{metadata.rightsNotice}</p>}
                 {metadataSource &&
                     !isInstalled(metadataSource) &&
                     !workspace.information && (

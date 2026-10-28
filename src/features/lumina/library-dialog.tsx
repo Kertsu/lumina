@@ -89,7 +89,7 @@ export function LibraryDialog({
                             </div>
                             {translation.bundled ? (
                                 <ShieldCheck
-                                    className="size-5 text-primary"
+                                    className="size-5 text-muted-foreground"
                                     aria-label="Bundled Bible protected"
                                 />
                             ) : (
@@ -142,7 +142,7 @@ export function LibraryDialog({
                 {review ? (
                     <div className="import-review">
                         <div className="flex items-center gap-2">
-                            <Check className="size-4 text-live" />
+                            <Check className="size-4 text-success" />
                             <h3>Ready to review</h3>
                         </div>
                         <p>{review.label}</p>

@@ -63,8 +63,6 @@ export function QuickReferenceBar() {
                         onValueChange={(id: TranslationId) =>
                             patch({
                                 translation: id,
-                                submittedQuery: "",
-                                page: 1,
                             })
                         }
                     >
@@ -73,7 +71,9 @@ export function QuickReferenceBar() {
                             aria-label="Lookup translation"
                             title={`Lookup translation: ${translation?.name} · F1`}
                         >
-                            <SelectValue>{translation?.shortName}</SelectValue>
+                            <SelectValue>
+                                Find in {translation?.shortName}
+                            </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                             {translations

@@ -82,6 +82,7 @@ function chapterController(): DeskController {
             },
         ],
         dispatch: vi.fn(),
+        dismissError: vi.fn(),
     };
 }
 

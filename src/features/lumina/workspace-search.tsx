@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import type { Workspace } from "./model";
+import { audienceStatus, type Workspace } from "./model";
 
 type WorkspaceSearchProps = {
     workspaces: Workspace[];
@@ -185,14 +185,10 @@ export function WorkspaceSearch({
                                 {workspace.name}
                             </span>
                             <span
-                                className={`output-status status-${workspace.status}`}
+                                className={`output-status status-${audienceStatus(workspace).className}`}
                             >
                                 <span />
-                                {workspace.status === "live"
-                                    ? "Live"
-                                    : workspace.status === "blank"
-                                      ? "Blank"
-                                      : "Closed"}
+                                {audienceStatus(workspace).label}
                             </span>
                             {workspace.id === activeId ? (
                                 <Check

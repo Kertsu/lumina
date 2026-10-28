@@ -52,6 +52,9 @@ export function VerseSlide({
                 <div className="book-slide">
                     <BookOpen />
                     <h2>{metadata.name}</h2>
+                    {metadata.translationTitle && (
+                        <small>{metadata.translationTitle}</small>
+                    )}
                     <div className="book-slide-fields">
                         {[
                             ["Author", metadata.author],
@@ -69,7 +72,19 @@ export function VerseSlide({
                                 </p>
                             ))}
                     </div>
-                    <small>{metadata.attribution}</small>
+                    {metadata.attribution && (
+                        <small>{metadata.attribution}</small>
+                    )}
+                    {metadata.sourceUrl && (
+                        <small>
+                            <a href={metadata.sourceUrl}>
+                                {metadata.sourceUrl}
+                            </a>
+                        </small>
+                    )}
+                    {metadata.rightsNotice && (
+                        <small>{metadata.rightsNotice}</small>
+                    )}
                 </div>
             ) : verse ? (
                 <>

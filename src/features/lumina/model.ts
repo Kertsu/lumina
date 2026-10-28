@@ -132,6 +132,7 @@ export type DeskController = {
     translations: Translation[];
     pending?: boolean;
     error?: string;
+    dismissError: () => void;
     importReview?: ImportReview | null;
     referenceChoice?: {
         input: string;
@@ -239,4 +240,46 @@ export function getBand(verse: Verse, appearance: Appearance) {
     return appearance.bands.find(
         (band) => count >= band.min && count <= band.max
     );
+}
+
+/** Native output mode alone does not confirm that a receiver applied a verse. */
+export function audienceStatus(workspace: Workspace): {
+    className: "closed" | "blank" | "live" | "pending" | "unconfirmed";
+    label: string;
+} {
+    if (workspace.status === "closed") {
+        return {
+            className: "closed",
+            label: "Closed",
+        };
+    }
+    if (workspace.status === "blank") {
+        return {
+            className: "blank",
+            label: "Blank",
+        };
+    }
+    if (!workspace.information && workspace.projectionOutcome === "projected") {
+        return {
+            className: "live",
+            label: "Live",
+        };
+    }
+    if (
+        !workspace.information &&
+        workspace.projectionOutcome === "unconfirmed"
+    ) {
+        return {
+            className: "unconfirmed",
+            label: "Unconfirmed",
+        };
+    }
+    return {
+        className: "pending",
+        label: workspace.information
+            ? "Requested"
+            : workspace.projectionOutcome === "awaitingConfirmation"
+              ? "Awaiting"
+              : "Requested",
+    };
 }

@@ -5,6 +5,24 @@ import { getRouter } from "./router";
 
 beforeEach(() => {
     vi.stubGlobal("scrollTo", vi.fn());
+    Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.scrollTo = vi.fn();
+    vi.stubGlobal(
+        "ResizeObserver",
+        class {
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        }
+    );
+    vi.stubGlobal(
+        "matchMedia",
+        vi.fn().mockReturnValue({
+            matches: false,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        })
+    );
 });
 
 afterEach(() => {
@@ -32,42 +50,23 @@ it("shows not found for the playground outside development", async () => {
     expect(screen.queryByText('Hello "/playground"!')).toBeNull();
 });
 
-it("renders the welcome screen in the client application", async () => {
+it("renders the integrated operator through the browser adapter", async () => {
     renderRouter();
-
     expect(
-        await screen.findByRole("heading", {
-            name: "Lumina",
-        })
+        await screen.findByRole("textbox", { name: "Quick reference" })
     ).toBeTruthy();
-    expect(
-        screen.getByText(
-            "Verse projection for the room, without exposing the operator's screen."
-        )
-    ).toBeTruthy();
-    expect(screen.getByAltText("Lumina in-app icon").getAttribute("src")).toBe(
-        "/lumina-mark-loading.svg"
-    );
+    expect(screen.getByText("Current verse")).toBeTruthy();
+    expect(screen.getAllByText("John 3:16").length).toBeGreaterThan(0);
 });
 
-it("navigates to the development playground and back to welcome", async () => {
+it("navigates to the development playground and back to the operator", async () => {
     const router = renderRouter();
-    await screen.findByRole("heading", {
-        name: "Lumina",
-    });
-
-    await act(() =>
-        router.navigate({
-            to: "/playground",
-        })
-    );
+    await screen.findByRole("textbox", { name: "Quick reference" });
+    await act(() => router.navigate({ to: "/playground" }));
     expect(await screen.findByText('Hello "/playground"!')).toBeTruthy();
-
     act(() => router.history.back());
     expect(
-        await screen.findByRole("heading", {
-            name: "Lumina",
-        })
+        await screen.findByRole("textbox", { name: "Quick reference" })
     ).toBeTruthy();
     expect(screen.queryByText('Hello "/playground"!')).toBeNull();
 });

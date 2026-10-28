@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Welcome } from "@/features/welcome";
+import { IntegratedOperator } from "@/features/lumina";
 
 export const Route = createFileRoute("/")({
-    component: Welcome,
+    component: IntegratedOperator,
 });

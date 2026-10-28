@@ -15,38 +15,39 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { formatForDisplay } from "@tanstack/react-hotkeys";
-import { ArrowLeft, ArrowRight, Monitor, Pencil, X } from "lucide-react";
+import { Circle, CircleAlert, Clock3, EyeOff, Radio, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuShortcut,
-    ContextMenuTrigger,
-} from "@/shared/ui/context-menu";
+import { Button } from "@/shared/ui/button";
 import { TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import type { Workspace } from "./model";
+import { audienceStatus, type Workspace } from "./model";
+import { WorkspaceTabMenu } from "./workspace-tab-menu";
 
 const horizontalDrag: Modifier = ({ transform }) => ({
     ...transform,
     y: 0,
 });
 
+const stateIcons = {
+    closed: Circle,
+    blank: EyeOff,
+    live: Radio,
+    pending: Clock3,
+    unconfirmed: CircleAlert,
+};
+
 function WorkspaceLabel({ workspace }: { workspace: Workspace }) {
+    const status = audienceStatus(workspace);
+    const StateIcon = stateIcons[status.className];
     return (
         <>
-            <Monitor />
-            <span>{workspace.name}</span>
-            <span className={`output-status status-${workspace.status}`}>
-                <span />
-                {workspace.status === "live"
-                    ? "Live"
-                    : workspace.status === "blank"
-                      ? "Blank"
-                      : "Closed"}
+            <span
+                className={`workspace-tab-state status-${status.className}`}
+                aria-hidden="true"
+            >
+                <StateIcon />
             </span>
+            <span className="workspace-tab-name">{workspace.name}</span>
+            <span className="sr-only">, audience {status.label}</span>
         </>
     );
 }
@@ -58,6 +59,7 @@ type WorkspaceTabsProps = {
     onRename: (workspace: Workspace) => void;
     onMove: (id: string, direction: -1 | 1) => void;
     onClose: (id: string) => void;
+    onMenuError: (message: string) => void;
 };
 
 type SortableTabProps = Omit<WorkspaceTabsProps, "workspaces" | "onReorder"> & {
@@ -74,8 +76,11 @@ function SortableTab({
     onRename,
     onMove,
     onClose,
+    onMenuError,
 }: SortableTabProps) {
     const tab = useRef<HTMLDivElement>(null);
+    const canClose = count > 1;
+    const status = audienceStatus(workspace);
     const {
         attributes,
         listeners,
@@ -99,85 +104,57 @@ function SortableTab({
     }, [workspace.id, activeId]);
 
     return (
-        <ContextMenu>
-            <ContextMenuTrigger asChild disabled={isDragging}>
-                <div
-                    ref={(node) => {
-                        tab.current = node;
-                        setNodeRef(node);
-                    }}
-                    className={`workspace-tab ${workspace.id === activeId ? "selected" : ""} ${isDragging ? "dragging" : ""}`}
-                    style={{
-                        transform: CSS.Transform.toString(transform),
-                        transition,
-                    }}
+        <WorkspaceTabMenu
+            disabled={isDragging}
+            active={workspace.id === activeId}
+            canMoveLeft={index > 0}
+            canMoveRight={index < count - 1}
+            canClose={canClose}
+            onRename={() => onRename(workspace)}
+            onMove={(direction) => onMove(workspace.id, direction)}
+            onClose={() => onClose(workspace.id)}
+            onError={onMenuError}
+        >
+            <div
+                ref={(node) => {
+                    tab.current = node;
+                    setNodeRef(node);
+                }}
+                className={`workspace-tab ${workspace.id === activeId ? "selected" : ""} ${isDragging ? "dragging" : ""}`}
+                style={{
+                    transform: CSS.Transform.toString(transform),
+                    transition,
+                }}
+            >
+                <TabsTrigger
+                    className="workspace-tab-trigger"
+                    ref={setActivatorNodeRef}
+                    value={workspace.id}
+                    aria-describedby={attributes["aria-describedby"]}
+                    aria-keyshortcuts="Shift+F10"
+                    title={`${workspace.name} · ${status.label}\nDrag to reposition. Right-click for tab options.`}
+                    {...listeners}
                 >
-                    <TabsTrigger
-                        ref={setActivatorNodeRef}
-                        value={workspace.id}
-                        aria-describedby={attributes["aria-describedby"]}
-                        title="Drag to reposition. Right-click for tab options."
-                        aria-keyshortcuts="Shift+F10"
-                        onKeyDown={(event) => {
-                            if (
-                                event.key !== "ContextMenu" &&
-                                !(event.shiftKey && event.key === "F10")
-                            ) {
-                                return;
-                            }
-                            event.preventDefault();
-                            const bounds =
-                                event.currentTarget.getBoundingClientRect();
-                            event.currentTarget.dispatchEvent(
-                                new MouseEvent("contextmenu", {
-                                    bubbles: true,
-                                    cancelable: true,
-                                    clientX: bounds.left + 16,
-                                    clientY: bounds.bottom,
-                                })
-                            );
-                        }}
-                        {...listeners}
-                    >
-                        <WorkspaceLabel workspace={workspace} />
-                    </TabsTrigger>
-                </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-                <ContextMenuItem onSelect={() => onRename(workspace)}>
-                    <Pencil />
-                    Rename workspace
-                </ContextMenuItem>
-                <ContextMenuItem
-                    disabled={index === 0}
-                    onSelect={() => onMove(workspace.id, -1)}
+                    <WorkspaceLabel workspace={workspace} />
+                </TabsTrigger>
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="workspace-tab-close"
+                    aria-label={`Close ${workspace.name}`}
+                    title={
+                        canClose
+                            ? `Close ${workspace.name}`
+                            : "At least one workspace must stay open"
+                    }
+                    tabIndex={workspace.id === activeId ? 0 : -1}
+                    disabled={!canClose || isDragging}
+                    onClick={() => onClose(workspace.id)}
                 >
-                    <ArrowLeft />
-                    Move left
-                </ContextMenuItem>
-                <ContextMenuItem
-                    disabled={index === count - 1}
-                    onSelect={() => onMove(workspace.id, 1)}
-                >
-                    <ArrowRight />
-                    Move right
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                    variant="destructive"
-                    disabled={count === 1}
-                    onSelect={() => onClose(workspace.id)}
-                >
-                    <X />
-                    Close tab
-                    {workspace.id === activeId && (
-                        <ContextMenuShortcut>
-                            {formatForDisplay("Mod+W")}
-                        </ContextMenuShortcut>
-                    )}
-                </ContextMenuItem>
-            </ContextMenuContent>
-        </ContextMenu>
+                    <X aria-hidden="true" />
+                </Button>
+            </div>
+        </WorkspaceTabMenu>
     );
 }
 
@@ -188,6 +165,7 @@ export function WorkspaceTabs({
     onRename,
     onMove,
     onClose,
+    onMenuError,
 }: WorkspaceTabsProps) {
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const sensors = useSensors(
@@ -263,6 +241,7 @@ export function WorkspaceTabs({
                             onRename={onRename}
                             onMove={onMove}
                             onClose={onClose}
+                            onMenuError={onMenuError}
                         />
                     ))}
                 </TabsList>
@@ -276,6 +255,9 @@ export function WorkspaceTabs({
                         <div className="workspace-tab-label">
                             <WorkspaceLabel workspace={draggedWorkspace} />
                         </div>
+                        <span className="workspace-tab-close">
+                            <X />
+                        </span>
                     </div>
                 )}
             </DragOverlay>

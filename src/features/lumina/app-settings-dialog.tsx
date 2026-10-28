@@ -29,26 +29,15 @@ const themes = [
 ] as const;
 
 function MiniatureDesk({ theme }: { theme: "light" | "dark" }) {
-    const colors =
-        theme === "light"
-            ? {
-                  background: "#f5f3ed",
-                  toolbar: "#fdfcf9",
-                  tabbar: "#e8e5dc",
-                  border: "#dcd7cc",
-                  muted: "#636a66",
-                  foreground: "#2b302e",
-                  primary: "#714722",
-              }
-            : {
-                  background: "#111820",
-                  toolbar: "#18212b",
-                  tabbar: "#111820",
-                  border: "#2b3540",
-                  muted: "#8e9ba9",
-                  foreground: "#e9e4da",
-                  primary: "#d8b782",
-              };
+    const colors = {
+        background: `var(--palette-${theme}-background)`,
+        toolbar: `var(--palette-${theme}-card)`,
+        tabbar: `var(--palette-${theme}-sidebar)`,
+        border: `var(--palette-${theme}-border)`,
+        muted: `var(--palette-${theme}-muted-foreground)`,
+        foreground: `var(--palette-${theme}-foreground)`,
+        primary: `var(--palette-${theme}-primary)`,
+    };
 
     return (
         <g>
@@ -276,7 +265,7 @@ export function AppSettingsDialog({
                                     />
                                     <label
                                         htmlFor={optionId}
-                                        className="block cursor-pointer rounded-xl border-2 border-transparent p-1.5 transition-colors hover:bg-accent/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-popover sm:p-2"
+                                        className="block cursor-pointer rounded-xl border-2 border-transparent p-1.5 transition-colors hover:bg-accent/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-selection peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-popover sm:p-2"
                                     >
                                         <ThemePreview theme={option.value} />
                                         <span className="mt-3 flex items-center justify-between gap-1 px-1 pb-1 text-xs font-medium">

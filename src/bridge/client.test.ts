@@ -4,6 +4,8 @@ import {
     type ApplicationFailure,
     createBrowserClient,
     createDesktopClient,
+    quitApplication,
+    requestQuitConfirmation,
 } from "./client";
 import { browserState } from "./fixtures";
 
@@ -12,6 +14,37 @@ const diagnostics = vi.spyOn(console, "error").mockImplementation(() => {});
 afterEach(() => {
     clearMocks();
     diagnostics.mockClear();
+    vi.unstubAllGlobals();
+});
+
+it.each([
+    { command: "quit_application", invoke: quitApplication },
+    { command: "request_quit_confirmation", invoke: requestQuitConfirmation },
+])("dispatches $command through the generated desktop boundary", async ({
+    command,
+    invoke,
+}) => {
+    vi.stubGlobal("isTauri", true);
+    const called = vi.fn();
+    mockIPC((name) => {
+        called(name);
+        return null;
+    });
+    expect(await invoke()).toEqual({
+        status: "ok",
+        data: null,
+    });
+    expect(called).toHaveBeenCalledExactlyOnceWith(command);
+});
+
+it("never invokes native quit commands from the browser fixture", async () => {
+    vi.stubGlobal("isTauri", false);
+    const native = vi.fn();
+    mockIPC(native);
+    for (const invoke of [quitApplication, requestQuitConfirmation]) {
+        expect((await invoke()).status).toBe("error");
+    }
+    expect(native).not.toHaveBeenCalled();
 });
 
 it("consumes the generated desktop command and representative browser state", async () => {

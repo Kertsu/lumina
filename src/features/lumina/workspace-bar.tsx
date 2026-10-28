@@ -31,6 +31,7 @@ export function WorkspaceBar() {
         setRename,
         addWorkspace,
         moveWorkspace,
+        notify,
     } = useDeskContext();
     return (
         <div className="workspace-bar">
@@ -92,6 +93,7 @@ export function WorkspaceBar() {
                 }}
                 onMove={moveWorkspace}
                 onClose={setRemoveId}
+                onMenuError={notify}
             />
             <IconButton
                 className="workspace-add"

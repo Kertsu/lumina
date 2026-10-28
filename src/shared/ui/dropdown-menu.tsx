@@ -51,7 +51,7 @@ export function DropdownMenuItem({
             data-slot="dropdown-menu-item"
             data-variant={variant}
             className={cn(
-                "relative flex cursor-default select-none items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[variant=destructive]:text-destructive [&_svg]:size-4 [&_svg]:shrink-0",
+                "relative flex cursor-default select-none items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive [&_svg]:size-4 [&_svg]:shrink-0",
                 className
             )}
             {...props}

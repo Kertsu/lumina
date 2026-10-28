@@ -87,7 +87,7 @@ export function AppearanceDialog({
             >
                 <DialogHeader>
                     <DialogTitle>
-                        <Palette className="inline size-5 mr-2 text-primary" />
+                        <Palette className="inline size-5 mr-2 text-muted-foreground" />
                         Make room for the Word
                     </DialogTitle>
                     <DialogDescription>
@@ -167,17 +167,6 @@ export function AppearanceDialog({
                                     />
                                 </label>
                             </div>
-                            <SizeBandEditor
-                                bands={draft.bands}
-                                currentLength={
-                                    verse ? graphemeCount(verse.text) : null
-                                }
-                                onChange={(bands) =>
-                                    patch({
-                                        bands,
-                                    })
-                                }
-                            />
                             <div className="field-row mt-6">
                                 <span className="field-label">Background</span>
                                 <span className="subtle">
@@ -301,6 +290,17 @@ export function AppearanceDialog({
                                     {error}
                                 </p>
                             )}
+                            <SizeBandEditor
+                                bands={draft.bands}
+                                currentLength={
+                                    verse ? graphemeCount(verse.text) : null
+                                }
+                                onChange={(bands) =>
+                                    patch({
+                                        bands,
+                                    })
+                                }
+                            />
                         </div>
                         <div className="appearance-sample">
                             <VerseSlide verse={verse} appearance={draft} />

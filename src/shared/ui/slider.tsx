@@ -11,6 +11,13 @@ export function Slider({
     ...props
 }: ComponentProps<typeof SliderPrimitive.Root>) {
     const values = value ?? defaultValue ?? [min];
+    const singleThumbLabel =
+        values.length === 1
+            ? {
+                  "aria-label": props["aria-label"],
+                  "aria-labelledby": props["aria-labelledby"],
+              }
+            : {};
     return (
         <SliderPrimitive.Root
             data-slot="slider"
@@ -38,6 +45,8 @@ export function Slider({
                     // biome-ignore lint/suspicious/noArrayIndexKey: Radix identifies slider thumbs by their fixed position.
                     key={index}
                     data-slot="slider-thumb"
+                    {...singleThumbLabel}
+                    aria-describedby={props["aria-describedby"]}
                     className="block size-3.5 shrink-0 rounded-full border-2 border-primary bg-popover shadow-sm outline-none transition-shadow hover:ring-4 hover:ring-primary/15 focus-visible:ring-4 focus-visible:ring-primary/25 disabled:pointer-events-none"
                 />
             ))}

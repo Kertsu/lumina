@@ -7,6 +7,7 @@ import {
     Monitor,
     Palette,
 } from "lucide-react";
+import { useId } from "react";
 import { Button } from "@/shared/ui/button";
 import {
     Select,
@@ -22,6 +23,7 @@ import { IconButton } from "./icon-button";
 import { graphemeCount } from "./model";
 import { VerseSlide } from "./verse-slide";
 export function CurrentVerse() {
+    const translationId = useId();
     const {
         workspace,
         translations,
@@ -56,7 +58,15 @@ export function CurrentVerse() {
                         {workspace.information
                             ? "Retained verse"
                             : workspace.status === "live"
-                              ? "On audience"
+                              ? workspace.projectionOutcome === "projected"
+                                  ? "On audience"
+                                  : workspace.projectionOutcome ===
+                                      "unconfirmed"
+                                    ? "Unconfirmed projection"
+                                    : workspace.projectionOutcome ===
+                                        "awaitingConfirmation"
+                                      ? "Awaiting confirmation"
+                                      : "Audience output requested"
                               : "Retained verse"}
                         <span className="stage-aspect">16:9</span>
                     </span>
@@ -75,7 +85,7 @@ export function CurrentVerse() {
                                 }
                                 void navigator.clipboard
                                     .writeText(
-                                        `${current.text}\n${referenceLabel(current)} — ${translations.find((item) => item.id === current.translation)?.name}`
+                                        `${current.text}\n${referenceLabel(current)} — ${current.translationTitle ?? translations.find((item) => item.id === current.translation)?.name ?? current.translation}`
                                     )
                                     .then(
                                         () => notify("Verse copied"),
@@ -127,12 +137,12 @@ export function CurrentVerse() {
                                 <span className="detail-dot" />
                                 {band?.size}px size band
                                 <span className="detail-dot" />
-                                {
+                                {current.translationTitle ??
                                     translations.find(
                                         (item) =>
                                             item.id === current.translation
-                                    )?.name
-                                }
+                                    )?.name ??
+                                    current.translation}
                             </>
                         ) : (
                             "Enter a reference or search for a verse."
@@ -140,47 +150,74 @@ export function CurrentVerse() {
                     </p>
                 </div>
                 <div className="current-actions">
-                    <Select
-                        value={current?.translation ?? workspace.translation}
-                        onValueChange={(id: TranslationId) =>
-                            changeTranslation(id)
-                        }
-                        disabled={!current}
-                    >
-                        <SelectTrigger
-                            aria-label="Change current verse translation"
-                            className="current-translation"
+                    <div className="display-translation">
+                        <label htmlFor={translationId}>
+                            Display translation
+                        </label>
+                        <Select
+                            value={
+                                current?.translation ?? workspace.translation
+                            }
+                            onValueChange={(id: TranslationId) =>
+                                changeTranslation(id)
+                            }
+                            disabled={!current}
                         >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {translations
-                                .filter((item) => installed.includes(item.id))
-                                .map((item) => (
-                                    <SelectItem key={item.id} value={item.id}>
-                                        {item.shortName}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
-                    <div className="navigation-pair">
-                        <Button
-                            variant="outline"
-                            disabled={!current || !isInstalled(current)}
-                            onClick={() => navigate(-1)}
-                        >
-                            <ChevronLeft />
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            disabled={!current || !isInstalled(current)}
-                            onClick={() => navigate(1)}
-                        >
-                            Next
-                            <ChevronRight />
-                        </Button>
+                            <SelectTrigger
+                                id={translationId}
+                                aria-label="Change current verse translation"
+                                className="current-translation"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {translations
+                                    .filter((item) =>
+                                        installed.includes(item.id)
+                                    )
+                                    .map((item) => (
+                                        <SelectItem
+                                            key={item.id}
+                                            value={item.id}
+                                        >
+                                            {item.shortName}
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
                     </div>
+                    <div className="display-navigation">
+                        <span>Audience navigation</span>
+                        <div className="navigation-pair">
+                            <Button
+                                variant="outline"
+                                disabled={
+                                    !current ||
+                                    !isInstalled(current) ||
+                                    workspace.canPrevious === false
+                                }
+                                onClick={() => navigate(-1)}
+                            >
+                                <ChevronLeft />
+                                Show previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                disabled={
+                                    !current ||
+                                    !isInstalled(current) ||
+                                    workspace.canNext === false
+                                }
+                                onClick={() => navigate(1)}
+                            >
+                                Show next
+                                <ChevronRight />
+                            </Button>
+                        </div>
+                    </div>
+                    <p className="display-action-note">
+                        Changes audience output when open.
+                    </p>
                 </div>
             </div>
         </>

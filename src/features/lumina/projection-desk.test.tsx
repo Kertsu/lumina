@@ -106,8 +106,160 @@ function controller(): DeskController {
             },
         ],
         dispatch: vi.fn(),
+        dismissError: vi.fn(),
     };
 }
+
+it("closes an inactive workspace through confirmation without activating it", () => {
+    const model = controller();
+    model.workspaces.push({
+        ...model.workspaces[0],
+        id: "workspace-b",
+        name: "Side screen",
+    });
+    render(<ProjectionDesk controller={model} />);
+    const tab = screen.getByRole("tab", {
+        name: "Side screen, audience Closed",
+    });
+    const close = screen.getByRole("button", {
+        name: "Close Side screen",
+    });
+    expect(tab.contains(close)).toBe(false);
+    fireEvent.mouseDown(close);
+    fireEvent.click(close);
+    expect(tab.getAttribute("aria-selected")).toBe("false");
+    expect(model.dispatch).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog");
+    fireEvent.click(
+        within(dialog).getByRole("button", {
+            name: "Close tab",
+        })
+    );
+    expect(model.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "remove",
+        workspaceId: "workspace-b",
+    });
+});
+
+it("keeps the last workspace open when its close button is clicked", () => {
+    const model = controller();
+    render(<ProjectionDesk controller={model} />);
+    const close = screen.getByRole("button", {
+        name: "Close Audience 1",
+    });
+    expect(close.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(close);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(model.dispatch).not.toHaveBeenCalled();
+});
+
+it.each<{
+    status: Workspace["status"];
+    outcome?: string;
+    information?: boolean;
+    label: string;
+}>([
+    {
+        status: "closed",
+        label: "Closed",
+    },
+    {
+        status: "blank",
+        outcome: "projected",
+        label: "Blank",
+    },
+    {
+        status: "live",
+        outcome: "projected",
+        label: "Live",
+    },
+    {
+        status: "live",
+        outcome: "awaitingConfirmation",
+        label: "Awaiting",
+    },
+    {
+        status: "live",
+        outcome: "unconfirmed",
+        label: "Unconfirmed",
+    },
+    {
+        status: "live",
+        label: "Requested",
+    },
+    {
+        status: "live",
+        outcome: "projected",
+        information: true,
+        label: "Requested",
+    },
+])("keeps the audience's $label state consistent in tab and stage", (example) => {
+    const model = controller();
+    Object.assign(model.workspaces[0], {
+        status: example.status,
+        projectionOutcome: example.outcome,
+        information: example.information ?? false,
+    });
+    render(<ProjectionDesk controller={model} />);
+    const tab = screen.getByRole("tab", {
+        name: `Audience 1, audience ${example.label}`,
+    });
+    const stateClass = Array.from(
+        tab.querySelector(".workspace-tab-state")?.classList ?? []
+    ).find((name) => name.startsWith("status-"));
+    expect(stateClass).toBeTruthy();
+    expect(
+        screen
+            .getByRole("main")
+            .querySelector(".stage-dot")
+            ?.classList.contains(stateClass ?? "missing")
+    ).toBe(true);
+});
+
+it("keeps verse navigation focus on the thumbnail, outside the workspace panel", () => {
+    const model = controller();
+    const verse = model.workspaces[0].current;
+    if (!verse) {
+        throw new Error("Missing test verse");
+    }
+    model.workspaces[0].chapterVerses = [verse];
+    render(<ProjectionDesk controller={model} />);
+    const thumbnail = screen.getByRole("button", {
+        name: "Display John 3:16",
+    });
+    thumbnail.focus();
+    fireEvent.click(thumbnail);
+    fireEvent.keyDown(thumbnail, {
+        key: "ArrowRight",
+        code: "ArrowRight",
+    });
+    fireEvent.keyUp(thumbnail, {
+        key: "ArrowRight",
+        code: "ArrowRight",
+    });
+    expect(document.activeElement).toBe(thumbnail);
+    expect(model.dispatch).toHaveBeenCalledWith({
+        type: "navigate",
+        workspaceId: model.activeId,
+        direction: 1,
+    });
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.tabIndex).toBe(-1);
+    expect(panel.classList.contains("focus-visible:ring-2")).toBe(false);
+});
+
+it("lets the operator dismiss an application error", () => {
+    const model = controller();
+    model.error = "Open the audience explicitly before sending live.";
+    render(<ProjectionDesk controller={model} />);
+    expect(screen.getByRole("alert").textContent).toContain(model.error);
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Dismiss error",
+        })
+    );
+    expect(model.dismissError).toHaveBeenCalledOnce();
+});
 
 it("requests visible history copying through the workspace controller", () => {
     const model = controller();
@@ -258,34 +410,173 @@ it("preserves the menu entry and hands focus to a selected shortcut action", asy
     });
 });
 
-it("keeps verse navigation focus on the thumbnail, outside the workspace panel", () => {
+it("shows current confirmation state without claiming confirmed projection", () => {
     const model = controller();
-    const verse = model.workspaces[0].current;
-    if (!verse) {
-        throw new Error("Missing test verse");
-    }
-    model.workspaces[0].chapterVerses = [verse];
+    model.workspaces[0].status = "live";
+    model.workspaces[0].projectionOutcome = "awaitingConfirmation";
+    const { container, rerender } = render(
+        <ProjectionDesk controller={model} />
+    );
+    expect(screen.queryByText("Audience is live")).toBeNull();
+    expect(screen.queryByText("On audience")).toBeNull();
+    expect(container.querySelector(".stage-dot.status-live")).toBeNull();
+    expect(container.querySelector(".status-live")).toBeNull();
+    expect(screen.getAllByText("Awaiting confirmation").length).toBeGreaterThan(
+        0
+    );
+    model.workspaces[0].projectionOutcome = "unconfirmed";
+    rerender(
+        <ProjectionDesk
+            controller={{
+                ...model,
+            }}
+        />
+    );
+    expect(
+        screen.getAllByText("Unconfirmed projection").length
+    ).toBeGreaterThan(0);
+    model.workspaces[0].projectionOutcome = "projected";
+    rerender(
+        <ProjectionDesk
+            controller={{
+                ...model,
+            }}
+        />
+    );
+    expect(screen.getByText("On audience")).toBeDefined();
+    expect(container.querySelector(".stage-dot.status-live")).toBeTruthy();
+});
+
+it("identifies deleted-edition history by captured title and Saved copy", async () => {
+    const model = controller();
+    const verse = model.workspaces[0].history[0].verse;
+    verse.translation = "deleted";
+    verse.translationTitle = "Original edition title";
     render(<ProjectionDesk controller={model} />);
-    const thumbnail = screen.getByRole("button", {
-        name: "Display John 3:16",
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Search / History",
+        })
+    );
+    fireEvent.mouseDown(
+        screen.getByRole("tab", {
+            name: /History/,
+        }),
+        {
+            button: 0,
+            ctrlKey: false,
+        }
+    );
+    expect(await screen.findByText("Original edition title")).toBeDefined();
+    expect(screen.getByText("Saved copy")).toBeDefined();
+});
+
+it("uses neutral output labels after a cosmetic refresh or without a verse intent", () => {
+    const model = controller();
+    model.workspaces[0].status = "live";
+    model.workspaces[0].projectionOutcome = "projected";
+    const { rerender, container } = render(
+        <ProjectionDesk controller={model} />
+    );
+    expect(screen.getByText("On audience")).toBeDefined();
+    model.workspaces[0].projectionOutcome = undefined;
+    rerender(
+        <ProjectionDesk
+            controller={{
+                ...model,
+            }}
+        />
+    );
+    expect(
+        screen.getAllByText("Audience output requested").length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("Awaiting confirmation")).toBeNull();
+    expect(container.querySelector(".stage-dot.status-live")).toBeNull();
+    expect(container.querySelector(".status-live")).toBeNull();
+    model.workspaces[0].history = [];
+    rerender(
+        <ProjectionDesk
+            controller={{
+                ...model,
+            }}
+        />
+    );
+    expect(
+        screen.getAllByText("Audience output requested").length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("Awaiting confirmation")).toBeNull();
+});
+
+it("shares lookup translation between search and quick reference without changing the display translation", () => {
+    const model = controller();
+    model.translations.push({
+        id: "translation-asv",
+        name: "American Standard Version",
+        shortName: "ASV",
+        bundled: false,
     });
-    thumbnail.focus();
-    fireEvent.click(thumbnail);
-    fireEvent.keyDown(thumbnail, {
-        key: "ArrowRight",
-        code: "ArrowRight",
+    const rendered = render(<ProjectionDesk controller={model} />);
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Search / History",
+        })
+    );
+    fireEvent.keyDown(
+        screen.getByRole("combobox", {
+            name: "Find in",
+        }),
+        {
+            key: "ArrowDown",
+        }
+    );
+    fireEvent.click(
+        screen.getByRole("option", {
+            name: "American Standard Version",
+        })
+    );
+    expect(model.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "changeSearchTranslation",
+        workspaceId: "workspace-a",
+        translationId: "translation-asv",
     });
-    fireEvent.keyUp(thumbnail, {
-        key: "ArrowRight",
-        code: "ArrowRight",
+    rendered.rerender(
+        <ProjectionDesk
+            controller={{
+                ...model,
+                workspaces: [
+                    {
+                        ...model.workspaces[0],
+                        translation: "translation-asv",
+                    },
+                ],
+            }}
+        />
+    );
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Close search and history",
+        })
+    );
+    expect(
+        screen.getByRole("combobox", {
+            name: "Lookup translation",
+        }).textContent
+    ).toContain("Find in ASV");
+    const display = screen.getByRole("combobox", {
+        name: "Change current verse translation",
     });
-    expect(document.activeElement).toBe(thumbnail);
-    expect(model.dispatch).toHaveBeenCalledWith({
-        type: "navigate",
-        workspaceId: model.activeId,
-        direction: 1,
+    expect(display.textContent).toContain("WEB");
+    fireEvent.keyDown(display, {
+        key: "ArrowDown",
     });
-    const panel = screen.getByRole("tabpanel");
-    expect(panel.tabIndex).toBe(-1);
-    expect(panel.classList.contains("focus-visible:ring-2")).toBe(false);
+    fireEvent.click(
+        screen.getByRole("option", {
+            name: "ASV",
+        })
+    );
+    expect(model.dispatch).toHaveBeenLastCalledWith({
+        type: "changeCurrentTranslation",
+        workspaceId: "workspace-a",
+        translationId: "translation-asv",
+    });
 });

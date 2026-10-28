@@ -22,12 +22,18 @@ afterEach(() => {
 // biome-ignore lint/style/useComponentExportOnlyModules: Private stateful harness for the controlled editor.
 function Editor({
     initial = defaultAppearance().bands,
+    currentLength = 173,
 }: {
     initial?: Appearance["bands"];
+    currentLength?: number | null;
 }) {
     const [bands, setBands] = useState(initial);
     return (
-        <SizeBandEditor bands={bands} currentLength={173} onChange={setBands} />
+        <SizeBandEditor
+            bands={bands}
+            currentLength={currentLength}
+            onChange={setBands}
+        />
     );
 }
 
@@ -88,8 +94,13 @@ it("covers every verse length with reference sizes, including the omitted range 
 it("shows the current length and keeps edited boundaries contiguous without losing input focus", () => {
     render(<Editor />);
     expect(
-        screen.getByText("Current verse length: 173 characters")
+        screen.getByText(
+            "Current verse: 173 characters · 151–200 character range."
+        )
     ).toBeTruthy();
+    fireEvent.click(
+        screen.getByText("Advanced sizing", { selector: "summary" })
+    );
     const boundary = screen.getByRole("spinbutton", {
         name: "Maximum characters for size band 1",
     });
@@ -124,6 +135,9 @@ it("preserves a saved custom profile until the operator resets bands", () => {
             ]}
         />
     );
+    fireEvent.click(
+        screen.getByText("Advanced sizing", { selector: "summary" })
+    );
     expect(screen.getAllByRole("spinbutton")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
     expect(screen.getAllByRole("spinbutton")).toHaveLength(25);
@@ -134,4 +148,55 @@ it("preserves a saved custom profile until the operator resets bands", () => {
             }) as HTMLInputElement
         ).value
     ).toBe("59");
+});
+
+it("offers current verse sizing before revealing the complete profile", () => {
+    render(<Editor />);
+    const advanced = screen
+        .getByText("Advanced sizing", { selector: "summary" })
+        .closest("details") as HTMLDetailsElement;
+    expect(advanced.open).toBe(false);
+    expect(screen.getByText("59 px")).toBeTruthy();
+    const slider = screen.getByRole("slider", {
+        name: "Current verse size",
+    });
+    expect(
+        document.getElementById(slider.getAttribute("aria-describedby") ?? "")
+            ?.textContent
+    ).toBe("Current verse: 173 characters · 151–200 character range.");
+    slider.focus();
+    fireEvent.keyDown(slider, {
+        key: "ArrowRight",
+    });
+    expect(screen.getByText("60 px")).toBeTruthy();
+    expect(slider.getAttribute("aria-valuenow")).toBe("60");
+    fireEvent.click(
+        screen.getByText("Advanced sizing", { selector: "summary" })
+    );
+    expect(advanced.open).toBe(true);
+    const currentRange = screen.getByRole("spinbutton", {
+        name: "Font size for 151 to 200 characters",
+    }) as HTMLInputElement;
+    expect(currentRange.value).toBe("60");
+    fireEvent.change(currentRange, {
+        target: {
+            value: "43",
+        },
+    });
+    expect(screen.getByText("43 px")).toBeTruthy();
+    expect(slider.getAttribute("aria-valuenow")).toBe("43");
+});
+
+it("explains how to configure sizes without a selected verse", () => {
+    render(<Editor currentLength={null} />);
+    expect(screen.getByText("No verse selected")).toBeTruthy();
+    expect(
+        screen.getByText(
+            "Select a verse to adjust its size. Use Advanced sizing to edit all ranges."
+        )
+    ).toBeTruthy();
+    fireEvent.click(
+        screen.getByText("Advanced sizing", { selector: "summary" })
+    );
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(25);
 });

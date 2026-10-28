@@ -6,6 +6,7 @@ import {
     EyeOff,
     Info,
     ListFilter,
+    LogOut,
     Monitor,
     Plus,
     Search,
@@ -14,6 +15,7 @@ import {
     X,
 } from "lucide-react";
 import { useRef } from "react";
+import { isDesktopHost, requestQuitConfirmation } from "@/bridge/client";
 import {
     Command,
     CommandEmpty,
@@ -48,7 +50,8 @@ export function ShortcutsDialog() {
         referenceInput,
         reference,
         submitReference,
-        sendLive,
+        canSendPreview,
+        sendPreview,
         navigate,
         toggleBlank,
         isInstalled,
@@ -105,10 +108,12 @@ export function ShortcutsDialog() {
                     label: "Send preview / quick reference live",
                     hotkey: "Mod+Enter",
                     icon: Send,
-                    disabled: !workspace.preview && !reference.trim(),
+                    disabled: workspace.preview
+                        ? !canSendPreview
+                        : !reference.trim(),
                     run: () =>
                         workspace.preview
-                            ? sendLive(workspace.preview)
+                            ? sendPreview()
                             : submitReference(false),
                 },
                 {
@@ -191,6 +196,20 @@ export function ShortcutsDialog() {
                     icon: X,
                     disabled: workspaces.length === 1,
                     run: () => setRemoveId(activeId),
+                },
+            ],
+        },
+        {
+            heading: "Application",
+            items: [
+                {
+                    label: "Quit Lumina (hold or press twice)",
+                    hotkey: "Mod+Q",
+                    icon: LogOut,
+                    disabled: !isDesktopHost,
+                    run: () => {
+                        void requestQuitConfirmation();
+                    },
                 },
             ],
         },

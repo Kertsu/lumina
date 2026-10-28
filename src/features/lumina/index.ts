@@ -33,3 +33,5 @@ export const OperatorDesk = {
     Status: DeskStatus,
     Dialogs: DeskDialogs,
 };
+export { AudienceReceiver } from "./audience-receiver";
+export { IntegratedOperator } from "./integrated-operator";

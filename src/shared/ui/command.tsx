@@ -24,7 +24,10 @@ export function CommandInput({
     ...props
 }: ComponentProps<typeof CommandPrimitive.Input>) {
     return (
-        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 pr-12">
+        <div
+            data-slot="command-input-wrap"
+            className="flex shrink-0 items-center gap-3 border-b border-border px-4 pr-12"
+        >
             <Search
                 aria-hidden="true"
                 className="size-4 shrink-0 text-muted-foreground"

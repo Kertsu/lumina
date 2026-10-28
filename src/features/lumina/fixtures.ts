@@ -30,6 +30,9 @@ export type Translation = {
 
 export type BookMetadata = {
     name: string;
+    translationTitle?: string;
+    sourceUrl?: string;
+    rightsNotice?: string;
     author?: string;
     date?: string;
     location?: string;
