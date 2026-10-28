@@ -12,6 +12,8 @@ allowed-duplicate-crates = [
   "jni-sys",
   "png",
   "proc-macro-crate",
+  # rfd Wayland scanner and Tauri plist require different quick-xml series.
+  "quick-xml",
   "schemars",
   "serde_spanned",
   "syn",

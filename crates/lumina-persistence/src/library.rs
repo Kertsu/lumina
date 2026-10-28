@@ -174,7 +174,18 @@ pub(crate) fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<Stor
     [],
     |row| row.get(0).map(WorkspaceId),
   )?;
+  let application_theme = transaction.query_row(
+    "SELECT application_theme FROM application_settings WHERE singleton=1",
+    [],
+    |row| match row.get::<_, String>(0)?.as_str() {
+      "system" => Ok(lumina_app::ApplicationTheme::System),
+      "light" => Ok(lumina_app::ApplicationTheme::Light),
+      "dark" => Ok(lumina_app::ApplicationTheme::Dark),
+      _ => Err(rusqlite::Error::InvalidQuery),
+    },
+  )?;
   Ok(StoredState {
+    application_theme,
     translations,
     workspaces,
     active_workspace_id,

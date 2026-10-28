@@ -6,6 +6,8 @@ pub(crate) fn registration() -> tauri_specta::Builder<tauri::Wry> {
       super::greet,
       super::get_application_state,
       super::resolve_reference,
+      super::commands::quit_application,
+      super::commands::request_quit_confirmation,
       super::commands::open_audience,
       super::commands::audience_state,
       super::commands::acknowledge_audience,
@@ -44,7 +46,15 @@ pub(crate) fn registration() -> tauri_specta::Builder<tauri::Wry> {
       super::commands::list_books,
       super::commands::chapter_verses,
       super::commands::pick_bible_import,
-      super::commands::save_history
+      super::commands::save_history,
+      super::commands::library_revision,
+      super::commands::set_information_mode,
+      super::commands::import_background,
+      super::commands::builtin_background,
+      super::commands::import_background_data,
+      super::commands::read_asset_uri,
+      super::commands::navigation_state,
+      super::commands::set_application_theme
     ])
     .events(tauri_specta::collect_events![
       super::native::AudienceUpdated,

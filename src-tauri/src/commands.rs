@@ -4,7 +4,14 @@ use crate::{
   native::{ApplicationChanged, AudienceAdapter, NativeWindows},
   runtime::{DesktopApplication, DesktopRuntime, RuntimeError},
 };
-use lumina_app::*;
+use lumina_app::{
+  Appearance, AppearanceState, ApplicationFailure, AssetData, AudienceAcknowledgment,
+  AudienceOutput, AudienceOwner, BookInformation, EditionId, HistoryEntry, ImportResult,
+  ImportReview, ManagedAsset, NavigationDirection, NavigationState, OperationError,
+  PreviewCandidate, PreviewOrigin, ReferenceInputRequest, ReferenceInputResult, ResolvedVerse,
+  SearchRequest, SearchResult, TranslationId, VerseActionKind, VerseActionResult, VerseCoordinate,
+  WorkspaceId,
+};
 use tauri::{AppHandle, WebviewWindow};
 use tauri_specta::Event;
 
@@ -16,6 +23,37 @@ fn operator(window: &WebviewWindow) -> Result<(), ApplicationFailure> {
       message: "This operation requires the operator window.".into(),
     })
   }
+}
+
+/// Called only after the operator's quit shortcut has been confirmed.
+#[allow(clippy::needless_pass_by_value, reason = "Tauri injects owned command arguments")]
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn quit_application(
+  window: WebviewWindow,
+  app: AppHandle,
+) -> Result<(), ApplicationFailure> {
+  operator(&window)?;
+  app.exit(0);
+  Ok(())
+}
+
+/// Audience keyboard shortcuts request an operator-side native confirmation.
+#[allow(clippy::needless_pass_by_value, reason = "Tauri injects owned command arguments")]
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn request_quit_confirmation(
+  window: WebviewWindow,
+  app: AppHandle,
+  windows: tauri::State<'_, NativeWindows>,
+) -> Result<(), ApplicationFailure> {
+  if window.label() != "main" && windows.owner_for_label(window.label()).is_none() {
+    return Err(ApplicationFailure::Internal {
+      message: "This window cannot request application quit.".into(),
+    });
+  }
+  crate::quit::request_confirmation(&app);
+  Ok(())
 }
 
 fn failure(error: &RuntimeError) -> ApplicationFailure {
@@ -118,20 +156,20 @@ pub(crate) async fn acknowledge_audience(
     windows.owner_for_label(window.label()).ok_or_else(|| ApplicationFailure::Internal {
       message: "Only the owned audience can acknowledge its output.".into(),
     })?;
-  runtime
+  let result = runtime
     .call(move |application| {
       application
         .acknowledge(&owner.instance_id, acknowledgment)
         .map(|_| ())
         .map_err(RuntimeError::Application)
     })
-    .await
-    .map_err(|error| failure(&error))?;
+    .await;
+  // A failed outcome write leaves a typed runtime notice for the operator.
   let _ = (ApplicationChanged {
     workspace_id: None,
   })
   .emit_to(&app, "main");
-  Ok(())
+  result.map_err(|error| failure(&error))
 }
 
 #[tauri::command]
@@ -189,7 +227,7 @@ pub(crate) async fn add_workspace(
   name: Option<String>,
 ) -> Result<WorkspaceId, ApplicationFailure> {
   operation(window, app, &runtime, &windows, move |application, _native| {
-    application.add_workspace(name)
+    application.add_workspace(name).map(|workspace| workspace.workspace_id)
   })
   .await
 }
@@ -204,8 +242,8 @@ pub(crate) async fn rename_workspace(
   workspace_id: WorkspaceId,
   name: String,
 ) -> Result<(), ApplicationFailure> {
-  operation(window, app, &runtime, &windows, move |application, _native| {
-    application.rename_workspace(&workspace_id, name)
+  operation(window, app, &runtime, &windows, move |application, native| {
+    application.rename_workspace(&workspace_id, name, native)
   })
   .await
 }
@@ -427,7 +465,7 @@ pub(crate) async fn copy_history(
   action_id: String,
 ) -> Result<String, ApplicationFailure> {
   query(window, app, &runtime, &windows, move |application, _native| {
-    application.copy_history(&workspace_id, &action_id)
+    application.copy_history(&workspace_id, &action_id).map_err(OperationError::Rejected)
   })
   .await
 }
@@ -443,7 +481,7 @@ pub(crate) async fn export_history(
   action_ids: Vec<String>,
 ) -> Result<String, ApplicationFailure> {
   query(window, app, &runtime, &windows, move |application, _native| {
-    application.export_history(&workspace_id, action_ids)
+    application.export_history(&workspace_id, action_ids).map_err(OperationError::Rejected)
   })
   .await
 }
@@ -474,8 +512,9 @@ pub(crate) async fn apply_appearance(
   workspace_id: WorkspaceId,
   appearance: Appearance,
 ) -> Result<(), ApplicationFailure> {
-  operation(window, app, &runtime, &windows, move |application, _native| {
-    application.apply_appearance(&workspace_id, appearance)
+  operation(window, app, &runtime, &windows, move |application, native| {
+    application.apply_appearance(&workspace_id, appearance)?;
+    application.refresh_audience(&workspace_id, native)
   })
   .await
 }
@@ -490,7 +529,7 @@ pub(crate) async fn appearance_state(
   workspace_id: WorkspaceId,
 ) -> Result<AppearanceState, ApplicationFailure> {
   query(window, app, &runtime, &windows, move |application, _native| {
-    application.appearance_state(&workspace_id)
+    application.appearance_state(&workspace_id).map_err(OperationError::Rejected)
   })
   .await
 }
@@ -533,14 +572,20 @@ pub(crate) async fn review_import(
   path: String,
 ) -> Result<ImportReview, ApplicationFailure> {
   operator(&window)?;
-  let staged = tauri::async_runtime::spawn_blocking(move || lumina_persistence::stage_import(&path))
-    .await.map_err(|error| ApplicationFailure::Internal {
-      message: format!("Could not review the Bible file: {error}"),
-    })?.map_err(|error| {
-      crate::report_error("import review", &error);
-      error.public_failure()
-    })?;
-  query(window, app, &runtime, &windows, move |application, _native| application.register_import(staged)).await
+  let staged =
+    tauri::async_runtime::spawn_blocking(move || lumina_persistence::stage_import(&path))
+      .await
+      .map_err(|error| ApplicationFailure::Internal {
+        message: format!("Could not review the Bible file: {error}"),
+      })?
+      .map_err(|error| {
+        crate::report_error("import review", &error);
+        error.public_failure()
+      })?;
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.register_import(staged)
+  })
+  .await
 }
 
 #[tauri::command]
@@ -731,7 +776,10 @@ pub(crate) async fn save_history(
   operator(&window)?;
   let csv = runtime
     .call(move |application| {
-      application.export_history(&workspace_id, action_ids).map_err(RuntimeError::Application)
+      application
+        .export_history(&workspace_id, action_ids)
+        .map_err(OperationError::Rejected)
+        .map_err(RuntimeError::Application)
     })
     .await
     .map_err(|error| failure(&error))?;
@@ -748,4 +796,185 @@ pub(crate) async fn save_history(
     message: format!("Could not export history: {error}"),
   })?;
   Ok(Some(file.path().to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn library_revision(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+) -> Result<u32, ApplicationFailure> {
+  query(window, app, &runtime, &windows, move |application, _native| application.library_revision())
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn set_information_mode(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  workspace_id: WorkspaceId,
+  enabled: bool,
+  book_number: Option<i32>,
+) -> Result<(), ApplicationFailure> {
+  operation(window, app, &runtime, &windows, move |application, native| {
+    application
+      .set_information_mode(&workspace_id, enabled, book_number, now_ms(), native)
+      .map(|_| ())
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn import_background(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+) -> Result<Option<ManagedAsset>, ApplicationFailure> {
+  operator(&window)?;
+  let Some(file) = rfd::AsyncFileDialog::new()
+    .set_title("Choose audience background")
+    .add_filter("Still image", &["jpg", "jpeg", "png", "bmp"])
+    .pick_file()
+    .await
+  else {
+    return Ok(None);
+  };
+  let path = file.path().to_string_lossy().into_owned();
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.import_background_asset(path)
+  })
+  .await
+  .map(Some)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn builtin_background(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  name: String,
+) -> Result<ManagedAsset, ApplicationFailure> {
+  let bytes: &[u8] = match name.as_str() {
+    "mountains" => include_bytes!("../../public/backgrounds/mountains.jpg"),
+    "forest" => include_bytes!("../../public/backgrounds/forest.jpg"),
+    _ => {
+      return Err(ApplicationFailure::AssetRejected {
+        message: "The background is unavailable.".into(),
+        data: AssetData {
+          asset_id: None,
+          reason: "unknown builtin".into(),
+        },
+      })
+    }
+  };
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.import_background_bytes(bytes.to_vec())
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn import_background_data(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  data_url: String,
+) -> Result<ManagedAsset, ApplicationFailure> {
+  use base64::Engine;
+  operator(&window)?;
+  let invalid = || ApplicationFailure::AssetRejected {
+    message: "Choose a JPEG, PNG or BMP image up to 20 MiB.".into(),
+    data: AssetData {
+      asset_id: None,
+      reason: "invalid image data".into(),
+    },
+  };
+  if data_url.len() > 28_000_000 {
+    return Err(invalid());
+  }
+  let (header, body) = data_url.split_once(',').ok_or_else(invalid)?;
+  if !header.starts_with("data:image/") || !header.ends_with(";base64") {
+    return Err(invalid());
+  }
+  let bytes = base64::engine::general_purpose::STANDARD.decode(body).map_err(|_| invalid())?;
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.import_background_bytes(bytes)
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn read_asset_uri(
+  window: WebviewWindow,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  asset_id: String,
+) -> Result<String, ApplicationFailure> {
+  use base64::Engine;
+  if window.label() != "main" && windows.owner_for_label(window.label()).is_none() {
+    return Err(ApplicationFailure::Internal {
+      message: "The audience instance is unavailable.".into(),
+    });
+  }
+  let data = runtime
+    .call(move |application| {
+      application.managed_asset(&asset_id).map_err(RuntimeError::Application)
+    })
+    .await
+    .map_err(|error| failure(&error))?;
+  Ok(format!(
+    "data:{};base64,{}",
+    data.asset.mime_type,
+    base64::engine::general_purpose::STANDARD.encode(data.bytes)
+  ))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn navigation_state(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  workspace_id: WorkspaceId,
+) -> Result<NavigationState, ApplicationFailure> {
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.navigation_state(&workspace_id)
+  })
+  .await
+}
+
+/// Shared confirmed palette preference; every window reads the same accepted state.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn set_application_theme(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  theme: lumina_app::ApplicationTheme,
+) -> Result<(), ApplicationFailure> {
+  operator(&window)?;
+  runtime
+    .call(move |application| {
+      application.set_application_theme(theme).map_err(RuntimeError::Application)
+    })
+    .await
+    .map_err(|error| failure(&error))?;
+  let _ = (ApplicationChanged {
+    workspace_id: None,
+  })
+  .emit(&app);
+  Ok(())
 }

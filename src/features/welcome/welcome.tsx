@@ -23,6 +23,8 @@ function failureLabel(failure: ApplicationFailure): string {
             return "Application error";
         case "INVOCATION_FAILED":
             return "Connection error";
+        default:
+            return "Application error";
     }
 }
 

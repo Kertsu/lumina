@@ -8,6 +8,7 @@ pub use imports::stage_import;
 mod migrations;
 mod references;
 mod search;
+mod settings;
 mod workspaces;
 
 use lumina_app::{EditionId, ResolvedVerse, Storage, StoredState, TranslationId, VerseCoordinate};
@@ -27,6 +28,8 @@ pub struct SqliteStorage {
 /// Internal adapter failures retain paths and original causes for diagnostics.
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
+  #[error("could not save application settings")]
+  SettingsSql(#[source] rusqlite::Error),
   #[error("could not read background asset {path}")]
   AssetIo {
     path: PathBuf,

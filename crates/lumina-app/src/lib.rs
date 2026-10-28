@@ -3,6 +3,7 @@
 mod catalog;
 mod failure;
 mod library;
+mod settings;
 mod workflow;
 mod workflow_catalog;
 
@@ -10,6 +11,7 @@ pub use catalog::*;
 pub use failure::*;
 pub use library::*;
 pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};
+pub use settings::*;
 pub use workflow::*;
 pub use workflow_catalog::*;
 
@@ -86,6 +88,8 @@ impl<S: Storage> Application<S> {
       session_id: workflow::session_identity(),
       sequence: 0,
       state: ApplicationSnapshot {
+        projection_failures: Vec::new(),
+        application_theme: stored.application_theme,
         translations: stored.translations,
         active_workspace_id: stored.active_workspace_id,
         workspaces: stored
@@ -195,6 +199,7 @@ mod tests {
     fn initialize(&mut self) -> Result<StoredState, Self::Error> {
       self.0.set(true);
       Ok(StoredState {
+        application_theme: super::ApplicationTheme::System,
         translations: Vec::new(),
         workspaces: Vec::new(),
         active_workspace_id: WorkspaceId("greeting-fixture".into()),

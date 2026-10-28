@@ -42,6 +42,7 @@ impl From<&tauri::Monitor> for MonitorKey {
   }
 }
 
+#[derive(Clone)]
 struct RegisteredAudience {
   owner: AudienceOwner,
   output: Option<AudienceOutput>,
@@ -80,24 +81,44 @@ impl NativeWindows {
       return Vec::new();
     };
     let available: Vec<_> = monitors.iter().map(MonitorKey::from).collect();
-    let Ok(mut audiences) = self.audiences.lock() else {
-      return Vec::new();
+    let entries: Vec<_> = match self.audiences.lock() {
+      Ok(audiences) => {
+        audiences.iter().map(|(label, entry)| (label.clone(), entry.clone())).collect()
+      }
+      Err(_) => return Vec::new(),
     };
-    audiences
-      .iter_mut()
-      .filter_map(|(label, entry)| {
-        if entry.monitor.as_ref().is_some_and(|monitor| !available.contains(monitor)) {
-          return Some(entry.owner.clone());
-        }
-        if let Some(window) = app.get_webview_window(label) {
-          if let Ok(Some(monitor)) = window.current_monitor() {
-            entry.monitor = Some(MonitorKey::from(&monitor));
+    let mut disconnected = Vec::new();
+    for (label, entry) in entries {
+      let present = entry.monitor.as_ref().is_none_or(|previous| {
+        available.iter().any(|current| match (&previous.name, &current.name) {
+          (Some(left), Some(right)) => left == right,
+          _ => previous == current,
+        })
+      });
+      if !present {
+        disconnected.push(entry.owner);
+        continue;
+      }
+      // Never hold the registry mutex across a synchronous native call.
+      if let Some(window) = app.get_webview_window(&label) {
+        if let Ok(Some(monitor)) = window.current_monitor() {
+          if let Ok(mut audiences) = self.audiences.lock() {
+            if let Some(current) = audiences.get_mut(&label) {
+              current.monitor = Some(MonitorKey::from(&monitor));
+            }
           }
         }
-        None
-      })
-      .collect()
+      }
+    }
+    disconnected
   }
+}
+
+/// The native adapter is the diagnostic boundary for capability failures:
+/// report the original typed chain before reducing it to public display text.
+fn diagnostic(error: &dyn std::error::Error) -> String {
+  crate::report_error("native audience", error);
+  error.to_string()
 }
 
 pub(crate) struct AudienceAdapter {
@@ -107,6 +128,10 @@ pub(crate) struct AudienceAdapter {
 
 fn label(owner: &AudienceOwner) -> String {
   format!("audience-{}", owner.instance_id)
+}
+
+fn audience_title(workspace_name: &str) -> String {
+  format!("Lumina · {workspace_name}")
 }
 
 impl AudienceAdapter {
@@ -130,24 +155,29 @@ impl AudienceAdapter {
 }
 
 impl NativeAudience for AudienceAdapter {
-  fn open(&mut self, owner: &AudienceOwner, hide_cursor: bool) -> Result<(), String> {
+  fn open(
+    &mut self,
+    owner: &AudienceOwner,
+    workspace_name: &str,
+    hide_cursor: bool,
+  ) -> Result<(), String> {
     let window_label = label(owner);
     if self.app.get_webview_window(&window_label).is_some() {
       return Err("The audience instance already exists.".into());
     }
     let window =
       WebviewWindowBuilder::new(&self.app, &window_label, WebviewUrl::App("audience".into()))
-        .title("Lumina · Audience")
+        .title(audience_title(workspace_name))
         .inner_size(1280.0, 720.0)
         .visible(false)
         .build()
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| diagnostic(&error))?;
     if let Err(error) = window.set_cursor_visible(!hide_cursor) {
       let _ = window.destroy();
-      return Err(error.to_string());
+      return Err(diagnostic(&error));
     }
     let monitor = window.current_monitor().ok().flatten().as_ref().map(MonitorKey::from);
-    self.windows.audiences.lock().map_err(|error| error.to_string())?.insert(
+    self.windows.audiences.lock().map_err(|error| diagnostic(&error))?.insert(
       window_label.clone(),
       RegisteredAudience {
         owner: owner.clone(),
@@ -158,13 +188,20 @@ impl NativeAudience for AudienceAdapter {
     if let Err(error) = window.show() {
       self.windows.retire(&window_label);
       let _ = window.destroy();
-      return Err(error.to_string());
+      return Err(diagnostic(&error));
     }
     Ok(())
   }
 
+  fn set_name(&mut self, owner: &AudienceOwner, workspace_name: &str) -> Result<(), String> {
+    self
+      .window(owner)?
+      .set_title(&audience_title(workspace_name))
+      .map_err(|error| diagnostic(&error))
+  }
+
   fn close(&mut self, owner: &AudienceOwner) -> Result<(), String> {
-    self.window(owner)?.close().map_err(|error| error.to_string())?;
+    self.window(owner)?.close().map_err(|error| diagnostic(&error))?;
     self.windows.retire(&label(owner));
     Ok(())
   }
@@ -175,7 +212,7 @@ impl NativeAudience for AudienceAdapter {
       .windows
       .audiences
       .lock()
-      .map_err(|error| error.to_string())?
+      .map_err(|error| diagnostic(&error))?
       .get_mut(&label(&output.owner))
       .ok_or_else(|| "Audience closed before delivery.".to_string())?
       .output = Some(output.clone());
@@ -183,18 +220,18 @@ impl NativeAudience for AudienceAdapter {
       output: output.clone(),
     }
     .emit_to(&self.app, window.label())
-    .map_err(|error| error.to_string())
+    .map_err(|error| diagnostic(&error))
   }
 
   fn set_cursor(&mut self, owner: &AudienceOwner, hidden: bool) -> Result<(), String> {
-    self.window(owner)?.set_cursor_visible(!hidden).map_err(|error| error.to_string())
+    self.window(owner)?.set_cursor_visible(!hidden).map_err(|error| diagnostic(&error))
   }
 
   fn set_fullscreen(&mut self, owner: &AudienceOwner, enabled: bool) -> Result<(), String> {
-    self.window(owner)?.set_fullscreen(enabled).map_err(|error| error.to_string())
+    self.window(owner)?.set_fullscreen(enabled).map_err(|error| diagnostic(&error))
   }
 
   fn set_always_on_top(&mut self, owner: &AudienceOwner, enabled: bool) -> Result<(), String> {
-    self.window(owner)?.set_always_on_top(enabled).map_err(|error| error.to_string())
+    self.window(owner)?.set_always_on_top(enabled).map_err(|error| diagnostic(&error))
   }
 }

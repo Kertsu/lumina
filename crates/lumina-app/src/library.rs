@@ -48,6 +48,7 @@ pub struct StoredWorkspace {
 }
 
 pub struct StoredState {
+  pub application_theme: crate::ApplicationTheme,
   pub translations: Vec<Translation>,
   pub workspaces: Vec<StoredWorkspace>,
   pub active_workspace_id: WorkspaceId,
@@ -56,6 +57,9 @@ pub struct StoredState {
 #[derive(Clone, Debug, PartialEq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationSnapshot {
+  pub application_theme: crate::ApplicationTheme,
+  /// Runtime-only notices survive refreshes when a rendered confirmation cannot be saved.
+  pub projection_failures: Vec<crate::ProjectionConfirmationFailure>,
   pub translations: Vec<Translation>,
   pub workspaces: Vec<Workspace>,
   pub active_workspace_id: WorkspaceId,

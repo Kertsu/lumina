@@ -1,6 +1,7 @@
 mod bindings;
 mod commands;
 mod native;
+mod quit;
 mod runtime;
 
 use lumina_app::{
@@ -62,12 +63,26 @@ async fn resolve_reference(
 pub fn run() -> tauri::Result<()> {
   let bindings = bindings::registration();
   tauri::Builder::default()
+    .manage(quit::QuitPrompt::default())
+    .menu(quit::menu)
+    .on_menu_event(|app, event| {
+      if event.id().as_ref() == quit::QUIT_MENU_ID {
+        quit::request_confirmation(app);
+      }
+    })
     .plugin(tauri_plugin_opener::init())
     .invoke_handler(bindings.invoke_handler())
     .on_window_event(|window, event| {
-      if window.label() == "main" && matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
-        window.app_handle().exit(0);
-        return;
+      if window.label() == "main" {
+        if let tauri::WindowEvent::CloseRequested {
+          api,
+          ..
+        } = event
+        {
+          api.prevent_close();
+          quit::request_confirmation(window.app_handle());
+          return;
+        }
       }
       if matches!(event, tauri::WindowEvent::Destroyed) && window.label() != "main" {
         let windows = window.state::<native::NativeWindows>();
@@ -161,16 +176,18 @@ fn start_runtime_notifications(
         .call(move |application| {
           let mut changed = false;
           for owner in disconnected {
-            application
-              .close_audience(&owner.workspace_id, &mut native)
-              .map_err(runtime::RuntimeError::Application)?;
+            if let Err(error) = application.close_audience(&owner.workspace_id, &mut native) {
+              report_error("display loss", &error);
+              application.audience_closed(&owner.instance_id);
+            }
             changed = true;
           }
-          let before = application.snapshot().clone();
-          application
-            .expire_projections(commands::now_ms())
-            .map_err(runtime::RuntimeError::Application)?;
-          Ok(changed || before != *application.snapshot())
+          Ok(
+            application
+              .expire_projections(commands::now_ms())
+              .map_err(runtime::RuntimeError::Application)?
+              || changed,
+          )
         })
         .await;
       match result {

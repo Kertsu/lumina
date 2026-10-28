@@ -19,10 +19,20 @@ pub(crate) fn session_identity() -> String {
 
 /// Adapter results mean only whether the native request was accepted, not whether
 /// a receiver applied content. Once dispatch is called, errors remain uncertain.
+/// Adapters report concrete source chains at their diagnostic boundary before
+/// returning human-readable failure text through this capability.
 pub trait NativeAudience {
   /// # Errors
   /// Returns native creation diagnostics without attaching an audience.
-  fn open(&mut self, owner: &AudienceOwner, hide_cursor: bool) -> Result<(), String>;
+  fn open(
+    &mut self,
+    owner: &AudienceOwner,
+    workspace_name: &str,
+    hide_cursor: bool,
+  ) -> Result<(), String>;
+  /// # Errors
+  /// Returns native title diagnostics without changing ownership or output.
+  fn set_name(&mut self, owner: &AudienceOwner, workspace_name: &str) -> Result<(), String>;
   /// # Errors
   /// Returns native closure diagnostics without retiring its owner.
   fn close(&mut self, owner: &AudienceOwner) -> Result<(), String>;
@@ -140,6 +150,15 @@ pub struct AudienceAcknowledgment {
   pub session_id: String,
   pub action_id: String,
   pub revision: u32,
+}
+
+/// A receiver applied this exact output, but durable history confirmation failed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectionConfirmationFailure {
+  pub owner: AudienceOwner,
+  pub acknowledgment: AudienceAcknowledgment,
+  pub failure: ApplicationFailure,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -347,7 +366,11 @@ impl<S: Storage> Application<S> {
       instance_id: self.identity("audience"),
     };
     native
-      .open(&owner, self.state.workspaces[index].settings.hide_cursor)
+      .open(
+        &owner,
+        &self.state.workspaces[index].settings.name,
+        self.state.workspaces[index].settings.hide_cursor,
+      )
       .map_err(|message| native_failure(id, "openAudience", message))?;
     let workspace = &mut self.state.workspaces[index];
     workspace.owner = Some(owner.clone());
@@ -755,6 +778,9 @@ impl<S: WorkspaceStorage> Application<S> {
       return Ok(false);
     };
     let mut proposal = self.state.workspaces.clone();
+    let Some(owner) = proposal[index].owner.clone() else {
+      return Ok(false);
+    };
     let Some(entry) = proposal[index].history.iter_mut().find(|entry| {
       entry.action_id == acknowledgment.action_id
         && entry.revision == acknowledgment.revision
@@ -769,7 +795,27 @@ impl<S: WorkspaceStorage> Application<S> {
     }
     entry.outcome = ProjectionOutcome::Projected;
     let active = self.state.active_workspace_id.clone();
-    self.persist_proposal(&proposal, &active)?;
+    if let Err(source) = self.storage.save_workflow_state(&Self::durable(&proposal), &active) {
+      let error = OperationError::StorageAfterConfirmation {
+        workspace_id: proposal[index].workspace_id.clone(),
+        action_id: acknowledgment.action_id.clone(),
+        source: Box::new(source),
+      };
+      self
+        .state
+        .projection_failures
+        .retain(|notice| notice.acknowledgment.action_id != acknowledgment.action_id);
+      self.state.projection_failures.push(ProjectionConfirmationFailure {
+        owner,
+        acknowledgment,
+        failure: error.public_failure(),
+      });
+      return Err(error);
+    }
+    self
+      .state
+      .projection_failures
+      .retain(|notice| notice.acknowledgment.action_id != acknowledgment.action_id);
     self.state.workspaces = proposal;
     Ok(true)
   }
@@ -910,11 +956,13 @@ impl<S: WorkspaceStorage> Application<S> {
   }
 
   /// # Errors
-  /// Returns invalid naming, missing ownership or atomic storage failure.
+  /// Returns invalid naming, a missing workspace or atomic storage failure.
+  /// A native title failure retains the accepted, persisted workspace name.
   pub fn rename_workspace(
     &mut self,
     id: &WorkspaceId,
     name: String,
+    native: &mut impl NativeAudience,
   ) -> Result<(), OperationError<S::Error>> {
     validate_name(id, &name)?;
     let index = self.workspace_index(id)?;
@@ -923,6 +971,18 @@ impl<S: WorkspaceStorage> Application<S> {
     let active = self.state.active_workspace_id.clone();
     self.persist_proposal(&proposal, &active)?;
     self.state.workspaces = proposal;
+    let workspace = &self.state.workspaces[index];
+    if let Some(owner) = &workspace.owner {
+      native.set_name(owner, &workspace.settings.name).map_err(|message| {
+        native_failure(
+          id,
+          "renameWorkspace",
+          format!(
+            "Workspace renamed, but its audience window title could not be updated: {message}"
+          ),
+        )
+      })?;
+    }
     Ok(())
   }
 
@@ -993,6 +1053,7 @@ impl<S: WorkspaceStorage> Application<S> {
     self.persist_proposal(&proposal, &active)?;
     self.state.workspaces = proposal;
     self.state.active_workspace_id = active;
+    self.state.projection_failures.retain(|notice| notice.owner.workspace_id != *id);
     Ok(())
   }
 
@@ -1155,6 +1216,7 @@ impl<S: WorkspaceStorage> Application<S> {
     let active = self.state.active_workspace_id.clone();
     self.persist_proposal(&proposal, &active)?;
     self.state.workspaces = proposal;
+    self.state.projection_failures.retain(|notice| notice.owner.workspace_id != *id);
     Ok(())
   }
 

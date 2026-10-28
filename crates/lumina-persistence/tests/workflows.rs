@@ -7,9 +7,16 @@ use lumina_persistence::SqliteStorage;
 #[derive(Default)]
 struct Audience {
   outputs: Vec<AudienceOutput>,
+  opened: Vec<(AudienceOwner, String)>,
+  renamed: Vec<(AudienceOwner, String)>,
 }
 impl NativeAudience for Audience {
-  fn open(&mut self, _: &AudienceOwner, _: bool) -> Result<(), String> {
+  fn open(&mut self, owner: &AudienceOwner, name: &str, _: bool) -> Result<(), String> {
+    self.opened.push((owner.clone(), name.into()));
+    Ok(())
+  }
+  fn set_name(&mut self, owner: &AudienceOwner, name: &str) -> Result<(), String> {
+    self.renamed.push((owner.clone(), name.into()));
     Ok(())
   }
   fn close(&mut self, _: &AudienceOwner) -> Result<(), String> {
@@ -69,6 +76,101 @@ fn closed_output_rejects_send_and_open_starts_blank() -> Result<(), Box<dyn std:
     application.snapshot().workspaces[0].current_verse.as_ref().map(|v| v.coordinate.verse),
     Some(16)
   );
+  Ok(())
+}
+
+#[test]
+fn audience_names_follow_their_workspace_without_changing_output(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("names.sqlite"))?)?;
+  app.restore_workflows()?;
+  let first = app.snapshot().active_workspace_id.clone();
+  let mut native = Audience::default();
+  app.rename_workspace(&first, "North hall".into(), &mut native)?;
+  assert!(native.renamed.is_empty());
+  let first_owner = app.open_audience(&first, &mut native)?;
+  let second = app.add_workspace(Some("Balcony".into()))?.workspace_id;
+  let second_owner = app.open_audience(&second, &mut native)?;
+  assert_eq!(
+    native.opened,
+    vec![(first_owner.clone(), "North hall".into()), (second_owner, "Balcony".into())]
+  );
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: first.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  app.send_verse(&first, verse, VerseActionKind::SendLive, true, 100.0, &mut native)?;
+  let output = app.current_audience_output(&first_owner.instance_id);
+  let history = app.history(&first, false)?;
+  let deliveries = native.outputs.len();
+
+  app.rename_workspace(&first, "Main hall".into(), &mut native)?;
+  assert_eq!(native.renamed, vec![(first_owner.clone(), "Main hall".into())]);
+  assert_eq!(app.current_audience_output(&first_owner.instance_id), output);
+  assert_eq!(app.history(&first, false)?, history);
+  assert_eq!(native.outputs.len(), deliveries);
+  assert_eq!(app.snapshot().workspaces[1].settings.name, "Balcony");
+
+  app.close_audience(&first, &mut native)?;
+  app.rename_workspace(&first, "South hall".into(), &mut native)?;
+  assert_eq!(native.renamed.len(), 1);
+  let reopened = app.open_audience(&first, &mut native)?;
+  assert_ne!(reopened.instance_id, first_owner.instance_id);
+  assert_eq!(native.opened.last(), Some(&(reopened, "South hall".into())));
+  Ok(())
+}
+
+#[test]
+fn workspace_rename_distinguishes_storage_rejection_from_native_title_failure(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("rename-failure.sqlite");
+  let fail = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+  let mut app = Application::start(FaultStorage {
+    storage: SqliteStorage::open(&path)?,
+    fail: fail.clone(),
+  })?;
+  app.restore_workflows()?;
+  let first = app.snapshot().active_workspace_id.clone();
+  let original_name = app.snapshot().workspaces[0].settings.name.clone();
+  let mut native = FaultAudience::default();
+  let owner = app.open_audience(&first, &mut native)?;
+  let output = app.current_audience_output(&owner.instance_id);
+  fail.store(true, std::sync::atomic::Ordering::SeqCst);
+  assert!(matches!(
+    app.rename_workspace(&first, "Unsaved".into(), &mut native),
+    Err(lumina_app::OperationError::Storage(_))
+  ));
+  assert_eq!(app.snapshot().workspaces[0].settings.name, original_name);
+  assert!(native.inner.renamed.is_empty());
+
+  fail.store(false, std::sync::atomic::Ordering::SeqCst);
+  native.fault = Some(NativeFault::Title);
+  let Err(error) = app.rename_workspace(&first, "Main hall".into(), &mut native) else {
+    return Err("native title update should fail".into());
+  };
+  assert!(matches!(
+    error.public_failure(),
+    lumina_app::ApplicationFailure::NativeOperationFailed { message, data }
+      if data.operation == "renameWorkspace" && message.starts_with("Workspace renamed, but")
+  ));
+  assert_eq!(app.snapshot().workspaces[0].settings.name, "Main hall");
+  assert_eq!(app.current_audience_output(&owner.instance_id), output);
+
+  native.fault = None;
+  app.rename_workspace(&first, "Main hall".into(), &mut native)?;
+  assert_eq!(native.inner.renamed, vec![(owner, "Main hall".into())]);
+  drop(app);
+  let mut restored = Application::start(SqliteStorage::open(&path)?)?;
+  restored.restore_workflows()?;
+  assert_eq!(restored.snapshot().workspaces[0].settings.name, "Main hall");
   Ok(())
 }
 
@@ -135,7 +237,7 @@ fn twenty_workspaces_restore_order_names_and_active_identity_with_closed_audienc
     application.add_workspace(Some(format!("Audience {number}")))?;
   }
   let twentieth = application.snapshot().workspaces[19].workspace_id.clone();
-  application.rename_workspace(&twentieth, "North hall".into())?;
+  application.rename_workspace(&twentieth, "North hall".into(), &mut Audience::default())?;
   let mut order = application
     .snapshot()
     .workspaces
@@ -505,12 +607,25 @@ impl lumina_app::WorkspaceStorage for FaultStorage {
   }
 }
 
+impl lumina_app::SettingsStorage for FaultStorage {
+  fn save_application_theme(
+    &mut self,
+    theme: lumina_app::ApplicationTheme,
+  ) -> Result<(), Self::Error> {
+    if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+      return Err(std::io::Error::other("injected preference storage failure"));
+    }
+    self.storage.save_application_theme(theme).map_err(std::io::Error::other)
+  }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum NativeFault {
   Open,
   Close,
   Delivery,
   Preference,
+  Title,
 }
 
 #[derive(Default)]
@@ -520,11 +635,18 @@ struct FaultAudience {
   fail_storage_on_delivery: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 impl NativeAudience for FaultAudience {
-  fn open(&mut self, owner: &AudienceOwner, hidden: bool) -> Result<(), String> {
+  fn open(&mut self, owner: &AudienceOwner, name: &str, hidden: bool) -> Result<(), String> {
     if self.fault == Some(NativeFault::Open) {
       Err("injected creation failure".into())
     } else {
-      self.inner.open(owner, hidden)
+      self.inner.open(owner, name, hidden)
+    }
+  }
+  fn set_name(&mut self, owner: &AudienceOwner, name: &str) -> Result<(), String> {
+    if self.fault == Some(NativeFault::Title) {
+      Err("injected title failure".into())
+    } else {
+      self.inner.set_name(owner, name)
     }
   }
   fn close(&mut self, owner: &AudienceOwner) -> Result<(), String> {
@@ -864,4 +986,74 @@ fn png_fixture_crc(bytes: &[u8]) -> u32 {
     }
   }
   !crc
+}
+
+#[test]
+fn applied_confirmation_storage_failure_retains_typed_identity_for_the_operator(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let fail = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+  let storage = FaultStorage {
+    storage: SqliteStorage::open(&directory.path().join("confirmation.sqlite"))?,
+    fail: fail.clone(),
+  };
+  let mut app = Application::start(storage)?;
+  app.restore_workflows()?;
+  let id = app.snapshot().active_workspace_id.clone();
+  let mut native = Audience::default();
+  let owner = app.open_audience(&id, &mut native)?;
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: id.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  let action = app.send_verse(&id, verse, VerseActionKind::SendLive, true, 1.0, &mut native)?;
+  let acknowledgment = lumina_app::AudienceAcknowledgment {
+    session_id: owner.session_id.clone(),
+    action_id: action.action_id.clone(),
+    revision: native.outputs[1].revision,
+  };
+  fail.store(true, std::sync::atomic::Ordering::SeqCst);
+  let Err(error) = app.acknowledge(&owner.instance_id, acknowledgment.clone()) else {
+    return Err("injected write must fail".into());
+  };
+  assert!(std::error::Error::source(&error).is_some());
+  assert!(
+    matches!(error.public_failure(), lumina_app::ApplicationFailure::ProjectionStorageUncertain { data, .. } if data.workspace_id == id && data.action_id == action.action_id)
+  );
+  assert_eq!(app.snapshot().projection_failures[0].acknowledgment, acknowledgment);
+  assert_eq!(app.snapshot().projection_failures[0].owner, owner);
+  assert_eq!(app.history(&id, true)?.len(), 0);
+  assert_eq!(app.history(&id, false)?[0].outcome, ProjectionOutcome::AwaitingConfirmation);
+  fail.store(false, std::sync::atomic::Ordering::SeqCst);
+  assert!(app.acknowledge(&owner.instance_id, acknowledgment)?);
+  assert!(app.snapshot().projection_failures.is_empty());
+  assert_eq!(app.history(&id, true)?.len(), 1);
+  Ok(())
+}
+
+#[test]
+fn rejected_application_theme_write_keeps_accepted_theme() -> Result<(), Box<dyn std::error::Error>>
+{
+  let directory = tempfile::tempdir()?;
+  let fail = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+  let storage = FaultStorage {
+    storage: SqliteStorage::open(&directory.path().join("settings-failure.sqlite"))?,
+    fail: fail.clone(),
+  };
+  let mut application = Application::start(storage)?;
+  application.restore_workflows()?;
+  application.set_application_theme(lumina_app::ApplicationTheme::Light)?;
+  fail.store(true, std::sync::atomic::Ordering::SeqCst);
+  assert!(matches!(
+    application.set_application_theme(lumina_app::ApplicationTheme::Dark),
+    Err(lumina_app::OperationError::Storage(_))
+  ));
+  assert_eq!(application.snapshot().application_theme, lumina_app::ApplicationTheme::Light);
+  Ok(())
 }

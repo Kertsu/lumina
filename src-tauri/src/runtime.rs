@@ -57,7 +57,7 @@ impl RuntimeError {
 
 enum State {
   Starting,
-  Ready(DesktopApplication),
+  Ready(Box<DesktopApplication>),
   Failed(Arc<StartupError>),
 }
 
@@ -80,7 +80,7 @@ impl DesktopRuntime {
     self
       .blocking(move |state| match build() {
         Ok(application) => {
-          *state = State::Ready(application);
+          *state = State::Ready(Box::new(application));
           Ok(())
         }
         Err(error) => {

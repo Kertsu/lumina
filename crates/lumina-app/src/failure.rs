@@ -193,6 +193,13 @@ pub enum OperationError<E: std::error::Error + 'static> {
   Rejected(#[from] ApplicationFailure),
   #[error("application storage operation failed")]
   Storage(#[source] E),
+  #[error("could not save a rendered audience confirmation")]
+  StorageAfterConfirmation {
+    workspace_id: WorkspaceId,
+    action_id: String,
+    #[source]
+    source: Box<E>,
+  },
   #[error("could not save a projection outcome after delivery may have begun")]
   StorageAfterDelivery {
     workspace_id: WorkspaceId,
@@ -206,6 +213,10 @@ impl<E: std::error::Error + 'static> OperationError<E> {
   pub fn public_failure(&self) -> ApplicationFailure {
     match self {
       Self::Rejected(failure) => failure.clone(),
+      Self::StorageAfterConfirmation { workspace_id, action_id, .. } => ApplicationFailure::ProjectionStorageUncertain {
+        message: "The audience applied this verse, but its history confirmation could not be saved.".into(),
+        data: ProjectionStorageData { workspace_id: workspace_id.clone(), action_id: action_id.clone() },
+      },
       Self::StorageAfterDelivery {workspace_id,action_id,..} => ApplicationFailure::ProjectionStorageUncertain {
         message:"Audience delivery may have occurred, but its durable outcome could not be saved. The selected content is retained.".into(),data:ProjectionStorageData {workspace_id:workspace_id.clone(),action_id:action_id.clone()},
       },
