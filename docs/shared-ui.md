@@ -32,10 +32,22 @@ renaming, moving and closing still pass through the workspace controller.
 The bridge retains one native popup until the next request because GTK returns
 before dismissal. Stable action IDs keep native callback registrations bounded.
 
+`PanelDivider` owns resize capture, temporary selection suppression and collapse
+when the pointer reaches the handle's closed position (zero content width).
+Parents own width and collapsed state through `onResize` and
+`onCollapsedChange`. Collapsing keeps
+the gesture's starting width for expansion. Capture and selection suppression
+end on release, cancellation, lost capture, blur, collapse and unmount.
+
 `DeskStatus` is custom feedback UI. Errors have an explicit dismiss action;
 dismissal hides the current notice without changing its projection outcome.
 New failures remain visible, including a new audience revision with the same
 message.
+
+`DesktopQuitShortcut` composes the desktop quit guard above the router outlet.
+Its centered hint uses the application palette and does not take focus. Native
+operator close requests and the Quit menu use an OS Quit/Cancel dialog. The
+audience requests that dialog instead of rendering quit UI on projected output.
 
 `SizeBandEditor` owns contiguous draft boundaries and font-size editing. It shows
 the current grapheme count and can reset to the reference profile before Apply.
@@ -112,8 +124,40 @@ When editing a palette or copying values from tweakcn, update the color variable
 in both palette token sets. Retain the existing role names and mappings. Keep fonts,
 spacing, radii, shadows, and base rules separate; importing tweakcn's complete
 stylesheet would also replace settings outside the palette. Future palettes
-supply values for these same roles. Theme selection, a registry, and the public
+supply values for these same roles. Additional palettes, a registry, and the public
 import format will be designed with their implementations.
+
+The current default refines the maintainer's 2026-11-01 palette: cool gray light
+surfaces, charcoal dark surfaces and blue primary actions. Three additional
+roles live beside the shadcn set: `live` for red audience-state indicators,
+`success` for green completion icons and `gold` for blank/pending indicators.
+These roles resolve independently in System, Light and
+Dark; status colors do not borrow chart colors. Keep gold out of small text
+in light mode. History labels use foreground text with success-colored icons.
+`search-highlight` and `search-highlight-foreground` pair solid blue/white in
+light mode and gold/dark ink in dark mode. Search matches use 600 weight as
+another visual cue. Warm status colors do not tint the general light chrome.
+
+Cards, dialogs and floating notices use their matching card/popover surfaces.
+Inputs use `input` borders; keyboard focus uses `ring`. Destructive buttons
+use `destructive-foreground`, switches pair the checked thumb with
+`primary-foreground`, and destructive menu focus uses a restrained red tint.
+Theme-picker miniature desks read each mode's palette variables directly;
+they must not copy color literals. Their projected-scene artwork stays separate
+from the application chrome.
+
+`selection` and `selection-hover` are opaque mixes of primary and card at
+10% and 16%; `selection-foreground` supplies their paired text. Workspace tabs,
+current workspace search rows, pressed formatting controls, chapter layout
+controls and the active size band share these roles. Neutral hover remains
+distinct from blue selection. Passive headings, reference labels, informational
+badges and empty-state artwork do not borrow action blue.
+
+The stage indicator and workspace tabs both read `audienceStatus`; closed is
+neutral, blank/pending gold, live red and unconfirmed destructive. The stage
+cannot independently infer a confirmed projection. Shadow ink comes from the
+palette's dark background in either mode, rather than the text foreground.
+The projection card uses its border and surface without a surrounding glow.
 
 The application palette supplies shared defaults for windows importing the global
 stylesheet. Explicit workspace verse colors and translation backgrounds retain
@@ -121,15 +165,11 @@ precedence. Audience windows follow the shared application preference without
 changing those overrides. A missing image uses its captured fallback color or
 the existing visual default.
 
-Check rendered component states after color changes. The palette is adjusted
-around Button's existing hover opacity and focus-ring styles. The sole Button
-change is a fully opaque destructive keyboard-focus border: its stock 40%
-opacity cannot reach 3:1 on the light surfaces through palette values alone.
-This shared focus style applies to every theme; imported palettes retain the same
-color role contract and need contrast review against Lumina's component states.
-Sizes, radii, ring width, and behavior are unchanged. The
-[theme specification](specs/application-theme.md#implementation-evidence)
-records palette adjustments, measured ratios, and browser/native verification.
+Check rendered component states after color changes, including hover composites,
+status icons, switch thumbs and destructive foregrounds. Imported palettes retain
+the same color role contract and need review against Lumina's component states.
+The [theme specification](specs/application-theme.md#implementation-evidence)
+records historical palette adjustments and current verification separately.
 Check new components and color combinations individually; a palette does not
 guarantee contrast for every opacity, image, or pairing.
 

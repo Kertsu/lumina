@@ -194,6 +194,11 @@ verification results.
 
 ## Implementation evidence
 
+The 2026-10-22 palette and verification below are historical. The maintainer's
+2026-11-01 palette in `src/themes/default.css` is now the default. See the
+[current palette verification](#current-palette-verification) for its component
+role changes and checks.
+
 Implemented on 2026-10-22. `src/themes/default.css` defines the paired palette;
 `src/styles.css` imports it and maps all 32 color roles to Tailwind utilities.
 Typography and global base rules remain in `src/styles.css`. Static inspection
@@ -271,3 +276,143 @@ build excludes the temporary review fixture. Existing Welcome tests were also
 run during implementation; no CSS literal-value tests or new dependencies were
 added. Biome does not include CSS in this repo; the Vite build and rendered
 checks provide the stylesheet verification.
+
+## Current palette verification
+
+On 2026-11-01, adopted the maintainer's replacement palette from
+`src/themes/default.css` without changing its supplied values. The default now
+pairs warm light surfaces and charcoal dark surfaces with blue primary actions.
+The 32 shadcn roles remain, with three independent application roles:
+
+| Role | Light | Dark | Usage |
+| --- | --- | --- | --- |
+| live | `#c62828` | `#f2635b` | Live audience indicators |
+| success | `#2e7d4f` | `#5cc08a` | Completion and import-review icons |
+| gold | `#a9751c` | `#e0b25a` | Blank/pending icons and search highlight tint |
+
+`preferences.css` resolves all three roles for System and manual modes.
+`styles.css` exposes their Tailwind mappings. Chart colors no longer define
+application status. Gold remains an icon/highlight color, with foreground text
+for small status labels; the light gold is unsuitable for normal-size text.
+History completion uses a green icon and foreground label, since green text on
+the light sidebar measures only 4.43:1.
+
+Component changes keep palette ownership explicit:
+
+- Cards use `card`; dialogs, workspace search and notices use `popover`.
+- Inputs/outline controls use `input` borders and focus uses `ring`.
+- Destructive buttons use the paired `destructive-foreground`, including dark
+  mode. Destructive menu focus uses a 10% destructive tint to retain contrast.
+- Checked switch thumbs use `primary-foreground`; unchecked thumbs and
+  scrollbars use `muted-foreground` for visible neutral indicators.
+- Theme thumbnails resolve each mode's palette variables directly. Projected
+  verse styling and the thumbnail scene artwork retain their separate colors.
+
+An isolated headless Chromium fixture rendered the actual desk, settings,
+shared controls and menus with the production stylesheet. No native Lumina
+window was launched. The review covered both modes, four component surfaces
+(background/card/popover/sidebar), five Button variants in normal/hover/focus
+states (120 observations), 16 switch states and four destructive-menu focus
+states. Rendered minima:
+
+| Pair | Minimum contrast |
+| --- | --- |
+| Button text, normal/hover | 4.89:1 |
+| Button focus color against adjacent surface | 6.92:1 |
+| Switch thumb against track | 3.88:1 |
+| Destructive focused-menu text | 4.58:1 |
+
+Six mode combinations confirmed System follows emulated appearance and manual
+Light/Dark override it, including live/success/gold. Theme thumbnails rendered
+the same mode-specific values regardless of the surrounding mode. Reviewed
+live/blank tabs, search highlights, history completion and settings screenshots.
+`pnpm check:frontend` passed (123 tests), and `pnpm build:vite` passed. Native
+renderer qualification and arbitrary audience-image contrast are not implied by
+these browser checks. No dependency or CSS-literal tests were added.
+
+### Palette hierarchy refinement
+
+The Impeccable refinement on 2026-11-01 keeps the supplied palette and incumbent
+layout. The operator works under a restrained color hierarchy: blue for actions
+and current selections, neutral chrome for passive information, red for live
+output or failure, green for completed operations, and gold for blank/pending
+states or search highlights. Status labels and distinct icons accompany color.
+
+`selection` mixes primary with card at 10%; `selection-hover` uses 16%.
+Both are opaque and pair with `selection-foreground`, avoiding different
+translucent blue overlays on every component. Workspace selection, pressed
+formatting, current workspace search, active size bands and chapter layout
+controls share these roles. Informational badges and result reference headings
+use neutral foregrounds. The stage and tab read the same audience-status rule,
+including closed, blank, pending, unconfirmed and confirmed-live states.
+
+Dark surfaces retain their intended elevation. Shadows use the palette's dark
+background as ink in both modes; the main projection card keeps its border
+without a surrounding shadow. Empty search artwork loses its decorative blue
+glow. Fonts, copy, workspace verse styling and projection behavior are preserved.
+
+One batched isolated Chromium review covered light/dark at 1600px, 1000px and
+390px browser widths, workspace search, settings, appearance, library, preview,
+empty/error states and keyboard focus. Sixteen layout observations found no
+page overflow or out-of-viewport dialogs. Sixty sampled contrast pairs had
+minima of 5.13:1 for text and 3.77:1 for status icons. Eight rendered state
+comparisons matched tab and stage colors. Deuteranopia/protanopia simulations
+retained the distinct state icons and accessible names. These sampled checks
+are not a blanket contrast certification or native/mobile support claim.
+
+`pnpm check:frontend` passed (123 tests); the existing seven audience-state cases
+now also verify stage/tab agreement. `pnpm build:vite` passed. No native Lumina
+window was launched. The Impeccable context launcher was unavailable; this
+narrow refinement used the existing implementation and product/theme docs.
+
+### Cool light mode
+
+The maintainer requested a cooler light mode on 2026-11-01 while preserving the
+approved dark palette. Nineteen light roles now use cool gray surfaces, slate
+text and pale blue hover fills. The existing blue primary stays unchanged.
+Gold remains a blank/pending state color rather than a general light UI tint.
+
+| Light role | Previous | Current |
+| --- | --- | --- |
+| background | `#faf8f4` | `#f6f8fb` |
+| foreground | `#1c1917` | `#202938` |
+| secondary | `#ece7dd` | `#e8edf3` |
+| muted | `#f1ede6` | `#eef2f6` |
+| muted-foreground | `#6b645b` | `#586779` |
+| accent | `#f4ead3` | `#e4ecf7` |
+| sidebar | `#f3f0e9` | `#edf1f6` |
+| border | `#e3ddd2` | `#d8e0ea` |
+| input | `#d9d2c5` | `#c5d0de` |
+
+Paired foreground/sidebar roles follow the same slate/white values. Search
+matches use the semantic `search-highlight`: pale blue accent in light mode,
+the existing 16% gold tint in dark mode. Projection colors remain independent.
+
+One batched Chromium review sampled 160 text/icon/thumb contrast pairs and
+16 layouts, including controls, destructive menus, overlays, empty/error states,
+1600px/1000px/390px browser widths and color-vision simulations. Light-mode
+text measured at least 4.78:1; switch thumbs at least 3.70:1. The review found
+no failed contrast thresholds or overflowing layouts. All 35 dark primitive
+values matched the previous version; computed dark semantic roles and sampled
+component colors also matched in both manual Dark and System-dark modes.
+`pnpm check:frontend` passed (123 tests), and `pnpm build:vite` passed.
+Lumina was not launched; these remain isolated browser checks.
+
+### Search match visibility
+
+The maintainer's `pagibig` screenshots exposed weak separation between search
+matches and their surrounding panels in both modes. Search now pairs opaque
+blue with white text in light mode and opaque gold with dark ink in dark mode.
+The semantic `search-highlight-foreground` keeps each foreground with its fill.
+600 font weight adds a non-color cue; cloned box decoration keeps wrapped
+phrases continuous. Matching, range boundaries and original verse text remain
+owned by the existing search/rendering flow.
+
+A bounded Chromium fixture rendered the three supplied Tagalog examples at
+1300px and 390px in both modes. All nine `pagibig` ranges and the exact original
+paragraph text were preserved in every case, with no page overflow. Highlight
+text contrast measured 8.78:1 in light mode and 9.61:1 in dark mode; fill against
+the panel measured 7.74:1 and 9.29:1 respectively. Both modes were visually
+reviewed. `pnpm check:frontend` passed (123 tests), and `pnpm build:vite` passed.
+Lumina remained closed. This replaces the earlier low-opacity highlight
+presentation without changing the underlying palette values or search rules.

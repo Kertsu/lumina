@@ -1,8 +1,12 @@
 # Lumina
 
-Bible passage selection and projection during gatherings. The current welcome
-scaffold runs as a static React, Vite, and TanStack Router frontend in either
-Tauri's operator window or a browser.
+Bible passage selection and projection during gatherings. The integrated
+prototype connects a composed React operator desk and audience receiver to
+Rust-owned workspaces, library, history, appearance, and native windows.
+The browser renders representative fixtures through the same typed bridge.
+
+See the [integration handoff](docs/integrated-prototype-checkpoint.md) for public
+commands, ownership, verification evidence, and remaining native qualification.
 
 Returning to the project? Follow the [maintainer walkthrough](docs/maintainer-workflow.md)
 for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
@@ -49,11 +53,25 @@ Tauri's development/build hooks run the corresponding Vite commands. The
 [Tauri Vite guide](https://v2.tauri.app/start/frontend/vite/) describes this
 integration, including the `TAURI_DEV_HOST` host/HMR settings.
 
-Open `/` for the welcome screen or `/playground` for the development-only
-component sandbox. `/playground` renders Not Found in a production build.
-Click **Say hello** on `/` to call the selected application client. Desktop uses
-the Rust operation; a browser uses a fixed representative fixture. There is no
-server-rendering process.
+## Quit confirmation
+
+On desktop, press Cmd+Q on macOS or Ctrl+Q on Windows/Linux. The first press
+shows a hint. Hold for 1.2 seconds or press twice within 500ms, then release Q
+to quit. Escape, another key or losing focus cancels the gesture. With keyboard
+repeat disabled, use two presses.
+
+Closing the operator window, Windows Alt+F4 and application-menu Quit ask for
+confirmation. Cancel keeps the operator and its audience windows open. Closing
+an audience window only closes that audience. A quit shortcut from an audience
+requests the operator-side confirmation without projecting a hint.
+macOS Dock Quit is outside this prototype's guard.
+
+Open `/` for the operator desk or `/playground` for the development-only
+component sandbox. `/audience` is the native receiver route; native ownership
+controls its output and acknowledgments. `/playground` renders Not Found in a
+production build. Browser workflow actions report that desktop is required;
+they do not simulate application transitions. There is no server-rendering
+process.
 
 ## Frontend responsibilities
 

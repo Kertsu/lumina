@@ -66,6 +66,20 @@ flowchart TD
     application --> core
 ```
 
+Desktop quit handling belongs to `src-tauri/src/quit.rs`: it composes native
+menus, coalesces native close confirmations and exits only after confirmation.
+The quit item has no native Cmd/Ctrl+Q accelerator; otherwise AppKit consumes
+the input before the frontend can confirm a hold or double press. Native
+editing/window menu actions remain native. `quit_application` requires the
+operator window; registered audience windows may only request a confirmation.
+
+`src/features/desktop` owns quit-key timing and the hint above route content,
+including startup failures. Hold confirmation requires an observed key repeat,
+and exit waits for Q release so a held shortcut does not reach another app.
+Blur, hidden documents and unmount discard pending gestures. Audience routes
+request a native operator-side dialog and never draw the hint on output.
+Browser previews do not capture the shortcut or invoke native quit actions.
+
 `lumina-persistence` depends on the storage interfaces defined by `lumina-app`; the application stays independent of the SQLite implementation.
 
 Startup is one explicit composition root in `src-tauri`. Keep ordinary structs/functions and capability-sized interfaces at real integration seams; avoid mandatory handler/service/repository/mapper chains for every change. Reuse types where their meanings match and map representations where meanings differ.
