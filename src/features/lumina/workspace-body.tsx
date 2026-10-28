@@ -4,6 +4,7 @@ import {
     Monitor,
     PanelLeft,
     Search,
+    Settings2,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { TabsContent } from "@/shared/ui/tabs";
@@ -24,6 +25,7 @@ export function WorkspaceBody() {
         sidebar,
         sideTab,
         setSideTab,
+        setAudienceSettingsOpen,
         chapterView,
         chapterStripCollapsed,
         setChapterStripCollapsed,
@@ -135,6 +137,24 @@ export function WorkspaceBody() {
                                     : "Blank"}
                                 <kbd>B</kbd>
                             </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon-sm"
+                                        aria-label={`Audience settings for ${workspace.name}`}
+                                        aria-haspopup="dialog"
+                                        onClick={() =>
+                                            setAudienceSettingsOpen(true)
+                                        }
+                                    >
+                                        <Settings2 />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Audience settings
+                                </TooltipContent>
+                            </Tooltip>
                         </fieldset>
                         {panelLayout.overlay && (
                             <div className="compact-panel-actions">

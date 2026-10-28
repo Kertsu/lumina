@@ -378,8 +378,7 @@ mark { background: color-mix(in srgb, var(--primary) 13.33%, transparent); color
 .info-toggle-row strong { font-size: 12px; font-weight: 500; color: var(--foreground); }
 .info-toggle-row p { color: var(--muted-foreground); margin-top: 4px; font-size: 10px; }
 .info-badge { color: var(--primary); background: color-mix(in srgb, var(--primary) 7.06%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 18.82%, transparent); padding: 3px 7px; font-size: 9px; border-radius: 4px; }
-.shortcut-list > div { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); color: var(--foreground); font-size: 12px; }
-.shortcut-list kbd { font-size: 11px; padding: 3px 6px; color: var(--primary); }
+.shortcuts-dialog[data-slot="dialog-content"] { padding: 0; }
 .text-input { width: 100%; border: 1px solid var(--border); background: var(--background); border-radius: 6px; padding: 11px; color: var(--foreground); }
 .text-input:focus { border-color: var(--primary); }
 .book-slide { position: absolute; inset: 9% 10%; text-align: center; display: flex; align-items: center; justify-content: center; flex-direction: column; }

@@ -58,6 +58,8 @@ export type Workspace = {
     books: { id: number; name: string }[];
     metadata: BookMetadata | null;
     projectionOutcome?: string;
+    canPrevious?: boolean;
+    canNext?: boolean;
 };
 
 export type ImportReview = {

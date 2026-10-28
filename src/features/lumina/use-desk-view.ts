@@ -2,6 +2,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { TranslationId, Verse } from "./fixtures";
+import { showShortcutsHotkey } from "./keyboard-shortcuts";
 import type { DeskController, Workspace } from "./model";
 import { getBand } from "./model";
 import { useAppTheme } from "./use-app-theme";
@@ -23,6 +24,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const [libraryOpen, setLibraryOpen] = useState(false);
     const [informationOpen, setInformationOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [audienceSettingsOpen, setAudienceSettingsOpen] = useState(false);
     const [translationOpen, setTranslationOpen] = useState(false);
     const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
     const [chapterView, setChapterView] = useState<"horizontal" | "sidebar">(
@@ -283,6 +285,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             appearanceOpen ||
             informationOpen ||
             helpOpen ||
+            audienceSettingsOpen ||
             libraryOpen ||
             renameId ||
             removeId ||
@@ -357,6 +360,14 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         requireReset: true,
         capture: true,
     });
+    useHotkey(showShortcutsHotkey, () => setHelpOpen((open) => !open), {
+        enabled: !dialogOpen || helpOpen,
+        ignoreInputs: false,
+        preventDefault: true,
+        stopPropagation: true,
+        requireReset: true,
+        capture: true,
+    });
     useHotkey("F1", () => setTranslationOpen(true), {
         enabled: !dialogOpen,
         ignoreInputs: false,
@@ -402,15 +413,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             }
         },
         {
-            enabled:
-                !activePanelSheet &&
-                !settingsOpen &&
-                !appearanceOpen &&
-                !informationOpen &&
-                !workspace?.preview &&
-                !helpOpen &&
-                !libraryOpen &&
-                !renameId,
+            enabled: !dialogOpen,
         }
     );
     useHotkey(
@@ -421,15 +424,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             }
         },
         {
-            enabled:
-                !activePanelSheet &&
-                !settingsOpen &&
-                !appearanceOpen &&
-                !informationOpen &&
-                !workspace?.preview &&
-                !helpOpen &&
-                !libraryOpen &&
-                !renameId,
+            enabled: !dialogOpen,
         }
     );
     useHotkey(
@@ -440,15 +435,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             }
         },
         {
-            enabled:
-                !activePanelSheet &&
-                !settingsOpen &&
-                !appearanceOpen &&
-                !informationOpen &&
-                !workspace?.preview &&
-                !helpOpen &&
-                !libraryOpen &&
-                !renameId,
+            enabled: !dialogOpen,
         }
     );
 
@@ -509,6 +496,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         setInformationOpen,
         helpOpen,
         setHelpOpen,
+        audienceSettingsOpen,
+        setAudienceSettingsOpen,
         translationOpen,
         setTranslationOpen,
         workspaceSearchOpen,

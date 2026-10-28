@@ -1,109 +1,269 @@
-import { Button } from "@/shared/ui/button";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
+import {
+    ArrowLeft,
+    ArrowRight,
+    BookOpen,
+    EyeOff,
+    Info,
+    ListFilter,
+    Monitor,
+    Plus,
+    Search,
+    Send,
+    SquareTerminal,
+    X,
+} from "lucide-react";
+import { useRef } from "react";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    CommandShortcut,
+} from "@/shared/ui/command";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/shared/ui/dialog";
-import { Switch } from "@/shared/ui/switch";
 import { useDeskContext } from "./desk-context";
+import { showShortcutsHotkey } from "./keyboard-shortcuts";
 
 export function ShortcutsDialog() {
-    const { workspace, activeId, dispatch, helpOpen, setHelpOpen, patch } =
-        useDeskContext();
+    const {
+        workspace,
+        workspaces,
+        activeId,
+        helpOpen,
+        setHelpOpen,
+        setTranslationOpen,
+        changeSearchOpen,
+        setSideTab,
+        searchInput,
+        showInformation,
+        referenceInput,
+        reference,
+        submitReference,
+        sendLive,
+        navigate,
+        toggleBlank,
+        isInstalled,
+        addWorkspace,
+        setWorkspaceSearchOpen,
+        setActiveId,
+        setRemoveId,
+    } = useDeskContext();
+    const selectedAction = useRef<(() => void) | null>(null);
+    const canNavigate = Boolean(
+        workspace.current && isInstalled(workspace.current)
+    );
+    const groups = [
+        {
+            heading: "Find & navigate",
+            items: [
+                {
+                    label: "Choose translation",
+                    hotkey: "F1",
+                    icon: BookOpen,
+                    run: () => setTranslationOpen(true),
+                },
+                {
+                    label: "Find a verse",
+                    hotkey: "F3",
+                    icon: Search,
+                    run: () => {
+                        changeSearchOpen(true);
+                        setSideTab("search");
+                        window.setTimeout(
+                            () => searchInput.current?.focus(),
+                            50
+                        );
+                    },
+                },
+                {
+                    label: "Book information",
+                    hotkey: "F7",
+                    icon: Info,
+                    run: showInformation,
+                },
+                {
+                    label: "Quick reference",
+                    hotkey: "Mod+K",
+                    icon: SquareTerminal,
+                    run: () => referenceInput.current?.focus(),
+                },
+            ],
+        },
+        {
+            heading: "Projection",
+            items: [
+                {
+                    label: "Send preview / quick reference live",
+                    hotkey: "Mod+Enter",
+                    icon: Send,
+                    disabled: !workspace.preview && !reference.trim(),
+                    run: () =>
+                        workspace.preview
+                            ? sendLive(workspace.preview)
+                            : submitReference(false),
+                },
+                {
+                    label: "Previous verse",
+                    hotkey: "ArrowLeft",
+                    icon: ArrowLeft,
+                    disabled: !canNavigate || workspace.canPrevious === false,
+                    run: () => navigate(-1),
+                },
+                {
+                    label: "Next verse",
+                    hotkey: "ArrowRight",
+                    icon: ArrowRight,
+                    disabled: !canNavigate || workspace.canNext === false,
+                    run: () => navigate(1),
+                },
+                {
+                    label: "Blank / resume audience",
+                    hotkey: "B",
+                    icon: EyeOff,
+                    disabled: workspace.status === "closed",
+                    run: toggleBlank,
+                },
+            ],
+        },
+        {
+            heading: "Workspaces",
+            items: [
+                {
+                    label: "New workspace",
+                    hotkey: "Mod+T",
+                    icon: Plus,
+                    run: addWorkspace,
+                },
+                {
+                    label: "Search workspaces",
+                    hotkey: "Mod+Shift+A",
+                    icon: ListFilter,
+                    run: () => setWorkspaceSearchOpen(true),
+                },
+                ...workspaces.slice(0, 8).map((item, index) => ({
+                    label: `Switch to ${item.name}`,
+                    hotkey: `Mod+${index + 1}`,
+                    icon: Monitor,
+                    run: () => setActiveId(item.id),
+                })),
+                {
+                    label: "Select last workspace",
+                    hotkey: "Mod+9",
+                    icon: Monitor,
+                    run: () =>
+                        setActiveId(workspaces[workspaces.length - 1].id),
+                },
+                {
+                    label: "Workspace tab options",
+                    hotkey: "Shift+F10",
+                    icon: ListFilter,
+                    run: () => {
+                        const tab = document.querySelector<HTMLElement>(
+                            '[role="tab"][data-state="active"]'
+                        );
+                        if (!tab) {
+                            return;
+                        }
+                        tab.focus();
+                        const bounds = tab.getBoundingClientRect();
+                        tab.dispatchEvent(
+                            new MouseEvent("contextmenu", {
+                                bubbles: true,
+                                cancelable: true,
+                                clientX: bounds.left + 16,
+                                clientY: bounds.bottom,
+                            })
+                        );
+                    },
+                },
+                {
+                    label: "Close current workspace",
+                    hotkey: "Mod+W",
+                    icon: X,
+                    disabled: workspaces.length === 1,
+                    run: () => setRemoveId(activeId),
+                },
+            ],
+        },
+    ];
+
     return (
         <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-            <DialogContent className="sm:max-w-[540px]">
-                <DialogHeader>
-                    <DialogTitle>Keep your hands on the keys</DialogTitle>
+            <DialogContent
+                className="shortcuts-dialog gap-0 overflow-hidden p-0 sm:max-w-[560px]"
+                onCloseAutoFocus={(event) => {
+                    const run = selectedAction.current;
+                    selectedAction.current = null;
+                    if (run) {
+                        event.preventDefault();
+                        window.requestAnimationFrame(run);
+                    }
+                }}
+            >
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Keyboard shortcuts</DialogTitle>
                     <DialogDescription>
-                        A few shortcuts for a calmer gathering.
+                        Search shortcuts. Select an action to run it. Single-key
+                        shortcuts pause while typing.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="shortcut-list">
-                    {[
-                        ["Choose translation", "F1"],
-                        ["Find a verse", "F3"],
-                        ["Book information", "F7"],
-                        ["Quick reference", "⌘ / Ctrl K"],
-                        ["New tab", "⌘ / Ctrl T"],
-                        ["Select tab 1–8", "⌘ / Ctrl 1–8"],
-                        ["Select last tab", "⌘ / Ctrl 9"],
-                        ["Close current tab", "⌘ / Ctrl W"],
-                        ["Search workspaces", "⌘ / Ctrl Shift A"],
-                        ["Tab options", "Right-click / Shift F10"],
-                        ["Send preview live", "⌘ / Ctrl ↵"],
-                        ["Previous / next verse", "← / →"],
-                        ["Blank / resume audience", "B"],
-                    ].map(([label, key]) => (
-                        <div key={label}>
-                            <span>{label}</span>
-                            <kbd>{key}</kbd>
-                        </div>
-                    ))}
-                </div>
-                <div className="info-toggle-row">
-                    <div>
-                        <strong>Hide audience cursor</strong>
-                        <p>Saved independently for {workspace.name}.</p>
+                <Command label="Keyboard shortcuts" loop>
+                    <CommandInput placeholder="Search keyboard shortcuts…" />
+                    <CommandList>
+                        <CommandEmpty>No shortcuts found.</CommandEmpty>
+                        {groups.map((group) => (
+                            <CommandGroup
+                                key={group.heading}
+                                heading={group.heading}
+                            >
+                                {group.items.map((item) => (
+                                    <CommandItem
+                                        key={item.hotkey}
+                                        value={`${item.hotkey} ${item.label}`}
+                                        keywords={[
+                                            group.heading,
+                                            item.hotkey,
+                                            formatForDisplay(item.hotkey),
+                                        ]}
+                                        disabled={
+                                            "disabled" in item && item.disabled
+                                        }
+                                        onSelect={() => {
+                                            selectedAction.current = item.run;
+                                            setHelpOpen(false);
+                                        }}
+                                    >
+                                        <item.icon aria-hidden="true" />
+                                        <span className="min-w-0 flex-1">
+                                            {item.label}
+                                        </span>
+                                        <CommandShortcut>
+                                            {formatForDisplay(item.hotkey)}
+                                        </CommandShortcut>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        ))}
+                    </CommandList>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-foreground">
+                        <span>↑ ↓ browse · Enter run · Esc close</span>
+                        <span className="flex items-center gap-2">
+                            Open shortcuts{" "}
+                            <CommandShortcut>
+                                {formatForDisplay(showShortcutsHotkey)}
+                            </CommandShortcut>
+                        </span>
                     </div>
-                    <Switch
-                        aria-label="Hide audience cursor"
-                        checked={workspace.hideCursor}
-                        onCheckedChange={(hideCursor) =>
-                            patch({
-                                hideCursor,
-                            })
-                        }
-                    />
-                </div>
-                <div className="info-toggle-row">
-                    <div>
-                        <strong>Always on top</strong>
-                        <p>Keep this audience above ordinary windows.</p>
-                    </div>
-                    <Switch
-                        aria-label="Audience always on top"
-                        checked={workspace.alwaysOnTop ?? false}
-                        onCheckedChange={(enabled) =>
-                            dispatch({
-                                type: "alwaysOnTop",
-                                workspaceId: activeId,
-                                enabled,
-                            })
-                        }
-                    />
-                </div>
-                <div className="info-toggle-row">
-                    <div>
-                        <strong>Fullscreen audience</strong>
-                        <p>Use the whole audience display.</p>
-                    </div>
-                    <Switch
-                        aria-label="Fullscreen audience"
-                        checked={workspace.fullscreen ?? false}
-                        onCheckedChange={(enabled) =>
-                            dispatch({
-                                type: "fullscreen",
-                                workspaceId: activeId,
-                                enabled,
-                            })
-                        }
-                    />
-                </div>
-                <p className="subtle">
-                    Preferences apply independently to this audience.
-                </p>
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={() => setHelpOpen(false)}
-                    >
-                        Got it
-                    </Button>
-                </DialogFooter>
+                </Command>
             </DialogContent>
         </Dialog>
     );

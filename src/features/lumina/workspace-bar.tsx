@@ -1,4 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 import { BookOpen, ChevronDown, Keyboard, Plus, Settings } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { useDeskContext } from "./desk-context";
 import { IconButton } from "./icon-button";
+import { showShortcutsHotkey } from "./keyboard-shortcuts";
 import { WorkspaceSearch } from "./workspace-search";
 import { WorkspaceTabs } from "./workspace-tabs";
 export function WorkspaceBar() {
@@ -52,8 +54,14 @@ export function WorkspaceBar() {
                         <BookOpen /> Bible library
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setHelpOpen(true)}>
+                    <DropdownMenuItem
+                        onSelect={() => setHelpOpen(true)}
+                        aria-keyshortcuts="Meta+/ Control+/"
+                    >
                         <Keyboard /> Keyboard shortcuts
+                        <span className="ml-auto pl-4 text-xs text-muted-foreground">
+                            {formatForDisplay(showShortcutsHotkey)}
+                        </span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

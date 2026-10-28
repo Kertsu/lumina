@@ -1,4 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+    within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
     type DeskController,
@@ -127,6 +134,128 @@ it("requests visible history copying through the workspace controller", () => {
         workspaceId: "workspace-a",
     });
     expect(model.workspaces[0].history).toHaveLength(1);
+});
+
+it("opens and filters shortcuts from the keyboard without projection actions", async () => {
+    const model = controller();
+    render(<ProjectionDesk controller={model} />);
+    const reference = screen.getByPlaceholderText(/John 3:16/);
+    reference.focus();
+    fireEvent.keyDown(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    fireEvent.keyUp(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    const dialog = await screen.findByRole("dialog", {
+        name: "Keyboard shortcuts",
+    });
+    const search = within(dialog).getByRole("combobox");
+    fireEvent.change(search, {
+        target: {
+            value: "previous",
+        },
+    });
+    expect(
+        within(dialog).getByRole("option", {
+            name: /Previous verse/,
+        })
+    ).toBeDefined();
+    expect(
+        within(dialog).queryByRole("option", {
+            name: /Choose translation/,
+        })
+    ).toBeNull();
+    expect(within(dialog).queryByRole("switch")).toBeNull();
+    fireEvent.keyDown(search, {
+        key: "b",
+        code: "KeyB",
+    });
+    fireEvent.keyDown(search, {
+        key: "ArrowRight",
+        code: "ArrowRight",
+    });
+    expect(model.dispatch).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(search, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    fireEvent.keyUp(search, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+it("keeps audience preferences scoped outside the shortcuts list", async () => {
+    const model = controller();
+    render(<ProjectionDesk controller={model} />);
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Audience settings for Audience 1",
+        })
+    );
+    const dialog = screen.getByRole("dialog", {
+        name: "Audience settings",
+    });
+    fireEvent.click(
+        within(dialog).getByRole("switch", {
+            name: "Hide audience cursor",
+        })
+    );
+    expect(model.dispatch).toHaveBeenCalledWith({
+        type: "hideCursor",
+        workspaceId: "workspace-a",
+        enabled: false,
+    });
+    const fullscreen = within(dialog).getByRole("switch", {
+        name: "Fullscreen audience",
+    });
+    fullscreen.focus();
+    fireEvent.keyDown(fullscreen, {
+        key: "b",
+        code: "KeyB",
+    });
+    expect(model.dispatch).toHaveBeenCalledTimes(1);
+    expect(within(dialog).queryByRole("combobox")).toBeNull();
+});
+
+it("preserves the menu entry and hands focus to a selected shortcut action", async () => {
+    render(<ProjectionDesk controller={controller()} />);
+    const menuTrigger = screen.getByRole("button", {
+        name: "Lumina menu",
+    });
+    fireEvent.pointerDown(menuTrigger, {
+        button: 0,
+        ctrlKey: false,
+        pointerType: "mouse",
+    });
+    fireEvent.click(
+        await screen.findByRole("menuitem", {
+            name: /Keyboard shortcuts/,
+        })
+    );
+    const dialog = await screen.findByRole("dialog", {
+        name: "Keyboard shortcuts",
+    });
+    fireEvent.click(
+        within(dialog).getByRole("option", {
+            name: /Quick reference/,
+        })
+    );
+    await waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(document.activeElement).toBe(
+            screen.getByPlaceholderText(/John 3:16/)
+        );
+    });
 });
 
 it("keeps verse navigation focus on the thumbnail, outside the workspace panel", () => {

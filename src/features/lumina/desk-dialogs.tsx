@@ -7,6 +7,7 @@ import {
 } from "@/shared/ui/sheet";
 import { AppSettingsDialog } from "./app-settings-dialog";
 import { AppearanceDialog } from "./appearance-dialog";
+import { AudienceSettingsDialog } from "./audience-settings-dialog";
 import { ChapterPanel } from "./chapter-panel";
 import { useDeskContext } from "./desk-context";
 import { InformationDialog } from "./information-dialog";
@@ -144,6 +145,7 @@ export function DeskDialogs() {
             <PreviewDialog />
             <InformationDialog />
             <ShortcutsDialog />
+            <AudienceSettingsDialog />
             <RenameWorkspaceDialog />
             <RemoveWorkspaceDialog />
         </>
