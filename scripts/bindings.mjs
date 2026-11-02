@@ -17,7 +17,7 @@ function generateBindings() {
             "--locked",
             "-p",
             "Lumina",
-            "--bin",
+            "--example",
             "bindings",
             "--",
             generated,
