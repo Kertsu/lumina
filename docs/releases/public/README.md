@@ -1,3 +1,5 @@
+<img src="docs/assets/lumina-icon.png" alt="Lumina app icon" width="80" height="80">
+
 # Lumina
 
 Hi there, fellas! 👋

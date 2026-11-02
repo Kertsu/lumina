@@ -1,0 +1,25 @@
+Lumina walkthrough (40 seconds), supplied by the maintainer.
+Product captures and composition: Lumina beta. Captures use illustrative Bible/workspace data.
+
+Music: Sascha Ende, ende.app — Happy Beats / Business Moves Vol. 12.
+Licensed under Creative Commons Attribution 4.0 (CC BY 4.0).
+https://ende.app/en/standard-license
+https://creativecommons.org/licenses/by/4.0/
+33-second excerpt; fades and mix. Video reused unchanged from the maintainer’s export.
+SFX: Kenney.nl, CC0. https://kenney.nl/assets
+World English Bible text: public domain. https://ebible.org/engwebp/
+
+Background photographs from Unsplash:
+Mountain valley: https://images.unsplash.com/photo-1464822759023-fed622ff2c3b
+Forest: https://images.unsplash.com/photo-1472396961693-142e6e269027
+https://unsplash.com/license
+
+Website font: Geist Sans by Vercel, self-hosted under OFL-1.1.
+Original copyright and license text: Geist-OFL.txt. https://vercel.com/font
+The unchanged walkthrough contains the application’s original fonts.
+Lumina branding is application-owned; see the repository LICENSE.
+
+Website icons: Phosphor Icons, MIT. See Phosphor-LICENSE.txt.
+Source: https://github.com/phosphor-icons/core/tree/2b75f3ad12b420c9504ef05df8d2564a28f8500e
+
+Website dock icon: Lumina's unchanged desktop icon (src-tauri/icons/128x128@2x.png).
