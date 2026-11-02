@@ -3,16 +3,23 @@
 Research: 14 October 2026 (Asia/Manila). Primary-documentation and pinned-source
 review only. No packaged Lumina compatibility or cursor behavior verified.
 
+Status update, 2 November 2026: the approved
+[beta release plan](../releases/beta-plan.md#launch-and-platform-claims) owns
+launch targets and support claims. It permits experimental beta builds on
+untested configurations. The stricter rehearsal proposal below is historical
+qualification guidance, not a gate on this beta. Record actual observations
+using the [release runbook](../releases/runbook.md).
+
 Lumina targets Windows, macOS, and Linux with independent audience windows and
 per-workspace cursor hiding. The candidates below are qualification baselines,
 not support guarantees. Downloaded packages and any supplied dependency bundle
-must install offline on the documented baseline. Each supported build requires
-a 60-minute packaged offline rehearsal; execution and compatibility results
-remain unverified.
+were proposed to install offline on the documented baseline, with a 60-minute
+packaged offline rehearsal for each supported build. Execution and compatibility
+results remain unverified by this research.
 
 ## Dependency and runtime boundary
 
-The [Rust lockfile](../../src-tauri/Cargo.lock) pins Tauri/runtime-wry 2.11.1,
+The [Rust lockfile](../../Cargo.lock) pins Tauri/runtime-wry 2.11.1,
 Tao 0.35.2, Wry 0.55.1, and tauri-utils 2.9.1. The
 [frontend lockfile](../../pnpm-lock.yaml) pins Tailwind 4.2.4, Tauri API 2.11.0,
 and CLI 2.11.1. The [configuration](../../src-tauri/tauri.conf.json) does not

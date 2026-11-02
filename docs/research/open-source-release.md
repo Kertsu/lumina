@@ -5,6 +5,13 @@ license and WEB Protestant edition. These are practical summaries of license
 text, not a legal determination. No dependency license audit or app execution
 performed.
 
+Status update, 2 November 2026: the application's MIT selection below is
+historical. The approved [beta release plan](../releases/beta-plan.md) supersedes
+that choice with proprietary freeware intent. Existing license files have not
+changed; the [runbook](../releases/runbook.md#launch-preparation) tracks license
+scope, bundled references, and notice work before public distribution. The
+third-party and WEB findings below remain separate research.
+
 ## Verified: application-license options
 
 | License | Redistribution obligations | Practical tradeoff |
@@ -51,11 +58,11 @@ a suitable redistributable source is established. Define the metadata format and
 provenance contract before implementation; attribution alone does not establish
 redistribution permission.
 
-## Accepted choices and remaining release work
+## Historical choices and remaining third-party work
 
-- MIT selected for Lumina code, accepting proprietary/commercial forks with
-  retained notices. Add the license file and collect dependency and release
-  notices before distribution.
+- MIT was selected for Lumina code on 14 October. That application-license
+  decision is superseded by the beta plan; retain the research above as history.
+  Dependency and bundled-material notices still need collection before release.
 - The publisher's WEB Protestant edition selected for the 66-book starter.
 - Record bundled WEB's exact edition, official source, acquisition date, and
   artifact hash; preserve Scripture text and keep app/data terms distinguishable.
