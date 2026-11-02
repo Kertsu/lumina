@@ -1,6 +1,8 @@
 name: Private installers
 
 on:
+  push:
+    tags: [v*]
   workflow_dispatch:
     inputs:
       source_ref:
@@ -22,12 +24,17 @@ on:
         description: Optional POC beta version override; blank uses committed Cargo version
         type: string
         required: false
+      publication:
+        description: Build only, or rehearse uploads into an unpublished destination draft
+        type: choice
+        options: [none, draft]
+        default: none
 
 permissions:
   contents: read
 
 concurrency:
-  group: installers-${{ github.ref }}-${{ inputs.source_ref }}-${{ inputs.platform }}-${{ inputs.mode }}-${{ inputs.app_version }}
+  group: installers-${{ github.ref }}-${{ inputs.source_ref }}-${{ inputs.platform }}-${{ inputs.mode }}-${{ inputs.app_version }}-${{ inputs.publication }}
   cancel-in-progress: false
 
 jobs:
@@ -37,17 +44,38 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       source_sha: ${{ steps.plan.outputs.source_sha }}
       version: ${{ steps.plan.outputs.version }}
+      mode: ${{ steps.plan.outputs.mode }}
+      publication: ${{ steps.plan.outputs.publication }}
+      infrastructure_sha: ${{ steps.infrastructure.outputs.commit }}
     steps:
+      - name: Check publication credential setup
+        if: github.event_name == 'push' || inputs.publication == 'draft'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          RELEASE_PUBLICATION: ${{ github.event_name == 'push' && 'release' || 'draft' }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "Configure RELEASES_TOKEN before selecting publication."
+            exit 1
+          fi
+          destination=$(gh api repos/Kertsu/lumina-releases --jq '"\(.private) \(.has_pages)"')
+          if [[ "$RELEASE_PUBLICATION" == "release" && "$destination" != "false true" ]]; then
+            echo "Launch requires a public releases repository with Pages enabled. Use a draft until ready."
+            exit 1
+          fi
       - name: Checkout workflow infrastructure
+        id: infrastructure
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event_name == 'push' && 'main' || github.sha }}
           path: infrastructure
           persist-credentials: false
       - name: Resolve application source
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ github.event_name == 'push' && github.ref || inputs.source_ref }}
           path: app
+          fetch-depth: 0
           persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -56,14 +84,17 @@ jobs:
       - name: Validate source, signing setup, and target selection
         id: plan
         env:
-          INSTALLER_PLATFORM: ${{ inputs.platform }}
-          INSTALLER_MODE: ${{ inputs.mode }}
+          INSTALLER_PLATFORM: ${{ inputs.platform || 'all' }}
+          INSTALLER_MODE: ${{ inputs.mode || 'production' }}
           INSTALLER_VERSION: ${{ inputs.app_version }}
+          INSTALLER_PUBLICATION: ${{ github.event_name == 'push' && 'release' || inputs.publication }}
+          INSTALLER_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: >-
           node infrastructure/scripts/release.mjs plan
           --source app --platform "$INSTALLER_PLATFORM"
           --mode "$INSTALLER_MODE" --version "$INSTALLER_VERSION"
+          --publication "$INSTALLER_PUBLICATION" --tag "$INSTALLER_TAG"
 
   build:
     needs: plan
@@ -79,13 +110,14 @@ jobs:
         working-directory: app
     env:
       INSTALLER_TARGET: ${{ matrix.id }}
-      INSTALLER_MODE: ${{ inputs.mode }}
+      INSTALLER_MODE: ${{ needs.plan.outputs.mode }}
       INSTALLER_VERSION: ${{ inputs.app_version }}
       APPIMAGE_EXTRACT_AND_RUN: "1"
     steps:
       - name: Checkout workflow infrastructure
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.plan.outputs.infrastructure_sha }}
           path: infrastructure
           persist-credentials: false
       - name: Checkout pinned application source
@@ -127,8 +159,16 @@ jobs:
           node ../infrastructure/scripts/release.mjs prepare
           --source . --target "$INSTALLER_TARGET"
           --mode "$INSTALLER_MODE" --version "$INSTALLER_VERSION"
+      - name: Install dependency notice generator
+        uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2
+        with:
+          tool: cargo-about@0.9.3
       - name: Verify application source
         run: pnpm check
+      - name: Generate bundled dependency notices
+        run: >-
+          node ../infrastructure/scripts/notices.mjs
+          --source . --target "$INSTALLER_TARGET"
       - name: Build signed installer and updater package
         id: build
         env:
@@ -140,8 +180,54 @@ jobs:
       - name: Upload private build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: installer-${{ matrix.id }}-${{ inputs.mode }}-${{ needs.plan.outputs.version }}
+          name: installer-${{ matrix.id }}-${{ needs.plan.outputs.mode }}-${{ needs.plan.outputs.version }}
           path: app/target/installer-artifacts/${{ matrix.id }}/
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+  publish:
+    name: Publish release assets
+    needs: [plan, build]
+    if: needs.plan.outputs.publication != 'none'
+    runs-on: ubuntu-24.04
+    # All destination writes are serialized, including feed changes across versions.
+    concurrency:
+      group: lumina-release-publication
+      cancel-in-progress: false
+    steps:
+      - name: Checkout workflow infrastructure and public docs
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.infrastructure_sha }}
+          path: infrastructure
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: infrastructure/.node-version
+      - name: Download checked installer artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: installer-*-${{ needs.plan.outputs.mode }}-${{ needs.plan.outputs.version }}
+          path: artifacts
+      - name: Upload draft or publish complete release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_SOURCE: ${{ needs.plan.outputs.source_sha }}
+          RELEASE_PUBLICATION: ${{ needs.plan.outputs.publication }}
+        shell: bash
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "Configure RELEASES_TOKEN, scoped to Kertsu/lumina-releases with Contents read/write."
+            exit 1
+          fi
+          notes=()
+          if [[ "$RELEASE_PUBLICATION" == "release" ]]; then
+            notes=(--notes "infrastructure/docs/releases/notes/$RELEASE_VERSION.md")
+          fi
+          node infrastructure/scripts/publish-release.mjs \
+            --docs infrastructure/docs/releases/public --artifacts artifacts \
+            --version "$RELEASE_VERSION" --source-commit "$RELEASE_SOURCE" \
+            --publication "$RELEASE_PUBLICATION" "${notes[@]}"

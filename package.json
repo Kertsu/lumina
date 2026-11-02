@@ -24,7 +24,7 @@
         "build": "tauri build",
         "bindings:generate": "node scripts/bindings.mjs",
         "bindings:check": "node scripts/bindings.mjs --check",
-        "test:release": "node --test scripts/release.node-test.mjs scripts/updater-poc.node-test.mjs scripts/notices.node-test.mjs scripts/downloads.node-test.mjs",
+        "test:release": "node --test scripts/release.node-test.mjs scripts/updater-poc.node-test.mjs scripts/publish-release.node-test.mjs scripts/notices.node-test.mjs scripts/downloads.node-test.mjs",
         "updater:poc": "node scripts/updater-poc.mjs"
     },
     "dependencies": {
