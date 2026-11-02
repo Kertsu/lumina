@@ -1,2 +1,5 @@
+# Match formatter line endings on every platform.
+* text=auto eol=lf
+
 # Retain the publisher notice byte-for-byte, including its original line endings.
 crates/lumina-persistence/seed/NOTICE.html -text -whitespace
