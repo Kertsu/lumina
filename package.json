@@ -15,7 +15,7 @@
         "fix": "biome check --write",
         "typecheck": "tsc --noEmit",
         "check": "pnpm check:frontend && pnpm check:rust",
-        "check:frontend": "pnpm lint:ci && pnpm typecheck && pnpm test",
+        "check:frontend": "pnpm lint:ci && pnpm typecheck && pnpm test && pnpm test:release",
         "check:rust": "pnpm rust:fmt && pnpm bindings:check && pnpm rust:clippy && pnpm rust:test",
         "rust:fmt": "cargo fmt --all -- --check",
         "rust:clippy": "cargo clippy --workspace --all-targets --locked -- -D warnings",
@@ -23,7 +23,9 @@
         "dev": "tauri dev",
         "build": "tauri build",
         "bindings:generate": "node scripts/bindings.mjs",
-        "bindings:check": "node scripts/bindings.mjs --check"
+        "bindings:check": "node scripts/bindings.mjs --check",
+        "test:release": "node --test scripts/release.node-test.mjs scripts/updater-poc.node-test.mjs",
+        "updater:poc": "node scripts/updater-poc.mjs"
     },
     "dependencies": {
         "@dnd-kit/core": "^6.3.1",

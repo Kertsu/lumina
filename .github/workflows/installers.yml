@@ -1,0 +1,147 @@
+name: Private installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Application source branch, tag, or commit
+        type: string
+        required: true
+        default: beta
+      platform:
+        description: Installer targets
+        type: choice
+        options: [all, macos-universal, windows-x64, linux-x64]
+        default: all
+      mode:
+        description: POC uses local updates and separate app data; both modes stay private
+        type: choice
+        options: [poc, production]
+        default: poc
+      app_version:
+        description: Optional POC beta version override; blank uses committed Cargo version
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}-${{ inputs.source_ref }}-${{ inputs.platform }}-${{ inputs.mode }}-${{ inputs.app_version }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - name: Checkout workflow infrastructure
+        uses: actions/checkout@v7
+        with:
+          path: infrastructure
+          persist-credentials: false
+      - name: Resolve application source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref }}
+          path: app
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: infrastructure/.node-version
+      - name: Validate source, signing setup, and target selection
+        id: plan
+        env:
+          INSTALLER_PLATFORM: ${{ inputs.platform }}
+          INSTALLER_MODE: ${{ inputs.mode }}
+          INSTALLER_VERSION: ${{ inputs.app_version }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: >-
+          node infrastructure/scripts/release.mjs plan
+          --source app --platform "$INSTALLER_PLATFORM"
+          --mode "$INSTALLER_MODE" --version "$INSTALLER_VERSION"
+
+  build:
+    needs: plan
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app
+    env:
+      INSTALLER_TARGET: ${{ matrix.id }}
+      INSTALLER_MODE: ${{ inputs.mode }}
+      INSTALLER_VERSION: ${{ inputs.app_version }}
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+    steps:
+      - name: Checkout workflow infrastructure
+        uses: actions/checkout@v7
+        with:
+          path: infrastructure
+          persist-credentials: false
+      - name: Checkout pinned application source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          path: app
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: app/package.json
+        env:
+          NPM_CONFIG_AUDIT: "false"
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: app/.node-version
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Install Linux packaging prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2
+      - name: Install declared Rust toolchain
+        run: rustup toolchain install --no-self-update
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: app -> target
+          key: installers-${{ matrix.id }}
+      - name: Prepare target, version, and updater configuration
+        run: >-
+          node ../infrastructure/scripts/release.mjs prepare
+          --source . --target "$INSTALLER_TARGET"
+          --mode "$INSTALLER_MODE" --version "$INSTALLER_VERSION"
+      - name: Verify application source
+        run: pnpm check
+      - name: Build signed installer and updater package
+        id: build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: >-
+          node ../infrastructure/scripts/release.mjs build
+          --source . --target "$INSTALLER_TARGET" --mode "$INSTALLER_MODE"
+      - name: Upload private build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-${{ matrix.id }}-${{ inputs.mode }}-${{ needs.plan.outputs.version }}
+          path: app/target/installer-artifacts/${{ matrix.id }}/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
