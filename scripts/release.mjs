@@ -27,7 +27,10 @@ export const TARGETS = {
         installerDirectory: "dmg",
         installerExtension: ".dmg",
         platforms: ["darwin-aarch64", "darwin-x86_64"],
-        minimumSystemVersion: "13.3",
+        macOS: {
+            minimumSystemVersion: "13.3",
+            signingIdentity: "-",
+        },
     },
     "windows-x64": {
         runner: "windows-2025",
@@ -109,7 +112,39 @@ export function withWorkspaceVersion(manifest, version) {
     );
 }
 
-export function buildOverrides(base, targetId, mode) {
+export function updaterEndpoint(version) {
+    const channel = validateVersion(version).includes("-beta.")
+        ? "beta"
+        : "stable";
+    return `https://kertsu.github.io/lumina-releases/updates/${channel}.json`;
+}
+
+export function validatePublication({
+    publication,
+    mode,
+    platform,
+    version,
+    tag,
+}) {
+    if (!["none", "draft", "release"].includes(publication)) {
+        throw new Error("Publication must be none, draft, or release.");
+    }
+    if (publication === "release") {
+        if (
+            mode !== "production" ||
+            platform !== "all" ||
+            tag !== `v${validateVersion(version)}`
+        ) {
+            throw new Error(
+                "Tag publication requires every production target and a tag matching the Cargo version."
+            );
+        }
+    } else if (tag) {
+        throw new Error("Source tags use normal production publication.");
+    }
+}
+
+export function buildOverrides(base, targetId, mode, version) {
     const target = targetDefinition(targetId);
     if (mode !== "poc" && mode !== "production") {
         throw new Error("Build mode must be poc or production.");
@@ -142,14 +177,25 @@ export function buildOverrides(base, targetId, mode) {
     const bundle = {
         targets: target.bundles,
         createUpdaterArtifacts: true,
+        resources: {
+            ...base.bundle?.resources,
+            "../target/bundled-notices/THIRD-PARTY-NOTICES.html":
+                "notices/THIRD-PARTY-NOTICES.html",
+            "../public/backgrounds/credits.txt": "notices/backgrounds.txt",
+        },
     };
-    if (target.minimumSystemVersion) {
+    if (target.macOS) {
         bundle.macOS = {
-            minimumSystemVersion: target.minimumSystemVersion,
+            ...target.macOS,
         };
     }
     if (mode === "production") {
         return {
+            plugins: {
+                updater: {
+                    endpoints: [updaterEndpoint(version)],
+                },
+            },
             bundle,
         };
     }
@@ -198,7 +244,7 @@ function readSource(source) {
 export function collectArtifacts(source, targetId, mode, sourceCommit) {
     const target = targetDefinition(targetId);
     const { version, config } = readSource(source);
-    const overrides = buildOverrides(config, targetId, mode);
+    const overrides = buildOverrides(config, targetId, mode, version);
     const bundles = join(source, "target", target.rustTarget, "release/bundle");
     const singleFile = (directory, extension) => {
         const matches = readdirSync(join(bundles, directory)).filter((name) =>
@@ -234,6 +280,10 @@ export function collectArtifacts(source, targetId, mode, sourceCommit) {
     for (const file of new Set([installer, updater, signature])) {
         copyFileSync(file, join(output, basename(file)));
     }
+    copyFileSync(
+        join(source, "target/bundled-notices/THIRD-PARTY-NOTICES.html"),
+        join(output, "THIRD-PARTY-NOTICES.html")
+    );
     writeFileSync(
         join(output, "build-info.json"),
         `${JSON.stringify(
@@ -290,6 +340,14 @@ function main() {
                 type: "string",
                 default: "",
             },
+            publication: {
+                type: "string",
+                default: "none",
+            },
+            tag: {
+                type: "string",
+                default: "",
+            },
         },
     });
     const source = resolve(values.source);
@@ -297,7 +355,7 @@ function main() {
     const selected =
         values.platform === "all" ? Object.keys(TARGETS) : [values.platform];
     for (const id of selected) {
-        buildOverrides(config, id, values.mode);
+        buildOverrides(config, id, values.mode, values.version || version);
     }
     if (
         values.version &&
@@ -309,6 +367,21 @@ function main() {
         );
     }
     if (command === "plan") {
+        validatePublication({
+            publication: values.publication,
+            mode: values.mode,
+            platform: values.platform,
+            version,
+            tag: values.tag,
+        });
+        if (values.publication === "release") {
+            const line = version.includes("-beta.") ? "beta" : "main";
+            run(
+                "git",
+                ["merge-base", "--is-ancestor", "HEAD", `origin/${line}`],
+                source
+            );
+        }
         if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
             throw new Error(
                 "Configure the source repo secret TAURI_SIGNING_PRIVATE_KEY before building."
@@ -329,6 +402,8 @@ function main() {
                 true
             ),
             version: values.version || version,
+            mode: values.mode,
+            publication: values.publication,
         });
         return;
     }
@@ -352,7 +427,7 @@ function main() {
         });
         writeFileSync(
             generated,
-            `${JSON.stringify(buildOverrides(config, values.target, values.mode), null, 2)}\n`
+            `${JSON.stringify(buildOverrides(config, values.target, values.mode, values.version || version), null, 2)}\n`
         );
         return;
     }
@@ -367,8 +442,8 @@ function main() {
         const env = {
             ...process.env,
         };
-        if (target.minimumSystemVersion) {
-            env.MACOSX_DEPLOYMENT_TARGET = target.minimumSystemVersion;
+        if (target.macOS?.minimumSystemVersion) {
+            env.MACOSX_DEPLOYMENT_TARGET = target.macOS.minimumSystemVersion;
         }
         run(
             process.execPath,
@@ -385,6 +460,35 @@ function main() {
             source,
             env
         );
+        if (target.macOS) {
+            const directory = join(
+                source,
+                "target",
+                target.rustTarget,
+                "release/bundle/macos"
+            );
+            const applications = readdirSync(directory, {
+                withFileTypes: true,
+            }).filter(
+                (entry) => entry.isDirectory() && entry.name.endsWith(".app")
+            );
+            if (applications.length !== 1) {
+                throw new Error(
+                    "Expected one macOS application bundle to verify."
+                );
+            }
+            run(
+                "codesign",
+                [
+                    "--verify",
+                    "--deep",
+                    "--strict",
+                    "--verbose=2",
+                    join(directory, applications[0].name),
+                ],
+                source
+            );
+        }
         const artifacts = collectArtifacts(
             source,
             values.target,

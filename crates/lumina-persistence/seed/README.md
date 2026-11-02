@@ -9,7 +9,7 @@ been verified. ZIP timestamps have no timezone and differ from the source date
 printed in the publisher notice; both observations are recorded.
 
 Bible text remains public domain under the publisher's notice and trademark
-condition. Lumina code is separately [MIT licensed](../../../LICENSE).
+condition. Lumina code is separately [licensed as proprietary freeware](../../../LICENSE).
 No book-information dataset is bundled. Source/rights fields grant no new
 permissions for other imported content.
 

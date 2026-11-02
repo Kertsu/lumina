@@ -16,6 +16,15 @@ use std::time::SystemTime;
 use tauri::Manager;
 use tauri_specta::Event;
 
+/// Release labels affect native UI only, never the installed application identity.
+fn application_display_name(package: &tauri::PackageInfo) -> String {
+  if package.version.pre.as_str().split('.').next() == Some("beta") {
+    format!("{} (Beta)", package.name)
+  } else {
+    package.name.clone()
+  }
+}
+
 #[tauri::command]
 #[specta::specta]
 async fn greet(runtime: tauri::State<'_, DesktopRuntime>) -> Result<Greeting, ApplicationFailure> {
@@ -113,8 +122,9 @@ pub fn run() -> tauri::Result<()> {
     })
     .setup(move |app| {
       bindings.mount_events(app);
-      #[cfg(target_os = "macos")]
       if let Some(window) = app.get_webview_window("main") {
+        window.set_title(&application_display_name(app.package_info()))?;
+        #[cfg(target_os = "macos")]
         window_chrome::install(&window);
       }
       let database_path = app.path().app_data_dir()?.join("lumina.sqlite3");

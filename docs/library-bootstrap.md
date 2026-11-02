@@ -30,7 +30,7 @@ Other appearance/history settings are added by their owning feature tasks.
 
 The [seed record](../crates/lumina-persistence/seed/README.md) documents the exact
 publisher acquisition and extraction. Native packages include `notices/LICENSE`,
-`notices/WEB-NOTICE.html` and `notices/WEB-provenance.json`. App MIT terms and
+`notices/WEB-NOTICE.html` and `notices/WEB-provenance.json`. Application freeware terms and
 publisher Bible notices remain separate. No runtime network fetch is used.
 
 ## Commands and failures

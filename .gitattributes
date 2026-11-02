@@ -3,3 +3,6 @@
 
 # Retain the publisher notice byte-for-byte, including its original line endings.
 crates/lumina-persistence/seed/NOTICE.html -text -whitespace
+
+# Keep checksum-pinned upstream license text unchanged.
+scripts/licenses/*-LICENSE -text -whitespace

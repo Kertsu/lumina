@@ -32,11 +32,13 @@ impl QuitPrompt {
 
 /// Keep native editing/window actions, but leave Cmd/Ctrl+Q to the quit guard.
 pub(crate) fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+  let display_name = crate::application_display_name(app.package_info());
+  let about_title = format!("About {display_name}");
   let about = PredefinedMenuItem::about(
     app,
-    None,
+    Some(&about_title),
     Some(AboutMetadata {
-      name: Some(app.package_info().name.clone()),
+      name: Some(display_name),
       version: Some(app.package_info().version.to_string()),
       ..AboutMetadata::default()
     }),

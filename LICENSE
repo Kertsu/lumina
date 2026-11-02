@@ -1,21 +1,46 @@
-MIT License
+Lumina Freeware License
+Copyright (c) 2026 Kurtd Daniel Bigtas. All rights reserved.
 
-Copyright (c) 2026 Kurtd Daniel Bigtas
+1. Permission to use
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You may install and use unmodified Lumina application releases free of charge
+for personal, organizational, and commercial purposes.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+2. Redistribution
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You may redistribute original, unmodified Lumina installers together with their
+license terms and third-party notices. Do not misrepresent their origin or
+imply endorsement. Distribution of modified or rebranded Lumina application
+builds requires prior permission from the copyright holder. No source-code
+access or general right to modify the application is granted by this license.
+
+3. Your content and settings
+
+Changing application settings, managing workspaces, importing content, and
+creating presentations are ordinary permitted uses, not modifications of the
+application for purposes of section 2. You retain rights to your own content.
+You are responsible for having permission to use and distribute imported
+material.
+
+4. Third-party components and prior permissions
+
+Third-party software, fonts, images, and Bible text retain their own terms.
+Their notices accompany the application or release. Nothing here limits rights
+granted by those terms, including rights to obtain or modify covered third-party
+source. These terms do not revoke permissions already granted for copies
+previously received under another license, including MIT-licensed copies.
+
+5. No warranty; limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE APPLICATION IS PROVIDED
+"AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER SHALL
+NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE
+APPLICATION OR ITS USE. NOTHING HERE EXCLUDES RIGHTS OR LIABILITY THAT
+APPLICABLE LAW DOES NOT ALLOW TO BE EXCLUDED.
+
+6. Permission requests
+
+Contact the maintainer through https://github.com/Kertsu/lumina-releases for
+permissions beyond this license.
