@@ -5,7 +5,8 @@ implementation and verification status.
 
 This is the canonical release policy. The [runbook](runbook.md) owns execution
 steps and implementation order. Policy approval does not establish completed
-testing or changed license terms.
+testing. The application terms now live in the root LICENSE; evidence is
+recorded separately in the runbook.
 
 ## Ownership and branches
 
@@ -20,8 +21,7 @@ infrastructure and documentation. Build beta application code from its own ref;
 the presence of a workflow on `main` does not require the MVP there.
 
 Freeze beta product features. Allow bug fixes and release/updater infrastructure.
-The maintainer explicitly chose no code-review gate for this beta. Stabilize code
-on `main` before adding further product features there.
+Stabilize code on `main` before adding further product features there.
 
 Keep release documentation canonical on `main`. Publish an explicit public-docs
 subset into the releases repo; do not mirror the private source repository.
@@ -40,10 +40,10 @@ private.
 | macOS | Universal `.dmg` | Apple Silicon and Intel |
 | Linux | `.AppImage` | x64 |
 
-These are build targets, not verified compatibility claims. Label untested
-configurations **untested/experimental** in downloads and release notes. Record
-the exact tested OS, architecture, package, and result. The maintainer handles
-manual testing; users can report additional evidence through public GitHub Issues.
+These are build targets, not verified compatibility claims. Label beta runtime
+compatibility **experimental** in downloads and release notes. Record automated
+build/publication results separately. Users can report problems through public
+GitHub Issues.
 
 The [earlier target research](../research/desktop-release-targets.md) supplies
 qualification candidates. Its proposed per-platform rehearsal is not a gate on
@@ -119,6 +119,8 @@ Use Tauri's mandatory update-package signatures. Generate the keypair, back up
 the private key/password, make signing credentials available only to release CI,
 and embed the public verification key. This signing is free and separate from
 Apple/Windows publisher signing, which is excluded from the initial beta.
+Mac packages use free ad hoc bundle signing (`signingIdentity: "-"`); it does not
+provide Developer ID trust or notarization.
 
 Document unsigned-installation warnings and possible platform policy blocks.
 Installation instructions and disclaimers do not establish software safety or
@@ -134,10 +136,7 @@ Approved application-license intent:
 
 This supersedes the app-license choice in the
 [earlier research](../research/open-source-release.md), not its third-party
-research. Current MIT license files and bundled references have not changed.
-Resolve ownership/license scope and implement the new application terms before
-public distribution. Retain applicable dependency, font, image, and Bible-data
-terms/notices separately; the application policy does not replace them.
+research. The root LICENSE implements the approved freeware terms for new application releases. It does not revoke permissions already granted for earlier MIT-licensed copies. Retain applicable dependency, font, image, and Bible-data terms/notices separately; the application policy does not replace them.
 
 ## One-time proof of concept
 
@@ -146,13 +145,13 @@ exercise cross-repo uploads with `releaseDraft: true` in the private releases
 repo. A draft creates a release object and uploads real assets; it is not a
 zero-write dry run.
 
-Test updater mechanics with two CI-built versions and a temporary server on the
-maintainer's Mac. Only the application version needs to change between them once
+Check updater mechanics with two CI-built versions and a temporary local
+server. Only the application version needs to change between them once
 the updater exists. The [runbook](runbook.md#private-updater-rehearsal) defines
 this local-only test and the one-command helper to implement.
 
 Draft/private assets are not anonymously available to the installed updater.
-The local rehearsal proves detection, signatures, confirmation, installation,
+The local rehearsal checks detection, signatures, confirmation, installation,
 and data retention; public download access needs a final check at launch.
 
 ## Primary references

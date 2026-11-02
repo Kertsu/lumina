@@ -1,0 +1,4 @@
+# Preserve upstream notices, checksum inputs, and media byte-for-byte.
+docs/releases/public/notices/WEB-NOTICE.html -text -whitespace
+scripts/licenses/*-LICENSE -text -whitespace
+docs/releases/public/docs/assets/* -text -whitespace

@@ -17,6 +17,8 @@ import {
     POC_ENDPOINT,
     readWorkspaceVersion,
     TARGETS,
+    updaterEndpoint,
+    validatePublication,
     validateVersion,
     withWorkspaceVersion,
 } from "./release.mjs";
@@ -78,12 +80,56 @@ test("POC configuration isolates app data and local HTTP without changing produc
     assert.equal(poc.plugins.updater.dangerousAcceptInvalidCerts, false);
     assert.equal(poc.plugins.updater.pubkey, undefined);
     assert.deepEqual(poc.bundle.targets, ["app", "dmg"]);
-    const production = buildOverrides(base, "windows-x64", "production");
-    assert.equal(production.plugins, undefined);
+    assert.equal(poc.bundle.macOS.signingIdentity, "-");
+    assert.equal(
+        buildOverrides(base, "macos-universal", "production", "0.1.0-beta.4")
+            .bundle.macOS.signingIdentity,
+        "-"
+    );
+    const production = buildOverrides(
+        base,
+        "windows-x64",
+        "production",
+        "0.1.0-beta.4"
+    );
+    assert.deepEqual(production.plugins.updater.endpoints, [
+        updaterEndpoint("0.1.0-beta.4"),
+    ]);
     assert.equal(production.identifier, undefined);
     assert.deepEqual(production.bundle.targets, ["nsis"]);
     assert.equal(production.bundle.createUpdaterArtifacts, true);
     assert.deepEqual(base, original);
+});
+
+test("normal publication requires the complete production matrix and matching version tag", () => {
+    const valid = {
+        publication: "release",
+        mode: "production",
+        platform: "all",
+        version: "0.1.0-beta.4",
+        tag: "v0.1.0-beta.4",
+    };
+    validatePublication(valid);
+    for (const change of [
+        {
+            mode: "poc",
+        },
+        {
+            platform: "macos-universal",
+        },
+        {
+            tag: "v0.1.0-beta.5",
+        },
+    ]) {
+        assert.throws(() =>
+            validatePublication({
+                ...valid,
+                ...change,
+            })
+        );
+    }
+    assert.match(updaterEndpoint("0.1.0-beta.4"), /\/beta.json$/);
+    assert.match(updaterEndpoint("0.1.0"), /\/stable.json$/);
 });
 
 test("build configuration refuses missing keys, unsafe source endpoints, and a second version authority", () => {
@@ -145,6 +191,13 @@ test("collection uploads only installers, signed update packages, and provenance
         join(source, "src-tauri/tauri.conf.json"),
         JSON.stringify(base)
     );
+    mkdirSync(join(source, "target/bundled-notices"), {
+        recursive: true,
+    });
+    writeFileSync(
+        join(source, "target/bundled-notices/THIRD-PARTY-NOTICES.html"),
+        "dependency notices"
+    );
     for (const [id, target] of Object.entries(TARGETS)) {
         const bundle = join(
             source,
@@ -186,7 +239,7 @@ test("collection uploads only installers, signed update packages, and provenance
         assert.equal(info.sourceCommit, "test-source-commit");
         assert.equal(info.identifier, "com.example.lumina.poc");
         assert.equal(info.updaterPackage, updater);
-        assert.equal(readdirSync(output).length, updater === installer ? 3 : 4);
+        assert.equal(readdirSync(output).length, updater === installer ? 4 : 5);
         assert.equal(existsSync(join(output, "private-key.key")), false);
         rmSync(join(bundle, target.updaterDirectory, `${updater}.sig`));
         assert.throws(
