@@ -73,6 +73,8 @@ pub fn run() -> tauri::Result<()> {
       }
     })
     .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .invoke_handler(bindings.invoke_handler())
     .on_window_event(|window, event| {
       if window.label() == "main" {

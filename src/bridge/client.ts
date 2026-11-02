@@ -23,7 +23,12 @@ export {
     type NativeContextAction,
     popupNativeContextMenu,
 } from "./context-menu";
-
+export {
+    type ApplicationUpdater,
+    type AvailableUpdate,
+    createApplicationUpdater,
+    type UpdateProgress,
+} from "./updater";
 export {
     observeOperatorFullscreen,
     usesOverlayTitlebar,

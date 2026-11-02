@@ -550,6 +550,10 @@ mark { background: var(--search-highlight); color: var(--search-highlight-foregr
 
 .app-menu-trigger { display: flex; align-items: center; gap: 7px; padding: 0 8px; height: 32px; flex-shrink: 0; color: var(--muted-foreground); }
 .app-menu-trigger img { width: 22px; height: 25px; filter: none; }
+.app-menu-mark { position: relative; display: inline-flex; flex-shrink: 0; }
+.app-update-dot { position: absolute; top: 0; right: -3px; width: 8px; height: 8px; border: 2px solid var(--card); border-radius: 50%; background: var(--primary); }
+.app-update-menu-copy { display: flex; flex-direction: column; gap: 2px; }
+.app-update-menu-version { color: var(--muted-foreground); font-size: 11px; }
 .app-menu-trigger > svg { width: 11px; height: 11px; }
 .reference-input-wrap .translation-picker { width: auto; min-width: 102px; flex-shrink: 0; height: 27px; margin-right: 6px; padding: 0 7px; gap: 5px; border-color: var(--input); color: var(--foreground); font-size: 12px; }
 .reference-heading > button { width: 28px; height: 28px; color: var(--muted-foreground); }
