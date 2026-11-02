@@ -11,7 +11,7 @@ the reference for each area.
 
 Beta distribution is planned separately in the approved
 [release plan](docs/releases/beta-plan.md) and [release runbook](docs/releases/runbook.md).
-These document intended release/updater behavior, not completed implementation.
+The plan owns policy; the runbook tracks implementation and verification.
 
 ## Setup
 
