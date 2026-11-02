@@ -1,0 +1,2 @@
+# Preserve upstream notices, checksum inputs, and media byte-for-byte.
+scripts/licenses/*-LICENSE -text -whitespace
