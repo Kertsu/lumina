@@ -1,0 +1,17 @@
+{
+    "publisher_edition_id": "engwebp",
+    "artifact_filename": "engwebp_usfm.zip",
+    "artifact_url": "https://ebible.org/Scriptures/engwebp_usfm.zip",
+    "artifact_sha256": "d2a7c9640820003d8ed475ce6d92cc990b0447fe96ce72fd0df17c0dac9d95fe",
+    "artifact_bytes": 2908005,
+    "acquired_date": "2026-10-24",
+    "edition_label": "2020 stable text edition",
+    "publisher_source_date": "2026-10-22",
+    "archive_member_timestamp": "2026-10-21 18:02:58 (ZIP has no timezone)",
+    "publisher_signature_date": "2026-10-22 04:05 (as printed; timezone unspecified)",
+    "source_name": "eBible.org",
+    "source_url": "https://ebible.org/engwebp/",
+    "rights_notice": "The World English Bible is in the Public Domain. World English Bible is a Trademark of eBible.org. If you change the actual text, do not call the result the World English Bible. See the retained publisher NOTICE.html and original archive.",
+    "notice_file": "NOTICE.html",
+    "signature_verification": "Archive member SHA-256 values checked against signature.txt.asc; PGP signer authenticity has not been verified."
+}

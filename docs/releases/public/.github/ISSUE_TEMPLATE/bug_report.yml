@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a problem in an installed Lumina beta
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: Remove private content from screenshots and logs. Do not upload your database.
+  - type: input
+    id: version
+    attributes:
+      label: Lumina version
+      description: Find the exact version in About.
+      placeholder: 0.1.0-beta.4
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and CPU
+      placeholder: macOS 15, Apple Silicon; Windows 11 x64; Ubuntu 24.04 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include audience-window, display, and fullscreen details when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Redacted screenshots or logs
+      description: Optional. Check for private presentation content, paths, and personal information.
