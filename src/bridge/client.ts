@@ -24,6 +24,11 @@ export {
     popupNativeContextMenu,
 } from "./context-menu";
 
+export {
+    observeOperatorFullscreen,
+    usesOverlayTitlebar,
+} from "./window-chrome";
+
 export type ClientResult<T> =
     | {
           status: "ok";

@@ -72,6 +72,10 @@ button:disabled { cursor: default; }
 .startup { min-height: 100dvh; display: flex; align-items: center; justify-content: center; gap: 15px; font: 600 40px "Cormorant Garamond", serif; }
 .startup img { width: 48px; }
 .workspace-bar { height: 44px; flex-shrink: 0; display: flex; align-items: center; gap: 0; background: var(--card); border-bottom: 1px solid var(--border); padding: 0 20px; }
+/* Height matches window_chrome::OPERATOR_HEADER_HEIGHT; native controls are centered within it. */
+.workspace-bar[data-native-titlebar] { -webkit-user-select: none; user-select: none; }
+.workspace-bar[data-native-titlebar]:not([data-window-fullscreen]) { padding-left: 88px; }
+.workspace-window-drag-region { align-self: stretch; min-width: 32px; flex: 1; }
 .workspace-tabs { min-width: 0; flex: 0 1 auto; display: flex; height: 100%; align-items: end; overflow-x: auto; scrollbar-width: none; }
 .workspace-tab { --tab-surface: transparent; --tab-bottom-space: 5px; position: relative; isolation: isolate; flex: 0 0 auto; width: clamp(144px, 17vw, 210px); height: 38px; display: flex; align-items: center; padding: 0 4px var(--tab-bottom-space) 12px; color: var(--muted-foreground); transition: color 140ms; }
 .workspace-tab::after { content: ""; position: absolute; z-index: -1; inset: 0 0 var(--tab-bottom-space); border-radius: 12px; background: var(--tab-surface); transition: background-color 140ms; pointer-events: none; }

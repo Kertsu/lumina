@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { usesOverlayTitlebar } from "@/bridge/client";
 import { Tabs } from "@/shared/ui/tabs";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { DeskContext, useDeskContext } from "./desk-context";
@@ -22,7 +23,11 @@ export function DeskRoot({
         controller.workspaces[0];
     if (!workspace) {
         return (
-            <div className="startup" role="status">
+            <div
+                className="startup"
+                role="status"
+                data-tauri-drag-region={usesOverlayTitlebar() || undefined}
+            >
                 <img src="/lumina-mark.svg" alt="" />
                 <h1>Lumina</h1>
                 <span>{controller.error ?? "Opening your workspace…"}</span>

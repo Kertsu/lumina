@@ -1,6 +1,11 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import { BookOpen, ChevronDown, Keyboard, Plus, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+    observeOperatorFullscreen,
+    usesOverlayTitlebar,
+} from "@/bridge/client";
 import { Button } from "@/shared/ui/button";
 import {
     DropdownMenu,
@@ -16,6 +21,9 @@ import { showShortcutsHotkey } from "./keyboard-shortcuts";
 import { WorkspaceSearch } from "./workspace-search";
 import { WorkspaceTabs } from "./workspace-tabs";
 export function WorkspaceBar() {
+    const integratedTitlebar = usesOverlayTitlebar();
+    const [fullscreen, setFullscreen] = useState(false);
+    useEffect(() => observeOperatorFullscreen(setFullscreen), []);
     const {
         workspaces,
         activeId,
@@ -34,7 +42,12 @@ export function WorkspaceBar() {
         notify,
     } = useDeskContext();
     return (
-        <div className="workspace-bar">
+        <div
+            className="workspace-bar"
+            data-native-titlebar={integratedTitlebar || undefined}
+            data-window-fullscreen={fullscreen || undefined}
+            data-tauri-drag-region={integratedTitlebar || undefined}
+        >
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
@@ -102,6 +115,13 @@ export function WorkspaceBar() {
             >
                 <Plus />
             </IconButton>
+            {integratedTitlebar && (
+                <div
+                    className="workspace-window-drag-region"
+                    data-tauri-drag-region
+                    aria-hidden="true"
+                />
+            )}
             <WorkspaceSearch
                 workspaces={workspaces}
                 activeId={activeId}

@@ -3,6 +3,8 @@ mod commands;
 mod native;
 mod quit;
 mod runtime;
+#[cfg(target_os = "macos")]
+mod window_chrome;
 
 use lumina_app::{
   Application, ApplicationFailure, ApplicationSnapshot, Greeting, ReferenceRequest, ReferenceResult,
@@ -109,6 +111,10 @@ pub fn run() -> tauri::Result<()> {
     })
     .setup(move |app| {
       bindings.mount_events(app);
+      #[cfg(target_os = "macos")]
+      if let Some(window) = app.get_webview_window("main") {
+        window_chrome::install(&window);
+      }
       let database_path = app.path().app_data_dir()?.join("lumina.sqlite3");
       let runtime = DesktopRuntime::new();
       app.manage(runtime.clone());
