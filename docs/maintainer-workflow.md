@@ -8,7 +8,7 @@ agent checks do not complete maintainer acceptance.
 For beta distribution, start with the approved [release plan](releases/beta-plan.md)
 and planned [release runbook](releases/runbook.md). They cover private installer
 testing, updater behavior, branch ownership, and the public launch. Release
-automation and updater integration remain implementation work.
+implementation and verification status live in the runbook.
 
 ## 1. Set up a fresh checkout
 

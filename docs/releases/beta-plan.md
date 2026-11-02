@@ -1,17 +1,18 @@
 # Beta release plan
 
-Approved: 2 November 2026 (Asia/Manila). Implementation pending.
+Approved: 2 November 2026 (Asia/Manila). See the [runbook](runbook.md) for
+implementation and verification status.
 
 This is the canonical release policy. The [runbook](runbook.md) owns execution
-steps and implementation order. Neither document establishes completed testing,
-implemented updater behavior, or changed license terms.
+steps and implementation order. Policy approval does not establish completed
+testing or changed license terms.
 
 ## Ownership and branches
 
 | Location | Owns |
 | --- | --- |
 | Private `Kertsu/lumina`, `main` | Release documentation, public-documentation sources, workflow infrastructure, and independently stabilized application code |
-| Private `Kertsu/lumina`, `1st-integrated-prototype` | Beta application, bug fixes, updater integration, and packaging changes |
+| Private `Kertsu/lumina`, `beta` | Beta application, bug fixes, updater integration, and packaging changes |
 | `Kertsu/lumina-releases` | Published installers, update metadata, public documentation, GitHub Issues, and GitHub Pages |
 
 Do not merge the prototype branch into `main`. Use separate changes for workflow
