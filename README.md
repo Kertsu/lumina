@@ -9,6 +9,10 @@ for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
 verification evidence. The responsibility maps and focused guides below remain
 the reference for each area.
 
+Beta distribution is planned separately in the approved
+[release plan](docs/releases/beta-plan.md) and [release runbook](docs/releases/runbook.md).
+These document intended release/updater behavior, not completed implementation.
+
 ## Setup
 
 - Node.js 24 (`.node-version`).
