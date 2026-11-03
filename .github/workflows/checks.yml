@@ -6,9 +6,11 @@ on:
   push:
     branches:
       - main
+      - beta-release
   pull_request:
     branches:
       - main
+      - beta-release
 
 concurrency:
   group: checks-${{ github.ref }}

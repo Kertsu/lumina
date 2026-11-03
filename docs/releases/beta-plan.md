@@ -12,19 +12,20 @@ recorded separately in the runbook.
 
 | Location | Owns |
 | --- | --- |
-| Private `Kertsu/lumina`, `main` | Release documentation, public-documentation sources, workflow infrastructure, and independently stabilized application code |
+| Private `Kertsu/lumina`, `main` | Independently stabilized application code |
+| Private `Kertsu/lumina`, `beta-release` | Canonical release documentation, public-documentation sources, workflow infrastructure, and download site |
 | Private `Kertsu/lumina`, `beta` | Beta application, bug fixes, updater integration, and packaging changes |
 | `Kertsu/lumina-releases` | Published installers, update metadata, public documentation, GitHub Issues, and GitHub Pages |
 
-Do not merge the prototype branch into `main`. Use separate changes for workflow
-infrastructure and documentation. Build beta application code from its own ref;
-the presence of a workflow on `main` does not require the MVP there.
+Do not merge `beta` or `beta-release` into `main`. Target release infrastructure
+and documentation changes at `beta-release`. Build application code from its own
+ref; the foundation code inherited by `beta-release` is not the beta application.
 
 Freeze beta product features. Allow bug fixes and release/updater infrastructure.
 Stabilize code on `main` before adding further product features there.
 
-Keep release documentation canonical on `main`. Publish an explicit public-docs
-subset into the releases repo; do not mirror the private source repository.
+Keep release documentation canonical on `beta-release`. Publish an explicit
+public-docs subset into the releases repo; do not mirror the private source repository.
 
 ## Launch and platform claims
 
@@ -73,7 +74,8 @@ public release tag does not point into the private source repository.
 After the one-time rehearsal, intentional version tags trigger existing
 automated checks, installer/update builds, and publication. Beta tags select beta
 source; stable tags select stabilized `main` source. Ordinary branch pushes do
-not publish releases. There is no recurring draft or manual-approval stage.
+not publish releases. Tag builds pin tooling/docs from `beta-release` separately
+from application source. There is no recurring draft or manual-approval stage.
 
 Keep build-only, draft-rehearsal, and normal publication behavior explicit.
 `if: github.ref_type != 'tag'` only gates a step; it does not define workflow

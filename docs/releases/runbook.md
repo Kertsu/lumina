@@ -4,11 +4,14 @@ Status: private preparation, 3 November 2026 (Asia/Manila). The complete product
 installer matrix and CI-authenticated private draft publication passed in
 [run 41474985591](https://github.com/Kertsu/lumina/actions/runs/41474985591).
 Installer builds do not establish runtime compatibility. See [recorded results](poc-results.md).
-Publishing infrastructure landed on `main` in PR #53.
+Release work from PRs #51–54 is preserved on `beta-release`. `main` is restored
+to the foundation before the release-plan commit.
 
 The [beta plan](beta-plan.md) owns release policy. This document owns operating
 steps. Workflow infrastructure, public-documentation sources, and launch media
-live on `main`; the beta application stays on `beta`.
+live on `beta-release`; the beta application stays on `beta`. `main` owns
+application stabilization. Target release-tooling and documentation PRs at
+`beta-release`, not `main`.
 
 ## Credentials
 
@@ -39,10 +42,17 @@ production packages into an unpublished destination draft.
 The [Installers workflow](../../.github/workflows/installers.yml) resolves one
 source commit, checks that app source on every selected platform, builds signed
 updates/installers, and uploads private Actions artifacts retained for seven days.
-The workflow's `main` checkout owns tooling; app code is checked out separately.
+The workflow's `beta-release` checkout owns tooling; app code is checked out
+separately. Tag-triggered runs resolve and pin `beta-release` before building.
+
+Keep `main` as the repository default. Use the CLI commands below for manual
+runs: the installer workflow has already run and is registered with GitHub.
+GitHub's **Run workflow** button requires the file on the default branch; the
+registered workflow can be dispatched against `beta-release` through the CLI.
+See [GitHub's dispatch reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
 
 ```sh
-gh workflow run installers.yml --repo Kertsu/lumina --ref main \
+gh workflow run installers.yml --repo Kertsu/lumina --ref beta-release \
   -f source_ref=beta -f platform=all -f mode=production \
   -f publication=none
 ```
@@ -71,7 +81,7 @@ For runtime/source-collection changes, verify that part independently before
 rebuilding the desktop application:
 
 ```sh
-gh workflow run installers.yml --repo Kertsu/lumina --ref main \
+gh workflow run installers.yml --repo Kertsu/lumina --ref beta-release \
   -f runtime_check=true
 ```
 
@@ -125,7 +135,7 @@ They share their own data and do not use the production library/profile.
 For a repeat investigation, build two POC versions from one full source SHA:
 
 ```sh
-gh workflow run installers.yml --repo Kertsu/lumina --ref main \
+gh workflow run installers.yml --repo Kertsu/lumina --ref beta-release \
   -f source_ref=FULL_SOURCE_SHA -f platform=macos-universal \
   -f mode=poc -f app_version=0.1.0-beta.N -f publication=none
 ```
@@ -165,10 +175,11 @@ node scripts/publish-release.mjs --docs docs/releases/public \
 release publication names its documentation/feed commits with the app version.
 
 For the first production configuration rehearsal, after credentials and this
-workflow land on `main`, build beta source with `publication=draft`:
+workflow are available on `beta-release`, build beta source with
+`publication=draft`:
 
 ```sh
-gh workflow run installers.yml --repo Kertsu/lumina --ref main \
+gh workflow run installers.yml --repo Kertsu/lumina --ref beta-release \
   -f source_ref=beta -f platform=all -f mode=production \
   -f publication=draft
 ```
@@ -186,7 +197,7 @@ The original Mac POC draft is recorded in [results](poc-results.md).
 
 ## Launch preparation
 
-1. Merge the main-based infrastructure/docs PR. The tag-aware workflow, app terms,
+1. Keep infrastructure/docs on `beta-release`. The tag-aware workflow, app terms,
    and version preparation are applied separately to `beta`; keep its workflow
    aligned before tagging. The next initial public version is `0.1.0-beta.4`.
 2. Confirm application terms, dependency/material notices, installed core
@@ -208,11 +219,13 @@ The original Mac POC draft is recorded in [results](poc-results.md).
 
 1. Make beta fixes on `beta`; stabilize separately and add later product features
    on `main`. Update the root Cargo workspace version and lockfile.
-2. Add `docs/releases/notes/VERSION.md` on `main`. Confirm beta-data compatibility
-   before the first stable release; the current `main` app cannot replace beta.
+2. Add `docs/releases/notes/VERSION.md` on `beta-release`. Confirm beta-data
+   compatibility before the first stable release; the current `main` app cannot replace beta.
 3. Push `vVERSION` from the correct source line. Tags must match Cargo and point
    into `beta` for prereleases or `main` for stable. Ordinary pushes build no
-   public release. Tag-triggered runs use workflow tooling/docs from `main`.
+   public release. Keep the tag-aware workflow on the source line before tagging;
+   its tooling/docs checkout stays pinned to `beta-release`. Stabilizing `main`
+   does not require merging the release branch.
 4. All targets must pass checks and builds. Assets are uploaded into a draft,
    then published automatically; there is no recurring human draft gate.
 5. Only after complete asset publication does one destination commit advance the

@@ -5,7 +5,9 @@ change workflow, and acceptance scenarios. Results live separately in
 [foundation verification](foundation-verification.md). Approved scenarios and
 agent checks do not complete maintainer acceptance.
 
-For beta distribution, start with the approved [release plan](releases/beta-plan.md)
+Release tooling and canonical release docs live on `beta-release`; `beta` owns
+the beta application and `main` owns stabilization. Target release changes at
+`beta-release`. Start with the approved [release plan](releases/beta-plan.md)
 and planned [release runbook](releases/runbook.md). They cover private installer
 testing, updater behavior, branch ownership, and the public launch. Release
 implementation and verification status live in the runbook.
@@ -140,9 +142,9 @@ pnpm build:vite
 ```
 
 `pnpm check` runs `check:frontend` then `check:rust`; CI runs the same groups
-in independent Ubuntu jobs on every PR to `main` and push to `main`, including
-Rust-only changes. Checks detect drift without writing bindings or starting
-windows. Generation compiles the desktop crate and needs native compile tools.
+in independent Ubuntu jobs on every PR to `main` or `beta-release` and push to
+either branch, including Rust-only changes. Checks detect drift without writing
+bindings or starting windows. Generation compiles the desktop crate and needs native compile tools.
 See [verification](verification.md) for each command and guard limits.
 
 Tests: Rust units beside modules; persistence integrations in the crate's

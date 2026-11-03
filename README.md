@@ -9,7 +9,9 @@ for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
 verification evidence. The responsibility maps and focused guides below remain
 the reference for each area.
 
-Beta distribution is planned separately in the approved
+This `beta-release` branch owns release tooling, public-documentation sources,
+and the download site. Build application code from `beta`; stabilize it on `main`.
+See the approved
 [release plan](docs/releases/beta-plan.md) and [release runbook](docs/releases/runbook.md).
 The plan owns policy; the runbook tracks implementation and verification.
 
@@ -206,7 +208,8 @@ pnpm build:vite
 `pnpm check` runs frontend lint/format checks, TypeScript, Rust formatting,
 contract drift, Clippy, React tests, and Rust tests. It runs `pnpm check:frontend`
 then `pnpm check:rust`; CI runs these same groups in parallel jobs for every
-PR targeting `main` and every push to `main`, including Rust-only changes.
+PR targeting `main` or `beta-release` and every push to either branch, including
+Rust-only changes.
 It checks without rewriting source or launching application windows;
 full verification needs the native compile prerequisites above.
 
