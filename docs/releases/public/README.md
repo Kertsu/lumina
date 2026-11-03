@@ -1,6 +1,22 @@
-<img src="docs/assets/lumina-icon.png" alt="Lumina app icon" width="80" height="80">
+<p align="center">
+  <img src="docs/assets/lumina-icon.png" alt="Lumina app icon" width="128" height="128">
+</p>
 
-# Lumina
+<h1 align="center">Lumina</h1>
+
+<p align="center"><strong>Scripture, ready for the room.</strong></p>
+
+<p align="center">Free desktop software for finding and presenting Bible passages.</p>
+
+<p align="center">
+  <a href="https://kertsu.github.io/lumina-releases/download/"><strong>Download beta</strong></a>
+  · <a href="GUIDE.md">User guide</a>
+  · <a href="https://github.com/Kertsu/lumina-releases/issues/new/choose">Report a bug</a>
+</p>
+
+<p align="center">Public beta · macOS · Windows · Linux</p>
+
+---
 
 Hi there, fellas! 👋
 
@@ -22,10 +38,9 @@ find downloads, guides, and a place to report issues.
 
 ## Downloads
 
-Head to [Releases](https://github.com/Kertsu/lumina-releases/releases) and pick the
-installer for your computer. Downloads will appear there when the beta launches.
-Choose a published beta; `rehearsal-` drafts and `Lumina POC` packages are for
-release testing.
+Head to the [download page](https://kertsu.github.io/lumina-releases/download/)
+and pick the installer for your computer. [GitHub Releases](https://github.com/Kertsu/lumina-releases/releases)
+has release notes and all packages.
 
 | Package | Architecture | Status |
 | --- | --- | --- |
@@ -68,6 +83,28 @@ Your Bible content, workspaces, and settings stay on your computer. Update check
 contact GitHub-hosted metadata and packages. Bug reports through GitHub are
 optional. Please check logs and screenshots before sharing them, and leave your
 whole database and private presentation content out of public issues.
+
+## Buy me a coffee
+
+I turn caffeine into software. If Lumina comes in handy and you'd like to send
+a little thanks, here's where you can buy me a coffee. Always optional.
+Lumina is free either way.
+
+<table>
+  <tr><th>GCash</th><th>GoTyme</th><th>MariBank</th></tr>
+  <tr>
+    <td align="center"><a href="docs/assets/support/gcash.png"><img src="docs/assets/support/gcash.png" alt="GCash receiving QR" width="180"></a></td>
+    <td align="center"><a href="docs/assets/support/gotyme.png"><img src="docs/assets/support/gotyme.png" alt="GoTyme receiving QR" width="180"></a></td>
+    <td align="center"><a href="docs/assets/support/maribank.png"><img src="docs/assets/support/maribank.png" alt="MariBank receiving QR" width="180"></a></td>
+  </tr>
+  <tr>
+    <td align="center">KU**D DA***L B.<br><a href="docs/assets/support/gcash.png">Open full size QR</a></td>
+    <td align="center">KURTD BIGTAS<br><a href="docs/assets/support/gotyme.png">Open full size QR</a></td>
+    <td align="center">KURTD DANIEL B.<br><a href="docs/assets/support/maribank.png">Open full size QR</a></td>
+  </tr>
+</table>
+
+Thanks for the support!
 
 ## License
 
