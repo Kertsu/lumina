@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
     appendFileSync,
     copyFileSync,
@@ -9,12 +10,15 @@ import {
     writeFileSync,
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 export const POC_HOST = "127.0.0.1";
 export const POC_PORT = 4318;
 export const POC_ENDPOINT = `http://${POC_HOST}:${POC_PORT}/latest.json`;
+export const LINUX_SOURCES = JSON.parse(
+    readFileSync(new URL("./linux-appimage.json", import.meta.url), "utf8")
+).sourceArchive;
 
 export const TARGETS = {
     "macos-universal": {
@@ -284,6 +288,19 @@ export function collectArtifacts(source, targetId, mode, sourceCommit) {
         join(source, "target/bundled-notices/THIRD-PARTY-NOTICES.html"),
         join(output, "THIRD-PARTY-NOTICES.html")
     );
+    let nativeSources;
+    if (targetId === "linux-x64") {
+        const archive = join(source, "target/linux-native", LINUX_SOURCES);
+        const content = readFileSync(archive);
+        if (!content.length) {
+            throw new Error("Linux third-party sources are empty.");
+        }
+        copyFileSync(archive, join(output, LINUX_SOURCES));
+        nativeSources = {
+            filename: LINUX_SOURCES,
+            sha256: createHash("sha256").update(content).digest("hex"),
+        };
+    }
     writeFileSync(
         join(output, "build-info.json"),
         `${JSON.stringify(
@@ -295,6 +312,11 @@ export function collectArtifacts(source, targetId, mode, sourceCommit) {
                 sourceCommit,
                 identifier: overrides.identifier ?? config.identifier,
                 updaterPackage: basename(updater),
+                ...(nativeSources
+                    ? {
+                          nativeSources,
+                      }
+                    : {}),
                 builtAt: new Date().toISOString(),
             },
             null,
@@ -485,6 +507,85 @@ function main() {
                     "--strict",
                     "--verbose=2",
                     join(directory, applications[0].name),
+                ],
+                source
+            );
+        }
+        if (values.target === "linux-x64") {
+            const cli = join(source, "node_modules/@tauri-apps/cli");
+            const cliVersion = JSON.parse(
+                readFileSync(join(cli, "package.json"), "utf8")
+            ).version;
+            run(
+                "python3",
+                [
+                    fileURLToPath(
+                        new URL("./linux_appimage.py", import.meta.url)
+                    ),
+                    "--source",
+                    source,
+                    "--version",
+                    readSource(source).version,
+                    "--tauri-version",
+                    cliVersion,
+                ],
+                source,
+                env
+            );
+            const directory = join(
+                source,
+                "target",
+                target.rustTarget,
+                "release/bundle/appimage"
+            );
+            const packages = readdirSync(directory).filter((name) =>
+                name.endsWith(".AppImage")
+            );
+            if (packages.length !== 1) {
+                throw new Error("Expected one corrected Linux AppImage.");
+            }
+            // The payload changed: replace the original updater signature only
+            // after the final AppImage and source materials pass inspection.
+            run(
+                process.execPath,
+                [
+                    join(cli, "tauri.js"),
+                    "signer",
+                    "sign",
+                    join(directory, packages[0]),
+                ],
+                source,
+                env
+            );
+            const packagePath = join(directory, packages[0]);
+            const verificationKey = join(
+                source,
+                "target/linux-native/updater.pub"
+            );
+            const verificationSignature = join(
+                source,
+                "target/linux-native/updater.minisig"
+            );
+            writeFileSync(
+                verificationKey,
+                Buffer.from(config.plugins.updater.pubkey, "base64")
+            );
+            writeFileSync(
+                verificationSignature,
+                Buffer.from(
+                    readFileSync(`${packagePath}.sig`, "utf8").trim(),
+                    "base64"
+                )
+            );
+            run(
+                "minisign",
+                [
+                    "-Vm",
+                    packagePath,
+                    "-p",
+                    verificationKey,
+                    "-x",
+                    verificationSignature,
                 ],
                 source
             );

@@ -17,6 +17,7 @@ dist
 count.txt
 .env
 .tanstack
+__pycache__/
 todos.json
 
 # Local scratch work

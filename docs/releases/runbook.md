@@ -4,7 +4,7 @@ Status: private preparation, 3 November 2026 (Asia/Manila). The complete product
 installer matrix and CI-authenticated private draft publication passed in
 [run 41474985591](https://github.com/Kertsu/lumina/actions/runs/41474985591).
 Installer builds do not establish runtime compatibility. See [recorded results](poc-results.md).
-Publishing infrastructure in this change still needs to land on `main`.
+Publishing infrastructure landed on `main` in PR #53.
 
 The [beta plan](beta-plan.md) owns release policy. This document owns operating
 steps. Workflow infrastructure, public-documentation sources, and launch media
@@ -56,6 +56,7 @@ Inputs:
 | `mode` | `poc` uses a local feed/separate data; `production` uses the normal identity/HTTPS feed |
 | `app_version` | Optional POC beta override; production uses committed Cargo version |
 | `publication` | `none` leaves the destination untouched; `draft` rehearses unpublished uploads |
+| `runtime_check` | `true` checks only Linux runtime source collection and relinking |
 
 Do not supply an abbreviated SHA: `actions/checkout` may interpret it as a branch.
 Download the desired `installer-TARGET-MODE-VERSION` from the run. The artifact
@@ -65,6 +66,17 @@ third-party notices. Leave a Mac updater `.app.tar.gz` intact.
 Production builds derive the beta/stable HTTPS endpoint from the Cargo version.
 Both Mac architectures receive entries for the universal package. POC HTTP/TLS
 exceptions remain confined to the generated test configuration.
+
+For runtime/source-collection changes, verify that part independently before
+rebuilding the desktop application:
+
+```sh
+gh workflow run installers.yml --repo Kertsu/lumina --ref main \
+  -f runtime_check=true
+```
+
+This mode builds and relinks the controlled Linux runtime. It does not sign or
+publish an application package and does not require release credentials.
 
 ## Dependency notices
 
@@ -82,10 +94,28 @@ establish Apple publisher trust or notarization. The build verifies the whole
 `.app` with `codesign --verify --deep --strict` before collecting artifacts.
 
 The report and original WEB notices are included in app resources. Each public
-release also uploads its per-target HTML notices. Before launch, inspect the
-actual AppImage's bundled native runtime libraries and their notice/source
-requirements; Rust/npm inventories do not inventory system libraries copied by
-an external bundler. Keep those results with the release evidence.
+release also uploads its per-target HTML notices.
+
+Linux packaging runs `scripts/linux_appimage.py` after Tauri creates its AppDir.
+It removes the optional TIFF/JBIG path and unused static archives, regenerates
+the loader cache, and rejects remaining TIFF/JBIG dependencies. Its replacement
+shell launcher keeps the relocated WebKit working directory and updater identity.
+
+The Linux builder maps native files to installed package/source versions,
+downloads matching Ubuntu source archives, and retains complete copyright and
+license texts. Enable `deb-src` indexes on this runner. Missing/ambiguous ownership
+or unavailable exact sources stops packaging; do not substitute a newer source.
+
+The AppImage runtime is rebuilt from a pinned source commit and Alpine image.
+Its actual static-library owners identify checksum-verified Alpine source
+packages. Preserve the pre-link object, link map/command, static library/CRT
+inputs, source patches and full notices for rebuilding/relinking.
+
+The final AppImage is extracted again; native-file hashes, notices, absence of
+TIFF/JBIG, and PNG/JPEG/BMP decoding are checked before its updater signature is
+replaced. `THIRD-PARTY-SOURCES.tar.zst` accompanies private Linux artifacts.
+Production publication requires its recorded SHA-256 and publishes the versioned
+source archive with the installer. Retain this asset with every Linux release.
 
 ## Private updater rehearsal
 

@@ -10,7 +10,12 @@ import {
 import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { TARGETS, targetDefinition, validateVersion } from "./release.mjs";
+import {
+    LINUX_SOURCES,
+    TARGETS,
+    targetDefinition,
+    validateVersion,
+} from "./release.mjs";
 
 export const RELEASE_REPOSITORY = "Kertsu/lumina-releases";
 export const PUBLIC_FILES = {
@@ -136,6 +141,29 @@ export function preparePublication(directories, publication, notes) {
             `${updater}.sig`,
             assetName(installerFiles[0]),
         ]);
+        if (info.nativeSources) {
+            if (
+                info.target !== "linux-x64" ||
+                info.nativeSources.filename !== LINUX_SOURCES
+            ) {
+                throw new Error("Unexpected native source archive.");
+            }
+            const contents = regularFile(join(directory, LINUX_SOURCES));
+            if (
+                !contents.length ||
+                createHash("sha256").update(contents).digest("hex") !==
+                    info.nativeSources.sha256
+            ) {
+                throw new Error("Native source archive checksum mismatch.");
+            }
+            allowed.add(LINUX_SOURCES);
+            add(
+                `THIRD-PARTY-SOURCES-${info.version}-${info.target}.tar.zst`,
+                contents
+            );
+        } else if (info.target === "linux-x64" && publication === "release") {
+            throw new Error("Linux publication requires third-party sources.");
+        }
         const notices = join(directory, "THIRD-PARTY-NOTICES.html");
         if (readdirSync(directory).includes("THIRD-PARTY-NOTICES.html")) {
             allowed.add("THIRD-PARTY-NOTICES.html");
