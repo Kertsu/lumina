@@ -51,6 +51,23 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "dmg": {
+        "background": "dmg/background.png",
+        "windowSize": {
+          "width": 720,
+          "height": 460
+        },
+        "appPosition": {
+          "x": 188,
+          "y": 258
+        },
+        "applicationFolderPosition": {
+          "x": 532,
+          "y": 258
+        }
+      }
+    }
   }
 }
