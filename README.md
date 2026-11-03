@@ -13,6 +13,11 @@ for fresh setup, a cross-stack change, M1–M8, local packaging, and recorded
 verification evidence. The responsibility maps and focused guides below remain
 the reference for each area.
 
+Release tooling, the download site, and canonical release docs live on
+[`beta-release`](https://github.com/Kertsu/lumina/tree/beta-release). See its
+[release runbook](https://github.com/Kertsu/lumina/blob/beta-release/docs/releases/runbook.md).
+This branch owns the beta application; `main` owns stabilization.
+
 ## Setup
 
 - Node.js 24 (`.node-version`).

@@ -93,7 +93,7 @@ jobs:
         id: infrastructure
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'push' && 'main' || github.sha }}
+          ref: ${{ github.event_name == 'push' && 'beta-release' || github.sha }}
           path: infrastructure
           persist-credentials: false
       - name: Resolve application source
