@@ -1,0 +1,6 @@
+{
+    "sourceArchive": "THIRD-PARTY-SOURCES.tar.zst",
+    "runtimeCommit": "fedfad51acc2860b2916a1eef32ba4a500ff31ef",
+    "runtimeSourceSha256": "a1601c596b81768626afca9abecf0137092d2d7b281bb6c4b9067d2c79e44a21",
+    "runtimeImage": "alpine:3.21@sha256:3c81aa9a3d770b316568f4499e30461a5cd3fbd7180bd89e28e34894c7845832"
+}

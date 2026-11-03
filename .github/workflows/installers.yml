@@ -29,16 +29,42 @@ on:
         type: choice
         options: [none, draft]
         default: none
+      runtime_check:
+        description: Verify only the Linux runtime sources and relinking inputs
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: installers-${{ github.ref }}-${{ inputs.source_ref }}-${{ inputs.platform }}-${{ inputs.mode }}-${{ inputs.app_version }}-${{ inputs.publication }}
+  group: installers-${{ github.ref }}-${{ inputs.source_ref }}-${{ inputs.platform }}-${{ inputs.mode }}-${{ inputs.app_version }}-${{ inputs.publication }}-${{ inputs.runtime_check }}
   cancel-in-progress: false
 
 jobs:
+  runtime:
+    name: Verify Linux runtime source materials
+    if: github.event_name == 'workflow_dispatch' && inputs.runtime_check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout runtime build tooling
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build and relink the controlled runtime
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          from linux_appimage import build_runtime
+          work = Path('target/runtime-check').resolve()
+          work.mkdir(parents=True)
+          build_runtime(work)
+          PY
   plan:
+    if: ${{ !inputs.runtime_check }}
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -146,7 +172,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
             build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev \
-            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 \
+            squashfs-tools zstd libgdk-pixbuf2.0-bin
+          # Keep source packages available for the exact native binaries bundled.
+          sed -n 's/^deb /deb-src /p' /etc/apt/sources.list | \
+            sudo tee /etc/apt/sources.list.d/lumina-sources.list >/dev/null
+          test -s /etc/apt/sources.list.d/lumina-sources.list
+          sudo apt-get update
+      - name: Install Linux updater signature verifier
+        if: runner.os == 'Linux'
+        run: |
+          curl --fail --location --retry 3 \
+            --output "$RUNNER_TEMP/minisign.tar.gz" \
+            https://github.com/jedisct1/minisign/releases/download/0.12/minisign-0.12-linux.tar.gz
+          echo "9a599b48ba6eb7b1e80f12f36b94ceca7c00b7a5173c95c3efc88d9822957e73  $RUNNER_TEMP/minisign.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/minisign.tar.gz" -C "$RUNNER_TEMP" minisign-linux/x86_64/minisign
+          echo "$RUNNER_TEMP/minisign-linux/x86_64" >> "$GITHUB_PATH"
       - name: Install declared Rust toolchain
         run: rustup toolchain install --no-self-update
       - name: Cache Rust dependencies

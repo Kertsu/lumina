@@ -32,3 +32,6 @@ todos.json
 *.njsproj
 *.sln
 *.sw?
+
+# Python packaging helpers
+__pycache__/
