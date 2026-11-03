@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
     mkdirSync,
     mkdtempSync,
@@ -19,7 +20,7 @@ import {
     preparePublication,
     publicContent,
 } from "./publish-release.mjs";
-import { TARGETS } from "./release.mjs";
+import { LINUX_SOURCES, TARGETS } from "./release.mjs";
 
 function fixture(context, mode = "production", ids = Object.keys(TARGETS)) {
     const root = mkdtempSync(join(tmpdir(), "lumina-publication-"));
@@ -45,6 +46,17 @@ function fixture(context, mode = "production", ids = Object.keys(TARGETS)) {
             join(directory, "THIRD-PARTY-NOTICES.html"),
             "dependency notices"
         );
+        let nativeSources;
+        if (id === "linux-x64") {
+            const content = Buffer.from(
+                "third-party sources and relinking inputs"
+            );
+            writeFileSync(join(directory, LINUX_SOURCES), content);
+            nativeSources = {
+                filename: LINUX_SOURCES,
+                sha256: createHash("sha256").update(content).digest("hex"),
+            };
+        }
         writeFileSync(
             join(directory, "build-info.json"),
             JSON.stringify({
@@ -55,6 +67,11 @@ function fixture(context, mode = "production", ids = Object.keys(TARGETS)) {
                 identifier: `com.kurtddanielbigtas.lumina${mode === "poc" ? ".poc" : ""}`,
                 sourceCommit: "a".repeat(40),
                 updaterPackage: updater,
+                ...(nativeSources
+                    ? {
+                          nativeSources,
+                      }
+                    : {}),
             })
         );
         return directory;
@@ -90,6 +107,39 @@ test("complete production matrix creates signed platform metadata and collision-
     assert.match(sums, / {2}updater.json\n/);
     assert.equal(sums.includes("private-key"), false);
     assert.equal(sums.includes("SHA256SUMS"), false);
+});
+
+test("Linux publication retains checked sources and refuses missing or changed archives", (context) => {
+    const directories = fixture(context);
+    const linux = directories.find((directory) =>
+        directory.endsWith("linux-x64")
+    );
+    const archive = join(linux, LINUX_SOURCES);
+    const release = preparePublication(directories, "release", "notes");
+    assert.deepEqual(
+        release.assets.get(
+            "THIRD-PARTY-SOURCES-0.1.0-beta.4-linux-x64.tar.zst"
+        ),
+        readFileSync(archive)
+    );
+    assert.match(
+        release.assets.get("SHA256SUMS").toString(),
+        /THIRD-PARTY-SOURCES/
+    );
+    writeFileSync(archive, "changed source archive");
+    assert.throws(
+        () => preparePublication(directories, "release", "notes"),
+        /checksum/
+    );
+    rmSync(archive);
+    const info = join(linux, "build-info.json");
+    const metadata = JSON.parse(readFileSync(info));
+    delete metadata.nativeSources;
+    writeFileSync(info, JSON.stringify(metadata));
+    assert.throws(
+        () => preparePublication(directories, "release", "notes"),
+        /requires third-party sources/
+    );
 });
 
 test("POC or incomplete matrices are draft-only and use a separate rehearsal tag", (context) => {

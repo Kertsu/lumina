@@ -16,6 +16,20 @@ source location identified in its notice. Those components retain MPL rights;
 Lumina's proprietary terms do not restrict them. Lumina does not modify vendored
 dependency sources.
 
+## Linux libraries and AppImage runtime
+
+Linux packages also include native-library copyright notices and full license
+texts. The matching release provides `THIRD-PARTY-SOURCES-VERSION-linux-x64.tar.zst`:
+exact Ubuntu source packages, distro patches/build rules, and the AppImage
+runtime's sources and relinking inputs. These are third-party components and
+packaging recipes; the archive does not contain Lumina's application source.
+
+To use modified native libraries, extract the AppImage with
+`./Lumina.AppImage --appimage-extract`, replace the relevant library in
+`squashfs-root/usr/lib`, and run `squashfs-root/AppRun`. Library ABI compatibility
+still matters. The source archive's README explains its contents and build inputs.
+The components' licenses preserve their own modification and debugging rights.
+
 ## Fonts
 
 The application bundles **DM Sans** and **Cormorant Garamond** through Fontsource,
