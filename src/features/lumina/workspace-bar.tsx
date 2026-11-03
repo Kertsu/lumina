@@ -1,6 +1,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
     observeOperatorFullscreen,
     usesOverlayTitlebar,
@@ -29,7 +30,6 @@ export function WorkspaceBar() {
         setRename,
         addWorkspace,
         moveWorkspace,
-        notify,
     } = useDeskContext();
     return (
         <div
@@ -70,7 +70,7 @@ export function WorkspaceBar() {
                 }}
                 onMove={moveWorkspace}
                 onClose={setRemoveId}
-                onMenuError={notify}
+                onMenuError={toast.error}
             />
             <IconButton
                 className="workspace-add"

@@ -6,6 +6,7 @@ import {
     waitFor,
     within,
 } from "@testing-library/react";
+import { Toaster } from "sonner";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
     type DeskController,
@@ -248,17 +249,17 @@ it("keeps verse navigation focus on the thumbnail, outside the workspace panel",
     expect(panel.classList.contains("focus-visible:ring-2")).toBe(false);
 });
 
-it("lets the operator dismiss an application error", () => {
+it("surfaces an application error without dismissing it", async () => {
     const model = controller();
     model.error = "Open the audience explicitly before sending live.";
-    render(<ProjectionDesk controller={model} />);
-    expect(screen.getByRole("alert").textContent).toContain(model.error);
-    fireEvent.click(
-        screen.getByRole("button", {
-            name: "Dismiss error",
-        })
+    render(
+        <>
+            <ProjectionDesk controller={model} />
+            <Toaster position="bottom-right" />
+        </>
     );
-    expect(model.dismissError).toHaveBeenCalledOnce();
+    await screen.findByText(model.error);
+    expect(model.dismissError).not.toHaveBeenCalled();
 });
 
 it("requests visible history copying through the workspace controller", () => {

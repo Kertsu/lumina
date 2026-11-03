@@ -40,7 +40,7 @@ export function DeskDialogs() {
         selectedThumbnail,
         verseSheetTrigger,
         focusReferenceAfterSheet,
-        notify,
+        notifySuccess,
         patch,
         current,
     } = useDeskContext();
@@ -107,7 +107,7 @@ export function DeskDialogs() {
                     patch({
                         appearance,
                     });
-                    notify("Appearance applied to this workspace");
+                    notifySuccess("Appearance applied to this workspace");
                 }}
             />
             <LibraryDialog

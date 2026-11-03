@@ -1,4 +1,5 @@
 import {
+    Check,
     ChevronLeft,
     ChevronRight,
     Copy,
@@ -7,7 +8,8 @@ import {
     Monitor,
     Palette,
 } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/shared/ui/button";
 import {
     Select,
@@ -23,6 +25,7 @@ import { IconButton } from "./icon-button";
 import { graphemeCount } from "./model";
 import { VerseSlide } from "./verse-slide";
 export function CurrentVerse() {
+    const [copied, setCopied] = useState(false);
     const translationId = useId();
     const {
         workspace,
@@ -30,7 +33,6 @@ export function CurrentVerse() {
         installed,
         setAppearanceOpen,
         showInformation,
-        notify,
         isInstalled,
         previewVerse,
         navigate,
@@ -79,6 +81,11 @@ export function CurrentVerse() {
                         </IconButton>
                         <IconButton
                             label="Copy current verse"
+                            className={
+                                copied
+                                    ? "copy-current-verse copied"
+                                    : "copy-current-verse"
+                            }
                             onClick={() => {
                                 if (!current) {
                                     return;
@@ -88,15 +95,21 @@ export function CurrentVerse() {
                                         `${current.text}\n${referenceLabel(current)} — ${current.translationTitle ?? translations.find((item) => item.id === current.translation)?.name ?? current.translation}`
                                     )
                                     .then(
-                                        () => notify("Verse copied"),
+                                        () => {
+                                            setCopied(true);
+                                            window.setTimeout(
+                                                () => setCopied(false),
+                                                2000
+                                            );
+                                        },
                                         () =>
-                                            notify(
+                                            toast.error(
                                                 "Clipboard unavailable. Try copying from the verse preview."
                                             )
                                     );
                             }}
                         >
-                            <Copy />
+                            {copied ? <Check /> : <Copy />}
                         </IconButton>
                         <IconButton
                             label="Inspect current slide"

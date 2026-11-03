@@ -1,6 +1,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { TranslationId, Verse } from "./fixtures";
 import { showShortcutsHotkey } from "./keyboard-shortcuts";
 import type { DeskController, Workspace } from "./model";
@@ -70,10 +71,9 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const [rename, setRename] = useState("");
     const [reference, setReference] = useState("");
     const [referenceError, setReferenceError] = useState("");
-    const [notification, setNotification] = useState("");
     useEffect(() => {
         if (themeError) {
-            setNotification(themeError);
+            toast.error(themeError);
         }
     }, [themeError]);
     const [informationBook, setInformationBook] = useState("John");
@@ -87,7 +87,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const verseSheetTrigger = useRef<HTMLButtonElement>(null);
     const searchSheetTrigger = useRef<HTMLButtonElement>(null);
     const focusReferenceAfterSheet = useRef(false);
-    const notify = (message: string) => setNotification(message);
+    const notifySuccess = (message: string) => toast.success(message);
+
     const inspectInformation = (bookId?: number) =>
         dispatch({
             type: "inspectInformation",
@@ -216,13 +217,6 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         setReference("");
         setReferenceError("");
     }, [activeId]);
-    useEffect(() => {
-        if (!notification) {
-            return;
-        }
-        const timeout = window.setTimeout(() => setNotification(""), 4500);
-        return () => window.clearTimeout(timeout);
-    }, [notification]);
     const currentId = workspace?.current?.id;
     const chapterIdentity = workspace.current
         ? `${workspace.current.editionId ?? workspace.current.translation}:${workspace.current.bookId}:${workspace.current.chapter}`
@@ -322,7 +316,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             return;
         }
         if (workspaces.length === 1) {
-            notify("Keep at least one workspace open.");
+            toast.warning("Keep at least one workspace open.");
             return;
         }
         setRemoveId(workspace.id);
@@ -543,8 +537,6 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         setReference,
         referenceError,
         setReferenceError,
-        notification,
-        setNotification,
         informationBook,
         setInformationBook,
         referenceInput,
@@ -556,7 +548,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         verseSheetTrigger,
         searchSheetTrigger,
         focusReferenceAfterSheet,
-        notify,
+        notifySuccess,
         patch,
         isInstalled,
         selectVerse,
