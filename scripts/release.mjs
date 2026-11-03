@@ -467,6 +467,10 @@ function main() {
         if (target.macOS?.minimumSystemVersion) {
             env.MACOSX_DEPLOYMENT_TARGET = target.macOS.minimumSystemVersion;
         }
+        if (target.macOS) {
+            // Tauri otherwise skips Finder backgrounds and icon positions on CI.
+            env.TAURI_BUNDLER_DMG_IGNORE_CI = "true";
+        }
         run(
             process.execPath,
             [

@@ -103,6 +103,12 @@ seals the app bundle; it is separate from updater signatures and does not
 establish Apple publisher trust or notarization. The build verifies the whole
 `.app` with `codesign --verify --deep --strict` before collecting artifacts.
 
+The app source owns `bundle.macOS.dmg` and its committed background artwork.
+Tauri merges these settings with the release configuration. Mac packaging sets
+`TAURI_BUNDLER_DMG_IGNORE_CI=true` so Finder backgrounds and icon positions are
+applied on CI instead of silently skipped. Inspect the generated DMG after
+changing its artwork or geometry; app compilation is not required for this check.
+
 The report and original WEB notices are included in app resources. Each public
 release also uploads its per-target HTML notices.
 
