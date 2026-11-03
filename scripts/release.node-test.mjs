@@ -14,6 +14,7 @@ import { test } from "node:test";
 import {
     buildOverrides,
     collectArtifacts,
+    LINUX_SOURCES,
     POC_ENDPOINT,
     readWorkspaceVersion,
     TARGETS,
@@ -198,6 +199,11 @@ test("collection uploads only installers, signed update packages, and provenance
         join(source, "target/bundled-notices/THIRD-PARTY-NOTICES.html"),
         "dependency notices"
     );
+    mkdirSync(join(source, "target/linux-native"));
+    writeFileSync(
+        join(source, "target/linux-native", LINUX_SOURCES),
+        "third-party source archive"
+    );
     for (const [id, target] of Object.entries(TARGETS)) {
         const bundle = join(
             source,
@@ -239,7 +245,14 @@ test("collection uploads only installers, signed update packages, and provenance
         assert.equal(info.sourceCommit, "test-source-commit");
         assert.equal(info.identifier, "com.example.lumina.poc");
         assert.equal(info.updaterPackage, updater);
-        assert.equal(readdirSync(output).length, updater === installer ? 4 : 5);
+        assert.equal(
+            readdirSync(output).length,
+            (updater === installer ? 4 : 5) + (id === "linux-x64" ? 1 : 0)
+        );
+        assert.equal(
+            info.nativeSources?.filename,
+            id === "linux-x64" ? LINUX_SOURCES : undefined
+        );
         assert.equal(existsSync(join(output, "private-key.key")), false);
         rmSync(join(bundle, target.updaterDirectory, `${updater}.sig`));
         assert.throws(
