@@ -1,6 +1,22 @@
-<img src="docs/assets/lumina-icon.png" alt="Lumina app icon" width="80" height="80">
+<p align="center">
+  <img src="docs/assets/lumina-icon.png" alt="Lumina app icon" width="128" height="128">
+</p>
 
-# Lumina
+<h1 align="center">Lumina</h1>
+
+<p align="center"><strong>Scripture, ready for the room.</strong></p>
+
+<p align="center">Free desktop software for finding and presenting Bible passages.</p>
+
+<p align="center">
+  <a href="https://kertsu.github.io/lumina-releases/download/"><strong>Download beta</strong></a>
+  · <a href="GUIDE.md">User guide</a>
+  · <a href="https://github.com/Kertsu/lumina-releases/issues/new/choose">Report a bug</a>
+</p>
+
+<p align="center">Public beta · macOS · Windows · Linux</p>
+
+---
 
 Hi there, fellas! 👋
 
@@ -22,10 +38,9 @@ find downloads, guides, and a place to report issues.
 
 ## Downloads
 
-Head to [Releases](https://github.com/Kertsu/lumina-releases/releases) and pick the
-installer for your computer. Downloads will appear there when the beta launches.
-Choose a published beta; `rehearsal-` drafts and `Lumina POC` packages are for
-release testing.
+Head to the [download page](https://kertsu.github.io/lumina-releases/download/)
+and pick the installer for your computer. [GitHub Releases](https://github.com/Kertsu/lumina-releases/releases)
+has release notes and all packages.
 
 | Package | Architecture | Status |
 | --- | --- | --- |
