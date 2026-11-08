@@ -164,6 +164,12 @@ kbd { font-family: "DM Sans", sans-serif; font-size: 12px; font-weight: 400; lin
 .detail-dot { width: 2px; height: 2px; border-radius: 100%; background: var(--muted); }
 .current-actions { display: grid; grid-template-columns: auto auto; align-items: end; gap: 7px 12px; max-width: 100%; }
 .current-translation { width: 128px; height: 34px; font-size: 12px; background: transparent !important; }
+.translation-picker-menu {
+    min-width: min(var(--radix-select-trigger-width), var(--radix-select-content-available-width));
+    max-width: var(--radix-select-content-available-width);
+    max-height: min(20rem, var(--radix-select-content-available-height));
+    overflow-wrap: anywhere;
+}
 .display-translation > label, .display-navigation > span { display: block; margin-bottom: 6px; color: var(--muted-foreground); font-size: 12px; }
 .current-actions .display-action-note { grid-column: 1 / -1; margin: 0; font-size: 12px; }
 .navigation-pair { display: flex; }

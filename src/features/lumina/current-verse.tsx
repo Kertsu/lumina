@@ -183,7 +183,7 @@ export function CurrentVerse() {
                             >
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="translation-picker-menu">
                                 {translations
                                     .filter((item) =>
                                         installed.includes(item.id)
