@@ -119,6 +119,7 @@ export function useIntegratedDeskController(): DeskController {
     const resourceRef = useRef(resources);
     const [importReview, setImportReview] =
         useState<DeskController["importReview"]>(null);
+    const [publishingImport, setPublishingImport] = useState(false);
     const [referenceChoice, setReferenceChoice] =
         useState<DeskController["referenceChoice"]>(null);
     const choiceRef = useRef(referenceChoice);
@@ -864,10 +865,21 @@ export function useIntegratedDeskController(): DeskController {
                 );
                 return;
             }
-            case "publishImport":
-                accepted(await deskClient.commitImport(action.reviewId));
-                setImportReview(null);
-                break;
+            case "publishImport": {
+                setPublishingImport(true);
+                let committed = false;
+                try {
+                    accepted(await deskClient.commitImport(action.reviewId));
+                    committed = true;
+                    await refresh();
+                } finally {
+                    if (committed) {
+                        setImportReview(null);
+                    }
+                    setPublishingImport(false);
+                }
+                return;
+            }
             case "cancelImport":
                 accepted(await deskClient.cancelImport(action.reviewId));
                 setImportReview(null);
@@ -1020,6 +1032,7 @@ export function useIntegratedDeskController(): DeskController {
             .filter(Boolean)
             .join("\n"),
         importReview,
+        publishingImport,
         referenceChoice,
         dismissError() {
             setError("");

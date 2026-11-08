@@ -118,6 +118,7 @@ export function DeskDialogs() {
                     (item) => item.status !== "closed"
                 )}
                 review={controller.importReview}
+                publishingImport={controller.publishingImport}
                 onRemove={(translationId) =>
                     dispatch({
                         type: "deleteTranslation",

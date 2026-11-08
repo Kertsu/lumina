@@ -1,4 +1,5 @@
 import {
+    act,
     cleanup,
     fireEvent,
     render,
@@ -8,6 +9,8 @@ import {
 } from "@testing-library/react";
 import { Toaster } from "sonner";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { client, createBrowserClient, deskClient } from "@/bridge/client";
+import { IntegratedOperator } from "./integrated-operator";
 import {
     type DeskController,
     defaultAppearance,
@@ -39,6 +42,7 @@ beforeEach(() => {
 afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
 });
 
 function controller(): DeskController {
@@ -378,6 +382,111 @@ it("keeps audience preferences scoped outside the shortcuts list", async () => {
     });
     expect(model.dispatch).toHaveBeenCalledTimes(1);
     expect(within(dialog).queryByRole("combobox")).toBeNull();
+});
+
+it("shows Bible import progress and allows retry after publication fails", async () => {
+    const snapshot = await createBrowserClient().getApplicationState();
+    if (snapshot.status !== "ok") {
+        throw new Error("Fixture unavailable");
+    }
+    const state = structuredClone(snapshot.data);
+    vi.spyOn(client, "getApplicationState").mockImplementation(async () => ({
+        status: "ok",
+        data: structuredClone(state),
+    }));
+    vi.spyOn(deskClient, "pickBibleImport").mockResolvedValue({
+        status: "ok",
+        data: {
+            token: "import-review",
+            filename: "Bible.sqlite",
+            translations: [
+                {
+                    title: "Imported Bible",
+                    description: "",
+                    editionLabel: null,
+                    sourceName: null,
+                    sourceUrl: null,
+                    rightsNotice: null,
+                    bookCount: 66,
+                    verseCount: 31_098,
+                    books: [],
+                },
+            ],
+            warnings: [],
+        },
+    });
+    let failImport: (error: Error) => void = () => {};
+    const commit = vi
+        .spyOn(deskClient, "commitImport")
+        .mockImplementationOnce(
+            () =>
+                new Promise((_, reject) => {
+                    failImport = reject;
+                })
+        )
+        .mockImplementationOnce(async () => {
+            state.translations.push({
+                ...state.translations[0],
+                translationId: "imported-bible",
+                editionId: "imported-edition",
+                title: "Imported Bible",
+                bundled: false,
+            });
+            return {
+                status: "ok",
+                data: {
+                    translations: state.translations,
+                    filename: "Bible.sqlite",
+                    translationIds: ["imported-bible"],
+                    libraryRevision: 1,
+                },
+            };
+        });
+    render(<IntegratedOperator />);
+    fireEvent.pointerDown(
+        await screen.findByRole("button", { name: "Lumina menu" }),
+        {
+            button: 0,
+            ctrlKey: false,
+            pointerType: "mouse",
+        }
+    );
+    fireEvent.click(
+        await screen.findByRole("menuitem", { name: "Bible library" })
+    );
+    const library = within(
+        await screen.findByRole("dialog", { name: "Your Bible library" })
+    );
+    fireEvent.click(
+        library.getByRole("button", { name: /Review a Bible import/ })
+    );
+    const publish = await library.findByRole<HTMLButtonElement>("button", {
+        name: "Add translations",
+    });
+    fireEvent.click(publish);
+    expect(commit).toHaveBeenCalledExactlyOnceWith("import-review");
+    expect(publish.textContent).toBe("Adding translations…");
+    expect(publish.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(library.getByRole("status").textContent).toBe(
+        "Adding translations…"
+    );
+    expect(publish.disabled).toBe(true);
+    expect(
+        library.getByRole<HTMLButtonElement>("button", { name: "Cancel" })
+            .disabled
+    ).toBe(true);
+    fireEvent.click(publish);
+    expect(commit).toHaveBeenCalledTimes(1);
+
+    await act(async () => failImport(new Error("Could not add translations.")));
+    expect(publish.textContent).toBe("Add translations");
+    expect(publish.querySelector("svg")).toBeNull();
+    expect(publish.disabled).toBe(false);
+    fireEvent.click(publish);
+    await library.findByRole("heading", { name: "Imported Bible" });
+    expect(
+        library.queryByRole("heading", { name: "Ready to review" })
+    ).toBeNull();
 });
 
 it("preserves the menu entry and hands focus to a selected shortcut action", async () => {

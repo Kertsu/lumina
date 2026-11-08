@@ -134,6 +134,7 @@ export type DeskController = {
     error?: string;
     dismissError: () => void;
     importReview?: ImportReview | null;
+    publishingImport?: boolean;
     referenceChoice?: {
         input: string;
         preview: boolean;

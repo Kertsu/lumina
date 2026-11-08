@@ -3,6 +3,7 @@ import {
     Check,
     Database,
     FileUp,
+    LoaderCircle,
     ShieldCheck,
     Trash2,
 } from "lucide-react";
@@ -25,6 +26,7 @@ type Props = {
     translations: Translation[];
     audiencesOpen: boolean;
     review?: ImportReview | null;
+    publishingImport?: boolean;
     onRemove: (id: string) => void;
     onReview: () => void;
     onPublish: (id: string) => void;
@@ -37,6 +39,7 @@ export function LibraryDialog({
     translations,
     audiencesOpen,
     review,
+    publishingImport = false,
     onRemove,
     onReview,
     onPublish,
@@ -46,6 +49,9 @@ export function LibraryDialog({
     const removing = translations.find(
         (translation) => translation.id === remove
     );
+    const publishLabel = publishingImport
+        ? "Adding translations…"
+        : "Add translations";
     return (
         <Dialog
             open={open}
@@ -156,19 +162,31 @@ export function LibraryDialog({
                         {review.warnings.map((warning) => (
                             <p key={warning}>{warning}</p>
                         ))}
+                        <span className="sr-only" role="status">
+                            {publishingImport ? publishLabel : null}
+                        </span>
                         <div className="flex gap-2 mt-4">
                             <Button
                                 variant="ghost"
                                 size="sm"
+                                disabled={publishingImport}
                                 onClick={() => onCancel(review.id)}
                             >
                                 Cancel
                             </Button>
                             <Button
                                 size="sm"
+                                className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                                disabled={publishingImport}
                                 onClick={() => onPublish(review.id)}
                             >
-                                Add translations
+                                {publishingImport && (
+                                    <LoaderCircle
+                                        aria-hidden="true"
+                                        className="motion-safe:animate-spin"
+                                    />
+                                )}
+                                {publishLabel}
                             </Button>
                         </div>
                     </div>
