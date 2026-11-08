@@ -432,6 +432,33 @@ function main() {
     const target = targetDefinition(values.target);
     const generated = join(source, "target/installer-overrides.json");
     if (command === "prepare") {
+        if (
+            values.target === "linux-x64" &&
+            process.env.GITHUB_ACTIONS === "true"
+        ) {
+            // Use the workflow's refreshed indexes for both binaries and source.
+            run(
+                "sudo",
+                [
+                    "env",
+                    "DEBIAN_FRONTEND=noninteractive",
+                    "NEEDRESTART_MODE=l",
+                    "apt-get",
+                    "-o",
+                    "Acquire::Retries=3",
+                    "-o",
+                    "APT::Get::Always-Include-Phased-Updates=true",
+                    "-o",
+                    "Dpkg::Options::=--force-confold",
+                    "upgrade",
+                    "-y",
+                    "--with-new-pkgs",
+                    "--no-install-recommends",
+                    "--no-remove",
+                ],
+                source
+            );
+        }
         run("rustup", ["target", "add", ...target.rustTargets], source);
         if (values.version && values.version !== version) {
             const cargo = join(source, "Cargo.toml");

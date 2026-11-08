@@ -117,10 +117,11 @@ It removes the optional TIFF/JBIG path and unused static archives, regenerates
 the loader cache, and rejects remaining TIFF/JBIG dependencies. Its replacement
 shell launcher keeps the relocated WebKit working directory and updater identity.
 
-The Linux builder maps native files to installed package/source versions,
-downloads matching Ubuntu source archives, and retains complete copyright and
-license texts. Enable `deb-src` indexes on this runner. Missing/ambiguous ownership
-or unavailable exact sources stops packaging; do not substitute a newer source.
+GitHub-hosted Linux builds upgrade runner packages from the refreshed APT
+indexes before bundling. The Linux builder maps native files to installed
+package/source versions, downloads matching Ubuntu source archives, and retains
+complete copyright and license texts. Enable `deb-src` indexes on this runner.
+Packaging requires unambiguous ownership and exact source versions.
 
 The AppImage runtime is rebuilt from a pinned source commit and Alpine image.
 Its actual static-library owners identify checksum-verified Alpine source
