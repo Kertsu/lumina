@@ -75,7 +75,7 @@ export function QuickReferenceBar() {
                                 Find in {translation?.shortName}
                             </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="translation-picker-menu">
                             {translations
                                 .filter((item) => installed.includes(item.id))
                                 .map((item) => (

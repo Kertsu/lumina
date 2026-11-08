@@ -218,7 +218,7 @@ export function SidePanel({
                             <SelectTrigger id={translationId}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="translation-picker-menu">
                                 {translations.map((translation) => (
                                     <SelectItem
                                         key={translation.id}
