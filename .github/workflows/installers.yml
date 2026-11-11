@@ -168,17 +168,20 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Linux packaging prerequisites
         if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y \
-            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev \
-            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 \
-            squashfs-tools zstd libgdk-pixbuf2.0-bin
+          # Avoid the runner's Azure mirror and the Firefox Snap transition.
+          sudo sed -i 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          sudo apt-mark hold firefox
           # Keep source packages available for the exact native binaries bundled.
           sed -n 's/^deb /deb-src /p' /etc/apt/sources.list | \
             sudo tee /etc/apt/sources.list.d/lumina-sources.list >/dev/null
           test -s /etc/apt/sources.list.d/lumina-sources.list
           sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev \
+            libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 \
+            squashfs-tools zstd libgdk-pixbuf2.0-bin
       - name: Install Linux updater signature verifier
         if: runner.os == 'Linux'
         run: |
