@@ -686,7 +686,7 @@ it("shares lookup translation between search and quick reference without changin
         screen.getByRole("combobox", {
             name: "Lookup translation",
         }).textContent
-    ).toContain("Find in ASV");
+    ).toBe("ASV");
     const display = screen.getByRole("combobox", {
         name: "Display translation",
     });

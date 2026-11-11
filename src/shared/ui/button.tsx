@@ -41,7 +41,9 @@ export function Button({
     const [overflowLabel, setOverflowLabel] = useState<string>();
     const measureLabel = useCallback(
         (node: HTMLSpanElement | null) => {
-            if (!node) return;
+            if (!node) {
+                return;
+            }
             const measure = () =>
                 setOverflowLabel(
                     node.scrollWidth > node.clientWidth
@@ -49,12 +51,14 @@ export function Button({
                         : undefined
                 );
             measure();
-            if (typeof ResizeObserver === "undefined") return;
+            if (typeof ResizeObserver === "undefined") {
+                return;
+            }
             const observer = new ResizeObserver(measure);
             observer.observe(node);
             return () => observer.disconnect();
         },
-        [label, children]
+        [label]
     );
     const shared = {
         ...props,

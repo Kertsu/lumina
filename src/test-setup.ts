@@ -9,9 +9,14 @@ Object.defineProperty(globalThis, "CSS", {
         supports: () => false,
     },
 });
+const dialogOpeners = new WeakMap<HTMLDialogElement, HTMLElement>();
 Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value(this: HTMLDialogElement) {
+        const opener = this.ownerDocument.activeElement;
+        if (opener instanceof HTMLElement && !this.contains(opener)) {
+            dialogOpeners.set(this, opener);
+        }
         this.setAttribute("open", "");
     },
 });
@@ -19,6 +24,8 @@ Object.defineProperty(HTMLDialogElement.prototype, "close", {
     configurable: true,
     value(this: HTMLDialogElement) {
         this.removeAttribute("open");
+        dialogOpeners.get(this)?.focus();
+        dialogOpeners.delete(this);
     },
 });
 const matches = HTMLElement.prototype.matches;
