@@ -9,6 +9,16 @@ Object.defineProperty(globalThis, "CSS", {
         supports: () => false,
     },
 });
+// Closed native dialogs cannot take focus, even if a descendant requests it.
+const focus = HTMLElement.prototype.focus;
+Object.defineProperty(HTMLElement.prototype, "focus", {
+    configurable: true,
+    value(this: HTMLElement, options?: FocusOptions) {
+        if (!this.closest("dialog:not([open])")) {
+            focus.call(this, options);
+        }
+    },
+});
 const dialogOpeners = new WeakMap<HTMLDialogElement, HTMLElement>();
 Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
