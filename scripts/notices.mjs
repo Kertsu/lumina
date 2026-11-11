@@ -24,6 +24,12 @@ const JAVASCRIPT_LICENSES = new Set([
     "0BSD",
 ]);
 
+const LICENSE_CLARIFICATIONS = new Map([
+    ["react-remove-scroll-bar@2.3.8", "react-remove-scroll-bar-2.3.8"],
+    ["@astryxdesign/core@0.7.13", "astryxdesign-core-0.7.13"],
+    ["@stylexjs/stylex@0.19.1", "stylexjs-stylex-0.19.1"],
+]);
+
 function capture(command, args, source, shell = false) {
     const result = spawnSync(command, args, {
         cwd: source,
@@ -71,14 +77,21 @@ export function javascriptNotices(report) {
     const packages = Object.values(report).flat();
     return packages.flatMap((item) =>
         item.paths.map((path) => {
-            if (!JAVASCRIPT_LICENSES.has(item.license)) {
-                throw new Error(
-                    `Review the new dependency license before release: ${item.name} (${item.license}).`
-                );
-            }
             const metadata = JSON.parse(
                 readFileSync(join(path, "package.json"), "utf8")
             );
+            // The shipped css-mediaquery 0.1.2 license text specifies all three clauses.
+            const license =
+                item.name === "css-mediaquery" &&
+                metadata.version === "0.1.2" &&
+                item.license === "BSD"
+                    ? "BSD-3-Clause"
+                    : item.license;
+            if (!JAVASCRIPT_LICENSES.has(license)) {
+                throw new Error(
+                    `Review the new dependency license before release: ${item.name} (${license}).`
+                );
+            }
             let texts = licenseFiles(path);
             // Platform tool packages share the license of the same-version upstream tool.
             const parent = item.name.startsWith("@esbuild/")
@@ -96,24 +109,19 @@ export function javascriptNotices(report) {
                     texts = upstream.paths.flatMap(licenseFiles);
                 }
             }
-            if (
-                !texts.length &&
-                item.name === "react-remove-scroll-bar" &&
-                metadata.version === "2.3.8"
-            ) {
+            const clarificationFile = LICENSE_CLARIFICATIONS.get(
+                `${item.name}@${metadata.version}`
+            );
+            if (!texts.length && clarificationFile) {
                 const clarification = JSON.parse(
                     readFileSync(
-                        join(
-                            LICENSE_DIRECTORY,
-                            "react-remove-scroll-bar-2.3.8.json"
-                        )
+                        join(LICENSE_DIRECTORY, `${clarificationFile}.json`),
+                        "utf8"
                     )
                 );
                 const text = readFileSync(
-                    join(
-                        LICENSE_DIRECTORY,
-                        "react-remove-scroll-bar-2.3.8-LICENSE"
-                    )
+                    join(LICENSE_DIRECTORY, `${clarificationFile}-LICENSE`),
+                    "utf8"
                 );
                 if (
                     createHash("sha256").update(text).digest("hex") !==
@@ -134,7 +142,7 @@ export function javascriptNotices(report) {
             }
             return {
                 name: `${item.name}@${metadata.version}`,
-                license: item.license,
+                license,
                 source: `https://www.npmjs.com/package/${item.name}/v/${metadata.version}`,
                 texts,
             };

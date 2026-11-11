@@ -1,0 +1,7 @@
+{
+    "package": "@astryxdesign/core",
+    "version": "0.7.13",
+    "source": "https://raw.githubusercontent.com/meta/astryx/a370b5e07e4f2cbe19bfa163d025bde9397e1a28/LICENSE",
+    "sha256": "a6855be541fc8f446acd1bc4f2f8efce1ace6dce71dba32fcd8da553ee54b473",
+    "reason": "Published package omits a license file; the version-pinned upstream MIT notice matches its declared license."
+}
