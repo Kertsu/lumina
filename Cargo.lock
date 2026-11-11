@@ -10,7 +10,7 @@ checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
 name = "Lumina"
-version = "0.1.0-beta.7"
+version = "0.1.0-beta.8"
 dependencies = [
  "base64 0.22.1",
  "lumina-app",
@@ -2112,7 +2112,7 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lumina-app"
-version = "0.1.0-beta.7"
+version = "0.1.0-beta.8"
 dependencies = [
  "lumina-core",
  "serde",
@@ -2124,7 +2124,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-core"
-version = "0.1.0-beta.7"
+version = "0.1.0-beta.8"
 dependencies = [
  "serde",
  "specta",
@@ -2132,7 +2132,7 @@ dependencies = [
 
 [[package]]
 name = "lumina-persistence"
-version = "0.1.0-beta.7"
+version = "0.1.0-beta.8"
 dependencies = [
  "image",
  "lumina-app",
