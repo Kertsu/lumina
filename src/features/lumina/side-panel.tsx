@@ -13,32 +13,17 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-import { type CSSProperties, Fragment, type RefObject, useId } from "react";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/shared/ui/alert-dialog";
+    type CSSProperties,
+    Fragment,
+    type RefObject,
+    useId,
+    useState,
+} from "react";
+import { AlertDialog } from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shared/ui/select";
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetTitle,
-} from "@/shared/ui/sheet";
+import { Select } from "@/shared/ui/select";
+import { Sheet } from "@/shared/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import type { Translation, Verse } from "./fixtures";
 import { referenceLabel } from "./fixtures";
@@ -118,6 +103,7 @@ export function SidePanel({
     onCopyHistory,
     onClearHistory,
 }: Props) {
+    const [clearHistoryOpen, setClearHistoryOpen] = useState(false);
     const searchId = useId();
     const searchContentId = useId();
     const searchPanelId = useId();
@@ -143,20 +129,24 @@ export function SidePanel({
             className="sidebar-tabs"
         >
             <div className="sidebar-tabbar">
-                <TabsList>
-                    <TabsTrigger value="search">
-                        <Search />
-                        Search
-                    </TabsTrigger>
-                    <TabsTrigger value="history">
-                        <History />
-                        History
-                        {workspace.history.length > 0 && (
-                            <span className="tab-count">
-                                {workspace.history.length}
-                            </span>
-                        )}
-                    </TabsTrigger>
+                <TabsList aria-label="Search and history">
+                    <TabsTrigger
+                        value="search"
+                        label="Search"
+                        icon={<Search />}
+                    />
+                    <TabsTrigger
+                        value="history"
+                        label="History"
+                        icon={<History />}
+                        endContent={
+                            workspace.history.length ? (
+                                <span className="history-count">
+                                    {workspace.history.length}
+                                </span>
+                            ) : undefined
+                        }
+                    />
                 </TabsList>
                 <Button
                     variant="ghost"
@@ -206,91 +196,77 @@ export function SidePanel({
                         </Button>
                     </div>
                     <div className="search-translation">
-                        <label htmlFor={translationId}>Find in</label>
                         <Select
                             value={workspace.translation}
-                            onValueChange={(translation) =>
+                            onChange={(translation) =>
                                 onChange({
                                     translation,
                                 })
                             }
-                        >
-                            <SelectTrigger id={translationId}>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="translation-picker-menu">
-                                {translations.map((translation) => (
-                                    <SelectItem
-                                        key={translation.id}
-                                        value={translation.id}
-                                    >
-                                        {translation.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            id={translationId}
+                            label={"Find in"}
+                            options={translations.map((translation) => ({
+                                value: translation.id,
+                                label: translation.name,
+                            }))}
+                        />
                     </div>
                     <div className="search-filters">
                         <div>
-                            <label htmlFor={modeId}>Match</label>
                             <Select
                                 value={workspace.mode}
-                                onValueChange={(mode: SearchMode) =>
+                                onChange={(mode) =>
                                     onChange({
-                                        mode,
+                                        mode: mode as SearchMode,
                                         page: 1,
                                     })
                                 }
-                            >
-                                <SelectTrigger id={modeId}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">
-                                        All words
-                                    </SelectItem>
-                                    <SelectItem value="phrase">
-                                        Phrase
-                                    </SelectItem>
-                                    <SelectItem value="starts">
-                                        Word starts
-                                    </SelectItem>
-                                    <SelectItem value="contains">
-                                        Contains text
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                id={modeId}
+                                label={"Match"}
+                                options={[
+                                    {
+                                        value: "all",
+                                        label: "All words",
+                                    },
+                                    {
+                                        value: "phrase",
+                                        label: "Phrase",
+                                    },
+                                    {
+                                        value: "starts",
+                                        label: "Word starts",
+                                    },
+                                    {
+                                        value: "contains",
+                                        label: "Contains text",
+                                    },
+                                ]}
+                            />
                         </div>
                         <div>
-                            <label htmlFor={scopeId}>Search at</label>
                             <Select
                                 value={workspace.scope}
-                                onValueChange={(scope) =>
+                                onChange={(scope) =>
                                     onChange({
                                         scope,
                                         page: 1,
                                     })
                                 }
-                            >
-                                <SelectTrigger id={scopeId}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {[
-                                        "Entire Bible",
-                                        "OT",
-                                        "NT",
-                                        "Books of Moses",
-                                        "Gospels",
-                                        "Epistles of Paul",
-                                        ...books,
-                                    ].map((scope) => (
-                                        <SelectItem key={scope} value={scope}>
-                                            {scope}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                id={scopeId}
+                                label={"Search at"}
+                                options={[
+                                    "Entire Bible",
+                                    "OT",
+                                    "NT",
+                                    "Books of Moses",
+                                    "Gospels",
+                                    "Epistles of Paul",
+                                    ...books,
+                                ].map((scope) => ({
+                                    value: scope,
+                                    label: scope,
+                                }))}
+                            />
                         </div>
                     </div>
                 </form>
@@ -307,7 +283,7 @@ export function SidePanel({
                                 </span>
                                 <Select
                                     value={bibleOrder ? "bible" : "best"}
-                                    onValueChange={(value) => {
+                                    onChange={(value) => {
                                         onChange({
                                             order:
                                                 value === "bible"
@@ -318,22 +294,19 @@ export function SidePanel({
                                             page: 1,
                                         });
                                     }}
-                                >
-                                    <SelectTrigger
-                                        className="sort-select"
-                                        aria-label="Result order"
-                                    >
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="best">
-                                            Best match
-                                        </SelectItem>
-                                        <SelectItem value="bible">
-                                            Bible order
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                    controlClassName="sort-select"
+                                    label={"Result order"}
+                                    options={[
+                                        {
+                                            value: "best",
+                                            label: "Best match",
+                                        },
+                                        {
+                                            value: "bible",
+                                            label: "Bible order",
+                                        },
+                                    ]}
+                                />
                             </div>
                             <p className="query-summary">
                                 “{workspace.submittedQuery}” in{" "}
@@ -497,7 +470,7 @@ export function SidePanel({
                                 <BookOpen />
                                 <span />
                             </div>
-                            <h3>A verse for every moment.</h3>
+                            <h3>Find a verse</h3>
                             <p>
                                 Search your Bible library by word or phrase.
                                 <br />
@@ -554,22 +527,23 @@ export function SidePanel({
                 <div className="history-tools">
                     <Select
                         value={projectedOnly ? "projected" : "all"}
-                        onValueChange={(value) =>
+                        onChange={(value) =>
                             onChange({
                                 historyProjectedOnly: value === "projected",
                             })
                         }
-                    >
-                        <SelectTrigger aria-label="History filter">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All activity</SelectItem>
-                            <SelectItem value="projected">
-                                Projected only
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                        label={"History filter"}
+                        options={[
+                            {
+                                value: "all",
+                                label: "All activity",
+                            },
+                            {
+                                value: "projected",
+                                label: "Projected only",
+                            },
+                        ]}
+                    />
                     <Button
                         variant="ghost"
                         size="icon"
@@ -588,38 +562,27 @@ export function SidePanel({
                     >
                         <ArrowDownToLine />
                     </Button>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Clear workspace history"
-                                disabled={!workspace.history.length}
-                            >
-                                <Trash2 />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                    Clear {workspace.name} history?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This removes this workspace’s recorded
-                                    verses. Current content and other workspaces
-                                    stay as they are.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>
-                                    Keep history
-                                </AlertDialogCancel>
-                                <AlertDialogAction onClick={onClearHistory}>
-                                    Clear history
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Clear workspace history"
+                        disabled={!workspace.history.length}
+                        onClick={() => setClearHistoryOpen(true)}
+                    >
+                        <Trash2 />
+                    </Button>
+                    <AlertDialog
+                        isOpen={clearHistoryOpen}
+                        onOpenChange={setClearHistoryOpen}
+                        title={`Clear ${workspace.name} history?`}
+                        description="This removes this workspace’s recorded verses. Current content and other workspaces stay as they are."
+                        cancelLabel="Keep history"
+                        actionLabel="Clear history"
+                        onAction={() => {
+                            onClearHistory();
+                            setClearHistoryOpen(false);
+                        }}
+                    />
                 </div>
                 <p className="query-summary px-5">
                     {history.length} recorded{" "}
@@ -645,7 +608,7 @@ export function SidePanel({
                                     })}
                                 </span>
                             </div>
-                            <p>{entry.verse.text}</p>
+                            <p title={entry.verse.text}>{entry.verse.text}</p>
                             <div>
                                 <span>
                                     {translations.find(
@@ -709,36 +672,28 @@ export function SidePanel({
     );
     if (overlay) {
         return (
-            <Sheet open={open} onOpenChange={onOpenChange}>
-                <SheetContent
-                    side="right"
-                    className="search-history-sheet"
-                    showCloseButton={false}
-                    onOpenAutoFocus={(event) => {
-                        if (tab === "search" && searchInputRef.current) {
-                            event.preventDefault();
-                            searchInputRef.current.focus();
-                        }
-                    }}
-                    onCloseAutoFocus={(event) => {
-                        event.preventDefault();
-                        if (
-                            !document.querySelector(
-                                '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
-                            )
-                        ) {
-                            triggerRef.current?.focus();
-                        }
-                    }}
-                >
-                    <SheetTitle className="sr-only">
-                        Search and history
-                    </SheetTitle>
-                    <SheetDescription className="sr-only">
-                        Find verses and recall previously displayed passages.
-                    </SheetDescription>
-                    {content}
-                </SheetContent>
+            <Sheet
+                open={open}
+                onOpenChange={onOpenChange}
+                side="right"
+                className="search-history-sheet"
+                showCloseButton={false}
+                onOpened={() => {
+                    if (tab === "search" && searchInputRef.current) {
+                        searchInputRef.current.focus();
+                    }
+                }}
+                onClosed={() => {
+                    if (!document.querySelector("dialog[open]")) {
+                        triggerRef.current?.focus();
+                    }
+                }}
+                title="Search and history"
+                description={
+                    <>Find verses and recall previously displayed passages.</>
+                }
+            >
+                {content}
             </Sheet>
         );
     }

@@ -1,7 +1,8 @@
+import "@/layers.css";
+import "@/styles.css";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "@/styles.css";
 import { getRouter } from "./router";
 
 const root = document.getElementById("root");

@@ -1,3 +1,4 @@
+import { ToastViewport } from "@astryxdesign/core/Toast";
 import {
     act,
     cleanup,
@@ -7,7 +8,6 @@ import {
     waitFor,
     within,
 } from "@testing-library/react";
-import { Toaster } from "sonner";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { client, createBrowserClient, deskClient } from "@/bridge/client";
 import { IntegratedOperator } from "./integrated-operator";
@@ -146,14 +146,14 @@ it("closes an inactive workspace through confirmation without activating it", ()
     });
 });
 
-it("keeps the last workspace open when its close button is clicked", () => {
+it("hides the close button for the last workspace", () => {
     const model = controller();
     render(<ProjectionDesk controller={model} />);
-    const close = screen.getByRole("button", {
-        name: "Close Audience 1",
-    });
-    expect(close.hasAttribute("disabled")).toBe(true);
-    fireEvent.click(close);
+    expect(
+        screen.queryByRole("button", {
+            name: "Close Audience 1",
+        })
+    ).toBeNull();
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(model.dispatch).not.toHaveBeenCalled();
 });
@@ -259,10 +259,10 @@ it("surfaces an application error without dismissing it", async () => {
     render(
         <>
             <ProjectionDesk controller={model} />
-            <Toaster position="bottom-right" />
+            <ToastViewport position="bottomEnd" />
         </>
     );
-    await screen.findByText(model.error);
+    expect((await screen.findAllByText(model.error)).length).toBeGreaterThan(0);
     expect(model.dismissError).not.toHaveBeenCalled();
 });
 
@@ -277,7 +277,7 @@ it("requests visible history copying through the workspace controller", () => {
     const historyTab = screen.getByRole("tab", {
         name: /History/,
     });
-    fireEvent.mouseDown(historyTab, {
+    fireEvent.click(historyTab, {
         button: 0,
         ctrlKey: false,
     });
@@ -444,7 +444,9 @@ it("shows Bible import progress and allows retry after publication fails", async
         });
     render(<IntegratedOperator />);
     fireEvent.pointerDown(
-        await screen.findByRole("button", { name: "Lumina menu" }),
+        await screen.findByRole("button", {
+            name: "Lumina menu",
+        }),
         {
             button: 0,
             ctrlKey: false,
@@ -452,13 +454,19 @@ it("shows Bible import progress and allows retry after publication fails", async
         }
     );
     fireEvent.click(
-        await screen.findByRole("menuitem", { name: "Bible library" })
+        await screen.findByRole("menuitem", {
+            name: "Bible library",
+        })
     );
     const library = within(
-        await screen.findByRole("dialog", { name: "Your Bible library" })
+        await screen.findByRole("dialog", {
+            name: "Your Bible library",
+        })
     );
     fireEvent.click(
-        library.getByRole("button", { name: /Review a Bible import/ })
+        library.getByRole("button", {
+            name: /Review a Bible import/,
+        })
     );
     const publish = await library.findByRole<HTMLButtonElement>("button", {
         name: "Add translations",
@@ -467,13 +475,16 @@ it("shows Bible import progress and allows retry after publication fails", async
     expect(commit).toHaveBeenCalledExactlyOnceWith("import-review");
     expect(publish.textContent).toBe("Adding translations…");
     expect(publish.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
-    expect(library.getByRole("status").textContent).toBe(
-        "Adding translations…"
-    );
+    expect(
+        library.getByText("Adding translations…", {
+            selector: 'span[role="status"]',
+        }).textContent
+    ).toBe("Adding translations…");
     expect(publish.disabled).toBe(true);
     expect(
-        library.getByRole<HTMLButtonElement>("button", { name: "Cancel" })
-            .disabled
+        library.getByRole<HTMLButtonElement>("button", {
+            name: "Cancel",
+        }).disabled
     ).toBe(true);
     fireEvent.click(publish);
     expect(commit).toHaveBeenCalledTimes(1);
@@ -483,9 +494,13 @@ it("shows Bible import progress and allows retry after publication fails", async
     expect(publish.querySelector("svg")).toBeNull();
     expect(publish.disabled).toBe(false);
     fireEvent.click(publish);
-    await library.findByRole("heading", { name: "Imported Bible" });
+    await library.findByRole("heading", {
+        name: "Imported Bible",
+    });
     expect(
-        library.queryByRole("heading", { name: "Ready to review" })
+        library.queryByRole("heading", {
+            name: "Ready to review",
+        })
     ).toBeNull();
 });
 
@@ -568,7 +583,7 @@ it("identifies deleted-edition history by captured title and Saved copy", async 
             name: "Search / History",
         })
     );
-    fireEvent.mouseDown(
+    fireEvent.click(
         screen.getByRole("tab", {
             name: /History/,
         }),
@@ -673,7 +688,7 @@ it("shares lookup translation between search and quick reference without changin
         }).textContent
     ).toContain("Find in ASV");
     const display = screen.getByRole("combobox", {
-        name: "Change current verse translation",
+        name: "Display translation",
     });
     expect(display.textContent).toContain("WEB");
     fireEvent.keyDown(display, {
@@ -689,4 +704,92 @@ it("shares lookup translation between search and quick reference without changin
         workspaceId: "workspace-a",
         translationId: "translation-asv",
     });
+});
+
+it("keeps disabled commands visible and dismisses the palette with Escape", async () => {
+    const model = controller();
+    render(<ProjectionDesk controller={model} />);
+    const reference = screen.getByRole("textbox", {
+        name: "Quick reference",
+    });
+    reference.focus();
+    fireEvent.keyDown(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    fireEvent.keyUp(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    const dialog = await screen.findByRole("dialog", {
+        name: "Keyboard shortcuts",
+    });
+    const search = within(dialog).getByRole("combobox");
+    fireEvent.change(search, {
+        target: {
+            value: "Close current workspace",
+        },
+    });
+    expect(
+        within(dialog)
+            .getByRole("option", {
+                name: /Close current workspace/,
+            })
+            .getAttribute("aria-disabled")
+    ).toBe("true");
+    fireEvent.keyDown(search, {
+        key: "Enter",
+    });
+    expect(model.dispatch).not.toHaveBeenCalled();
+    expect(
+        screen.getByRole("dialog", {
+            name: "Keyboard shortcuts",
+        })
+    ).toBeDefined();
+    fireEvent.keyDown(search, {
+        key: "Escape",
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(reference));
+});
+
+it("runs the first enabled filtered command after closing its modal", async () => {
+    const model = controller();
+    render(<ProjectionDesk controller={model} />);
+    const reference = screen.getByRole("textbox", {
+        name: "Quick reference",
+    });
+    reference.focus();
+    fireEvent.keyDown(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    fireEvent.keyUp(reference, {
+        key: "/",
+        code: "Slash",
+        ctrlKey: true,
+    });
+    const dialog = await screen.findByRole("dialog", {
+        name: "Keyboard shortcuts",
+    });
+    const search = within(dialog).getByRole("combobox");
+    fireEvent.change(search, {
+        target: {
+            value: "Next verse",
+        },
+    });
+    fireEvent.keyDown(search, {
+        key: "Enter",
+    });
+    await waitFor(() =>
+        expect(model.dispatch).toHaveBeenCalledExactlyOnceWith({
+            type: "navigate",
+            workspaceId: "workspace-a",
+            direction: 1,
+        })
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
 });

@@ -1,7 +1,8 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { useHotkey, useHotkeys } from "@tanstack/react-hotkeys";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useNotifications } from "@/shared/ui/notifications";
+import { hasOpenInteractionLayer } from "@/shared/ui/open-interaction-layer";
 import type { TranslationId, Verse } from "./fixtures";
 import { showShortcutsHotkey } from "./keyboard-shortcuts";
 import type { DeskController, Workspace } from "./model";
@@ -10,6 +11,7 @@ import { useAppTheme } from "./use-app-theme";
 import { usePanelLayout } from "./use-panel-layout";
 
 export function useDeskView(controller: DeskController, workspace: Workspace) {
+    const toast = useNotifications();
     const { theme, setTheme, themeError } = useAppTheme();
     const { workspaces, activeId, translations, dispatch } = controller;
     const installed = translations.map((translation) => translation.id);
@@ -26,7 +28,14 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const [informationOpen, setInformationOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
     const [audienceSettingsOpen, setAudienceSettingsOpen] = useState(false);
-    const [translationOpen, setTranslationOpen] = useState(false);
+    const translationTrigger = useRef<HTMLButtonElement>(null);
+    const openTranslationPicker = () => {
+        const trigger = translationTrigger.current;
+        trigger?.focus();
+        if (trigger?.getAttribute("aria-expanded") !== "true") {
+            trigger?.click();
+        }
+    };
     const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
     const [chapterView, setChapterView] = useState<"horizontal" | "sidebar">(
         "horizontal"
@@ -75,7 +84,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         if (themeError) {
             toast.error(themeError);
         }
-    }, [themeError]);
+    }, [themeError, toast.error]);
     const [informationBook, setInformationBook] = useState("John");
     const referenceInput = useRef<HTMLInputElement>(null);
     const selectedThumbnail = useRef<HTMLButtonElement>(null);
@@ -306,9 +315,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             workspace?.preview
     );
     const canNavigate = () =>
-        !document.querySelector(
-            '[role="dialog"], [role="alertdialog"], [role="listbox"], [role="menu"]'
-        ) &&
+        !hasOpenInteractionLayer() &&
         document.activeElement?.getAttribute("role") !== "tab" &&
         document.activeElement?.getAttribute("role") !== "separator";
     const requestCloseTab = () => {
@@ -382,7 +389,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         requireReset: true,
         capture: true,
     });
-    useHotkey("F1", () => setTranslationOpen(true), {
+    useHotkey("F1", openTranslationPicker, {
         enabled: !dialogOpen,
         ignoreInputs: false,
     });
@@ -512,8 +519,8 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         setHelpOpen,
         audienceSettingsOpen,
         setAudienceSettingsOpen,
-        translationOpen,
-        setTranslationOpen,
+        translationTrigger,
+        openTranslationPicker,
         workspaceSearchOpen,
         setWorkspaceSearchOpen,
         chapterView,

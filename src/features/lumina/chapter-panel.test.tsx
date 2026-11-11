@@ -134,7 +134,7 @@ function setupStrip(layout: "horizontal" | "sidebar", outside: boolean) {
     const rendered = render(view(model));
     if (layout === "sidebar") {
         fireEvent.click(
-            screen.getByRole("button", {
+            screen.getByRole("radio", {
                 name: "Sidebar verse strip",
             })
         );
@@ -257,7 +257,7 @@ it.each([
     const rendered = render(view(loading));
     if (layout === "sidebar") {
         fireEvent.click(
-            screen.getByRole("button", {
+            screen.getByRole("radio", {
                 name: "Sidebar verse strip",
             })
         );

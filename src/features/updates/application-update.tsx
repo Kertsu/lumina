@@ -6,14 +6,7 @@ import {
     type UpdateProgress,
 } from "@/bridge/client";
 import { Button } from "@/shared/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/ui/dialog";
+import { Dialog } from "@/shared/ui/dialog";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -139,51 +132,24 @@ export function ApplicationUpdate({
                 openDetails: () => changeOpen(true),
             })}
             {available && (
-                <Dialog open={open} onOpenChange={changeOpen}>
-                    <DialogContent
-                        showCloseButton={!progress}
-                        onCloseAutoFocus={(event) => {
-                            if (restoreFocus) {
-                                event.preventDefault();
-                                restoreFocus();
-                            }
-                        }}
-                    >
-                        <DialogHeader>
-                            <DialogTitle>Update Lumina</DialogTitle>
-                            <DialogDescription>
-                                Version {available.version} is ready. You’re
-                                using {available.currentVersion}.
-                            </DialogDescription>
-                        </DialogHeader>
-                        {available.notes && (
-                            <div className="max-h-60 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
-                                {available.notes}
-                            </div>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                            Updating closes Lumina and all audience windows.
-                            Your saved data will be kept. Lumina will restart
-                            when the update is complete.
-                        </p>
-                        {error && (
-                            <p
-                                role="alert"
-                                className="text-sm text-destructive"
-                            >
-                                {error}
-                            </p>
-                        )}
-                        {progress && (
-                            <p
-                                role="status"
-                                className="text-sm"
-                                aria-live="polite"
-                            >
-                                {action}
-                            </p>
-                        )}
-                        <DialogFooter>
+                <Dialog
+                    open={open}
+                    onOpenChange={changeOpen}
+                    showCloseButton={!progress}
+                    onClosed={() => {
+                        if (restoreFocus) {
+                            restoreFocus();
+                        }
+                    }}
+                    title={<>Update Lumina</>}
+                    description={
+                        <>
+                            Version {available.version} is ready. You’re using{" "}
+                            {available.currentVersion}.
+                        </>
+                    }
+                    footer={
+                        <>
                             <Button
                                 variant="ghost"
                                 disabled={Boolean(progress)}
@@ -197,8 +163,29 @@ export function ApplicationUpdate({
                             >
                                 {action}
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
+                        </>
+                    }
+                >
+                    {available.notes && (
+                        <div className="max-h-60 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                            {available.notes}
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                        Updating closes Lumina and all audience windows. Your
+                        saved data will be kept. Lumina will restart when the
+                        update is complete.
+                    </p>
+                    {error && (
+                        <p role="alert" className="text-sm text-destructive">
+                            {error}
+                        </p>
+                    )}
+                    {progress && (
+                        <p role="status" className="text-sm" aria-live="polite">
+                            {action}
+                        </p>
+                    )}
                 </Dialog>
             )}
         </>

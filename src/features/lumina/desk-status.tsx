@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { useNotifications } from "@/shared/ui/notifications";
 import { useDeskContext } from "./desk-context";
 
 /** Surfaces persistent controller failures through the global toaster. */
 export function DeskStatus() {
+    const toast = useNotifications();
     const { controller } = useDeskContext();
 
     useEffect(() => {
@@ -12,7 +13,7 @@ export function DeskStatus() {
                 id: "desk-controller-error",
             });
         }
-    }, [controller.error]);
+    }, [controller.error, toast.error]);
 
     return null;
 }

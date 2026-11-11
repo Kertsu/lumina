@@ -1,64 +1,79 @@
-import { Tabs as TabsPrimitive } from "radix-ui";
-import type { ComponentProps } from "react";
-import { cn } from "@/shared/ui/utils";
+import { Tab, TabList } from "@astryxdesign/core/TabList";
+import { type ComponentProps, useId } from "react";
+import { TabsState, useTabsState } from "./tabs-state";
 
 export function Tabs({
-    className,
+    value,
+    onValueChange,
+    children,
     ...props
-}: ComponentProps<typeof TabsPrimitive.Root>) {
+}: Omit<ComponentProps<"div">, "defaultValue"> & {
+    value: string;
+    onValueChange: (value: string) => void;
+}) {
+    const id = useId();
     return (
-        <TabsPrimitive.Root
-            data-slot="tabs"
-            className={cn("flex flex-col gap-4", className)}
-            {...props}
-        />
+        <TabsState.Provider
+            value={{
+                value,
+                onValueChange,
+                id,
+            }}
+        >
+            <div {...props}>{children}</div>
+        </TabsState.Provider>
     );
 }
 
-export function TabsList({
-    className,
-    ...props
-}: ComponentProps<typeof TabsPrimitive.List>) {
+export function TabsList({ children, ...props }: ComponentProps<"div">) {
+    const { value, onValueChange } = useTabsState();
     return (
-        <TabsPrimitive.List
-            data-slot="tabs-list"
-            className={cn(
-                "inline-flex h-9 w-fit items-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground",
-                className
-            )}
+        <TabList
             {...props}
-        />
+            role="tablist"
+            value={value}
+            onChange={onValueChange}
+        >
+            {children}
+        </TabList>
     );
 }
 
 export function TabsTrigger({
-    className,
+    value,
     ...props
-}: ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: Omit<ComponentProps<typeof Tab>, "panelId"> &
+    Pick<ComponentProps<"button">, "title">) {
+    const { id } = useTabsState();
     return (
-        <TabsPrimitive.Trigger
-            data-slot="tabs-trigger"
-            className={cn(
-                "inline-flex h-7 flex-1 items-center justify-center gap-2 rounded-md px-3 text-xs font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 data-[state=active]:bg-accent data-[state=active]:text-foreground data-[state=active]:shadow-sm",
-                className
-            )}
+        <Tab
             {...props}
+            id={`${id}-tab-${value}`}
+            value={value}
+            panelId={`${id}-panel-${value}`}
         />
     );
 }
 
 export function TabsContent({
-    className,
+    value,
+    children,
+    tabIndex = 0,
     ...props
-}: ComponentProps<typeof TabsPrimitive.Content>) {
+}: ComponentProps<"div"> & { value: string }) {
+    const { value: selected, id } = useTabsState();
+    if (value !== selected) {
+        return null;
+    }
     return (
-        <TabsPrimitive.Content
-            data-slot="tabs-content"
-            className={cn(
-                "flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                className
-            )}
+        <div
             {...props}
-        />
+            role="tabpanel"
+            id={`${id}-panel-${value}`}
+            aria-labelledby={`${id}-tab-${value}`}
+            tabIndex={tabIndex}
+        >
+            {children}
+        </div>
     );
 }

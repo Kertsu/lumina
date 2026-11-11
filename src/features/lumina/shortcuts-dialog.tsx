@@ -1,3 +1,4 @@
+import { Kbd } from "@astryxdesign/core/Kbd";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import {
     ArrowLeft,
@@ -16,22 +17,8 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 import { isDesktopHost, requestQuitConfirmation } from "@/bridge/client";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-    CommandShortcut,
-} from "@/shared/ui/command";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/ui/dialog";
+import { CommandMenu } from "@/shared/ui/command";
+import { Dialog } from "@/shared/ui/dialog";
 import { useDeskContext } from "./desk-context";
 import { showShortcutsHotkey } from "./keyboard-shortcuts";
 
@@ -42,7 +29,7 @@ export function ShortcutsDialog() {
         activeId,
         helpOpen,
         setHelpOpen,
-        setTranslationOpen,
+        openTranslationPicker,
         changeSearchOpen,
         setSideTab,
         searchInput,
@@ -72,7 +59,7 @@ export function ShortcutsDialog() {
                     label: "Choose translation",
                     hotkey: "F1",
                     icon: BookOpen,
-                    run: () => setTranslationOpen(true),
+                    run: openTranslationPicker,
                 },
                 {
                     label: "Find a verse",
@@ -216,74 +203,59 @@ export function ShortcutsDialog() {
     ];
 
     return (
-        <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-            <DialogContent
-                className="shortcuts-dialog gap-0 overflow-hidden p-0 sm:max-w-[560px]"
-                onCloseAutoFocus={(event) => {
-                    const run = selectedAction.current;
-                    selectedAction.current = null;
-                    if (run) {
-                        event.preventDefault();
-                        window.requestAnimationFrame(run);
-                    }
-                }}
-            >
-                <DialogHeader className="sr-only">
-                    <DialogTitle>Keyboard shortcuts</DialogTitle>
-                    <DialogDescription>
-                        Search shortcuts. Select an action to run it. Single-key
-                        shortcuts pause while typing.
-                    </DialogDescription>
-                </DialogHeader>
-                <Command label="Keyboard shortcuts" loop>
-                    <CommandInput placeholder="Search keyboard shortcuts…" />
-                    <CommandList>
-                        <CommandEmpty>No shortcuts found.</CommandEmpty>
-                        {groups.map((group) => (
-                            <CommandGroup
-                                key={group.heading}
-                                heading={group.heading}
-                            >
-                                {group.items.map((item) => (
-                                    <CommandItem
-                                        key={item.hotkey}
-                                        value={`${item.hotkey} ${item.label}`}
-                                        keywords={[
-                                            group.heading,
-                                            item.hotkey,
-                                            formatForDisplay(item.hotkey),
-                                        ]}
-                                        disabled={
-                                            "disabled" in item && item.disabled
-                                        }
-                                        onSelect={() => {
-                                            selectedAction.current = item.run;
-                                            setHelpOpen(false);
-                                        }}
-                                    >
-                                        <item.icon aria-hidden="true" />
-                                        <span className="min-w-0 flex-1">
-                                            {item.label}
-                                        </span>
-                                        <CommandShortcut>
-                                            {formatForDisplay(item.hotkey)}
-                                        </CommandShortcut>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        ))}
-                    </CommandList>
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-foreground">
-                        <span>↑ ↓ browse · Enter run · Esc close</span>
-                        <span className="flex items-center gap-2">
-                            Open shortcuts{" "}
-                            <CommandShortcut>
-                                {formatForDisplay(showShortcutsHotkey)}
-                            </CommandShortcut>
-                        </span>
-                    </div>
-                </Command>
-            </DialogContent>
+        <Dialog
+            open={helpOpen}
+            onOpenChange={setHelpOpen}
+            className="shortcuts-dialog gap-0 overflow-hidden p-0"
+            width={560}
+            onClosed={() => {
+                const run = selectedAction.current;
+                selectedAction.current = null;
+                if (run) {
+                    window.requestAnimationFrame(run);
+                }
+            }}
+            title={<>Keyboard shortcuts</>}
+            description={
+                <>
+                    Search shortcuts. Select an action to run it. Single-key
+                    shortcuts pause while typing.
+                </>
+            }
+        >
+            <CommandMenu
+                onClose={() => setHelpOpen(false)}
+                groups={groups.map((group) => ({
+                    heading: group.heading,
+                    items: group.items.map((item) => ({
+                        value: item.hotkey,
+                        label: item.label,
+                        keywords: [
+                            group.heading,
+                            item.hotkey,
+                            formatForDisplay(item.hotkey),
+                        ],
+                        disabled: "disabled" in item && item.disabled,
+                        icon: <item.icon aria-hidden="true" />,
+                        shortcut: formatForDisplay(item.hotkey),
+                        onSelect: () => {
+                            selectedAction.current = item.run;
+                            setHelpOpen(false);
+                        },
+                    })),
+                }))}
+            />
+            <div className="command-footer">
+                <div className="command-footer-hints">
+                    <Kbd keys="up" />
+                    <Kbd keys="down" /> Browse
+                    <Kbd keys="enter" /> Run
+                    <Kbd keys="escape" /> Close
+                </div>
+                <span>
+                    Open shortcuts <Kbd keys={showShortcutsHotkey} />
+                </span>
+            </div>
         </Dialog>
     );
 }

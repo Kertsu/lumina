@@ -18,7 +18,7 @@ it("disables the action while pending and shows the browser greeting", async () 
     expect(document.activeElement).toBe(button);
     fireEvent.click(button);
     expect(button.hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("status").textContent).toBe(
+    expect(screen.getByText("Contacting application…").textContent).toBe(
         "Contacting application…"
     );
     expect(

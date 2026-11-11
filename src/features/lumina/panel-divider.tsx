@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/shared/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { Tooltip } from "@/shared/ui/tooltip";
 
 export function PanelDivider({
     side,
@@ -155,24 +155,22 @@ export function PanelDivider({
                     }}
                 />
             )}
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        ref={toggle}
-                        variant="ghost"
-                        size="icon-sm"
-                        className="panel-divider-toggle"
-                        aria-label={toggleLabel}
-                        aria-expanded={!collapsed}
-                        aria-controls={controls}
-                        onClick={() => onCollapsedChange(!collapsed)}
-                    >
-                        {pointsLeft ? <ChevronLeft /> : <ChevronRight />}
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side={side === "left" ? "right" : "left"}>
-                    {toggleLabel}
-                </TooltipContent>
+            <Tooltip
+                content={toggleLabel}
+                placement={side === "left" ? "end" : "start"}
+            >
+                <Button
+                    ref={toggle}
+                    variant="ghost"
+                    size="icon-sm"
+                    className="panel-divider-toggle"
+                    aria-label={toggleLabel}
+                    aria-expanded={!collapsed}
+                    aria-controls={controls}
+                    onClick={() => onCollapsedChange(!collapsed)}
+                >
+                    {pointsLeft ? <ChevronLeft /> : <ChevronRight />}
+                </Button>
             </Tooltip>
         </div>
     );

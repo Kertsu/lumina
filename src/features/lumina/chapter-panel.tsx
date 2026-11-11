@@ -1,4 +1,8 @@
 import {
+    SegmentedControl,
+    SegmentedControlItem,
+} from "@astryxdesign/core/SegmentedControl";
+import {
     BookOpen,
     ChevronDown,
     ChevronLeft,
@@ -10,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { useDeskContext } from "./desk-context";
 import { referenceLabel } from "./fixtures";
 import { VerseSlide } from "./verse-slide";
@@ -110,37 +114,36 @@ export function ChapterPanel() {
                         </span>
                     </div>
                     {chapterView === "horizontal" && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className="chapter-collapse-button"
-                                    aria-label={
-                                        chapterStripCollapsed
-                                            ? "Show verse strip"
-                                            : "Hide verse thumbnails"
-                                    }
-                                    aria-expanded={!chapterStripCollapsed}
-                                    aria-controls={chapterPanelId}
-                                    onClick={() =>
-                                        setChapterStripCollapsed(
-                                            (collapsed) => !collapsed
-                                        )
-                                    }
-                                >
-                                    {chapterStripCollapsed ? (
-                                        <ChevronUp />
-                                    ) : (
-                                        <ChevronDown />
-                                    )}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {chapterStripCollapsed
+                        <Tooltip
+                            content={
+                                chapterStripCollapsed
                                     ? "Show verse strip"
-                                    : "Hide verse thumbnails"}
-                            </TooltipContent>
+                                    : "Hide verse thumbnails"
+                            }
+                        >
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="chapter-collapse-button"
+                                aria-label={
+                                    chapterStripCollapsed
+                                        ? "Show verse strip"
+                                        : "Hide verse thumbnails"
+                                }
+                                aria-expanded={!chapterStripCollapsed}
+                                aria-controls={chapterPanelId}
+                                onClick={() =>
+                                    setChapterStripCollapsed(
+                                        (collapsed) => !collapsed
+                                    )
+                                }
+                            >
+                                {chapterStripCollapsed ? (
+                                    <ChevronUp />
+                                ) : (
+                                    <ChevronDown />
+                                )}
+                            </Button>
                         </Tooltip>
                     )}
                 </div>
@@ -150,54 +153,47 @@ export function ChapterPanel() {
                             ? "Verse thumbnails hidden"
                             : "Select to show on audience"}
                     </span>
-                    <fieldset
-                        className="chapter-view-toggle"
-                        aria-label="Verse strip layout"
+                    <SegmentedControl
+                        label="Verse strip layout"
+                        size="sm"
+                        value={chapterView}
+                        onChange={(value) => {
+                            if (value === "horizontal" || value === "sidebar") {
+                                setChapterView(value);
+                                if (
+                                    value === "sidebar" &&
+                                    panelLayout.chapterOverlay
+                                ) {
+                                    changeVerseSheetOpen(true);
+                                }
+                            }
+                        }}
                     >
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className={
-                                        chapterView === "horizontal"
-                                            ? "is-selected"
-                                            : ""
-                                    }
-                                    aria-label="Horizontal verse strip"
-                                    aria-pressed={chapterView === "horizontal"}
-                                    onClick={() => setChapterView("horizontal")}
-                                >
-                                    <PanelTop />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Horizontal strip</TooltipContent>
+                        <Tooltip content={<>Horizontal strip</>}>
+                            <SegmentedControlItem
+                                value="horizontal"
+                                label="Horizontal verse strip"
+                                isLabelHidden
+                                icon={<PanelTop aria-hidden="true" />}
+                            />
                         </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className={
-                                        chapterView === "sidebar"
-                                            ? "is-selected"
-                                            : ""
+                        <Tooltip content={<>Left sidebar</>}>
+                            <SegmentedControlItem
+                                value="sidebar"
+                                label="Sidebar verse strip"
+                                isLabelHidden
+                                icon={<PanelLeft aria-hidden="true" />}
+                                onClick={() => {
+                                    if (
+                                        chapterView === "sidebar" &&
+                                        panelLayout.chapterOverlay
+                                    ) {
+                                        changeVerseSheetOpen(true);
                                     }
-                                    aria-label="Sidebar verse strip"
-                                    aria-pressed={chapterView === "sidebar"}
-                                    onClick={() => {
-                                        setChapterView("sidebar");
-                                        if (panelLayout.chapterOverlay) {
-                                            changeVerseSheetOpen(true);
-                                        }
-                                    }}
-                                >
-                                    <PanelLeft />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Left sidebar</TooltipContent>
+                                }}
+                            />
                         </Tooltip>
-                    </fieldset>
+                    </SegmentedControl>
                     <div className="chapter-scroll-controls">
                         <Button
                             variant="ghost"

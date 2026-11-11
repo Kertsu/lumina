@@ -1,12 +1,5 @@
 import { Button } from "@/shared/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/ui/dialog";
+import { Dialog } from "@/shared/ui/dialog";
 import { useDeskContext } from "./desk-context";
 
 export function RenameWorkspaceDialog() {
@@ -26,52 +19,50 @@ export function RenameWorkspaceDialog() {
                     setRenameId(null);
                 }
             }}
+            width={420}
+            title={<>Name this workspace</>}
+            description={
+                <>A useful name helps you control the right audience.</>
+            }
         >
-            <DialogContent className="sm:max-w-[420px]">
-                <DialogHeader>
-                    <DialogTitle>Name this workspace</DialogTitle>
-                    <DialogDescription>
-                        A useful name helps you control the right audience.
-                    </DialogDescription>
-                </DialogHeader>
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        if (!rename.trim() || !renameId) {
-                            return;
-                        }
-                        dispatch({
-                            type: "rename",
-                            workspaceId: renameId,
-                            name: rename.trim(),
-                        });
-                        setRenameId(null);
-                    }}
-                >
-                    <label className="sr-only" htmlFor={workspaceNameId}>
-                        Workspace name
-                    </label>
-                    <input
-                        className="text-input"
-                        id={workspaceNameId}
-                        value={rename}
-                        onChange={(event) => setRename(event.target.value)}
-                        maxLength={48}
-                    />
-                    <DialogFooter className="mt-5">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => setRenameId(null)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={!rename.trim()}>
-                            Save name
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
+            <form
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!rename.trim() || !renameId) {
+                        return;
+                    }
+                    dispatch({
+                        type: "rename",
+                        workspaceId: renameId,
+                        name: rename.trim(),
+                    });
+                    setRenameId(null);
+                }}
+            >
+                <label className="sr-only" htmlFor={workspaceNameId}>
+                    Workspace name
+                </label>
+                <input
+                    className="text-input"
+                    data-autofocus
+                    id={workspaceNameId}
+                    value={rename}
+                    onChange={(event) => setRename(event.target.value)}
+                    maxLength={48}
+                />
+                <div className="app-dialog-actions mt-5">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setRenameId(null)}
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={!rename.trim()}>
+                        Save name
+                    </Button>
+                </div>
+            </form>
         </Dialog>
     );
 }

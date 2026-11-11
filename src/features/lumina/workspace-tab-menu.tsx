@@ -1,21 +1,13 @@
-import { Slot } from "@radix-ui/react-slot";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
 import { ArrowLeft, ArrowRight, Pencil, X } from "lucide-react";
-import type { ReactElement } from "react";
+import { cloneElement, type HTMLAttributes, type ReactElement } from "react";
 import {
     type ContextMenuPosition,
     isDesktopHost,
     type NativeContextAction,
     popupNativeContextMenu,
 } from "@/bridge/client";
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuShortcut,
-    ContextMenuTrigger,
-} from "@/shared/ui/context-menu";
+import { ContextMenu } from "@/shared/ui/context-menu";
 
 export function WorkspaceTabMenu({
     children,
@@ -29,7 +21,7 @@ export function WorkspaceTabMenu({
     onClose,
     onError,
 }: {
-    children: ReactElement;
+    children: ReactElement<HTMLAttributes<HTMLElement>>;
     disabled: boolean;
     canMoveLeft: boolean;
     canMoveRight: boolean;
@@ -90,9 +82,9 @@ export function WorkspaceTabMenu({
         );
     };
 
-    const trigger = (
-        <Slot
-            onKeyDown={(event) => {
+    if (isDesktopHost) {
+        return cloneElement(children, {
+            onKeyDown: (event) => {
                 if (
                     disabled ||
                     (event.key !== "ContextMenu" &&
@@ -102,74 +94,64 @@ export function WorkspaceTabMenu({
                 }
                 event.preventDefault();
                 const bounds = event.currentTarget.getBoundingClientRect();
-                if (isDesktopHost) {
+                openNative({
+                    x: bounds.left + 16,
+                    y: bounds.bottom,
+                });
+            },
+            onContextMenu: (event) => {
+                event.preventDefault();
+                if (!disabled) {
                     openNative({
-                        x: bounds.left + 16,
-                        y: bounds.bottom,
+                        x: event.clientX,
+                        y: event.clientY,
                     });
-                } else {
+                }
+            },
+        });
+    }
+    return (
+        <ContextMenu
+            isDisabled={disabled}
+            label="Workspace options"
+            onKeyDown={(event) => {
+                if (
+                    !disabled &&
+                    (event.key === "ContextMenu" ||
+                        (event.shiftKey && event.key === "F10"))
+                ) {
+                    event.preventDefault();
                     event.currentTarget.dispatchEvent(
                         new MouseEvent("contextmenu", {
                             bubbles: true,
                             cancelable: true,
-                            clientX: bounds.left + 16,
-                            clientY: bounds.bottom,
                         })
                     );
                 }
             }}
-            onContextMenu={
-                isDesktopHost
-                    ? (event) => {
-                          event.preventDefault();
-                          if (!disabled) {
-                              openNative({
-                                  x: event.clientX,
-                                  y: event.clientY,
-                              });
-                          }
+            className="workspace-tab-menu"
+            items={items.map((item) =>
+                item === "separator"
+                    ? {
+                          type: "divider",
                       }
-                    : undefined
-            }
+                    : {
+                          id: item.id,
+                          label: item.text,
+                          icon: item.icon,
+                          isDisabled: !item.enabled,
+                          variant:
+                              item.id === "lumina.workspace.close"
+                                  ? "destructive"
+                                  : "default",
+                          onClick: item.action,
+                          endContent: item.accelerator ? (
+                              <kbd>{formatForDisplay("Mod+W")}</kbd>
+                          ) : undefined,
+                      }
+            )}
         >
             {children}
-        </Slot>
-    );
-    if (isDesktopHost) {
-        return trigger;
-    }
-
-    return (
-        <ContextMenu>
-            <ContextMenuTrigger asChild disabled={disabled}>
-                {trigger}
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-                {items.map((item) =>
-                    item === "separator" ? (
-                        <ContextMenuSeparator key="separator" />
-                    ) : (
-                        <ContextMenuItem
-                            key={item.id}
-                            disabled={!item.enabled}
-                            variant={
-                                item.id === "lumina.workspace.close"
-                                    ? "destructive"
-                                    : "default"
-                            }
-                            onSelect={item.action}
-                        >
-                            {item.icon}
-                            {item.text}
-                            {item.accelerator && (
-                                <ContextMenuShortcut>
-                                    {formatForDisplay("Mod+W")}
-                                </ContextMenuShortcut>
-                            )}
-                        </ContextMenuItem>
-                    )
-                )}
-            </ContextMenuContent>
         </ContextMenu>
     );
 }

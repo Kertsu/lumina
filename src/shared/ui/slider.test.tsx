@@ -49,8 +49,10 @@ it("keeps range thumbs distinguishable while sharing their description", () => {
     const help = screen.getByText("Choose the lower and upper limits.");
     for (const name of ["Minimum", "Maximum"]) {
         const thumb = screen.getByRole("slider", {
-            name,
+            name: `${name} value`,
         });
-        expect(thumb.getAttribute("aria-describedby")).toBe(help.id);
+        expect(
+            thumb.closest('[role="group"]')?.getAttribute("aria-describedby")
+        ).toBe(help.id);
     }
 });

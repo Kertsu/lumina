@@ -1,10 +1,4 @@
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-} from "@/shared/ui/sheet";
+import { Sheet } from "@/shared/ui/sheet";
 import { AppSettingsDialog } from "./app-settings-dialog";
 import { AppearanceDialog } from "./appearance-dialog";
 import { AudienceSettingsDialog } from "./audience-settings-dialog";
@@ -54,41 +48,28 @@ export function DeskDialogs() {
                     activePanelSheet === "verses"
                 }
                 onOpenChange={changeVerseSheetOpen}
+                side="left"
+                className="chapter-verses-sheet"
+                onOpened={() => {
+                    if (selectedThumbnail.current) {
+                        selectedThumbnail.current.focus();
+                    }
+                }}
+                onClosed={() => {
+                    const target = focusReferenceAfterSheet.current
+                        ? referenceInput.current
+                        : verseSheetTrigger.current;
+                    focusReferenceAfterSheet.current = false;
+                    if (!document.querySelector("dialog[open]")) {
+                        target?.focus();
+                    }
+                }}
+                title="Chapter verses"
+                description={<>Choose a verse to display.</>}
             >
-                <SheetContent
-                    side="left"
-                    className="chapter-verses-sheet"
-                    onOpenAutoFocus={(event) => {
-                        if (selectedThumbnail.current) {
-                            event.preventDefault();
-                            selectedThumbnail.current.focus();
-                        }
-                    }}
-                    onCloseAutoFocus={(event) => {
-                        event.preventDefault();
-                        const target = focusReferenceAfterSheet.current
-                            ? referenceInput.current
-                            : verseSheetTrigger.current;
-                        focusReferenceAfterSheet.current = false;
-                        if (
-                            !document.querySelector(
-                                '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
-                            )
-                        ) {
-                            target?.focus();
-                        }
-                    }}
-                >
-                    <SheetHeader>
-                        <SheetTitle>Chapter verses</SheetTitle>
-                        <SheetDescription>
-                            Choose a verse to display.
-                        </SheetDescription>
-                    </SheetHeader>
-                    {panelLayout.overlay && chapterView === "sidebar" && (
-                        <ChapterPanel />
-                    )}
-                </SheetContent>
+                {panelLayout.overlay && chapterView === "sidebar" && (
+                    <ChapterPanel />
+                )}
             </Sheet>
             <AppSettingsDialog
                 open={settingsOpen}

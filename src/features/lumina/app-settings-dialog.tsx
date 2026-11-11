@@ -1,16 +1,6 @@
-import { Check } from "lucide-react";
 import { useId } from "react";
 import { Button } from "@/shared/ui/button";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
+import { Dialog } from "@/shared/ui/dialog";
 import type { AppTheme } from "./use-app-theme";
 
 const themes = [
@@ -30,17 +20,21 @@ const themes = [
 
 function MiniatureDesk({ theme }: { theme: "light" | "dark" }) {
     const colors = {
-        background: `var(--palette-${theme}-background)`,
-        toolbar: `var(--palette-${theme}-card)`,
-        tabbar: `var(--palette-${theme}-sidebar)`,
-        border: `var(--palette-${theme}-border)`,
-        muted: `var(--palette-${theme}-muted-foreground)`,
-        foreground: `var(--palette-${theme}-foreground)`,
-        primary: `var(--palette-${theme}-primary)`,
+        background: "var(--color-background-body)",
+        toolbar: "var(--color-background-card)",
+        tabbar: "var(--sidebar)",
+        border: "var(--color-border)",
+        muted: "var(--color-text-secondary)",
+        foreground: "var(--color-text-primary)",
+        primary: "var(--color-accent)",
     };
 
     return (
-        <g>
+        <g
+            style={{
+                colorScheme: theme,
+            }}
+        >
             <rect width="176" height="116" fill={colors.background} />
             <path d="M0 0h176v12H0z" fill={colors.tabbar} />
             <path
@@ -219,80 +213,46 @@ export function AppSettingsDialog({
     theme: AppTheme;
     onThemeChange: (theme: AppTheme) => void;
 }) {
-    const themeId = useId();
+    const themeName = useId();
     const descriptionId = useId();
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[540px]">
-                <DialogHeader>
-                    <DialogTitle>App settings</DialogTitle>
-                    <DialogDescription>
-                        Preferences apply to every workspace.
-                    </DialogDescription>
-                </DialogHeader>
-                <section aria-labelledby={themeId}>
-                    <h3 id={themeId} className="mb-4 text-sm font-medium">
-                        Theme
-                    </h3>
-                    <RadioGroup
-                        value={theme}
-                        onValueChange={(value) => {
-                            if (
-                                value === "system" ||
-                                value === "light" ||
-                                value === "dark"
-                            ) {
-                                onThemeChange(value);
-                            }
-                        }}
-                        aria-labelledby={themeId}
-                        aria-describedby={descriptionId}
-                        className="grid-cols-3 gap-2 sm:gap-3"
-                        orientation="horizontal"
-                    >
-                        {themes.map((option) => {
-                            const optionId = `${themeId}-${option.value}`;
-                            return (
-                                <div
-                                    key={option.value}
-                                    className="relative min-w-0"
-                                >
-                                    <RadioGroupItem
-                                        value={option.value}
-                                        id={optionId}
-                                        className="peer sr-only"
-                                    />
-                                    <label
-                                        htmlFor={optionId}
-                                        className="block cursor-pointer rounded-xl border-2 border-transparent p-1.5 transition-colors hover:bg-accent/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-selection peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-popover sm:p-2"
-                                    >
-                                        <ThemePreview theme={option.value} />
-                                        <span className="mt-3 flex items-center justify-between gap-1 px-1 pb-1 text-xs font-medium">
-                                            {option.label}
-                                            <Check
-                                                aria-hidden="true"
-                                                className={`size-3.5 text-primary ${theme === option.value ? "" : "invisible"}`}
-                                            />
-                                        </span>
-                                    </label>
-                                </div>
-                            );
-                        })}
-                    </RadioGroup>
-                    <p
-                        id={descriptionId}
-                        className="mt-4 text-xs leading-relaxed text-muted-foreground"
-                    >
-                        System follows your device’s appearance automatically.
-                    </p>
-                </section>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button>Done</Button>
-                    </DialogClose>
-                </DialogFooter>
-            </DialogContent>
+        <Dialog
+            open={open}
+            onOpenChange={onOpenChange}
+            width={540}
+            title={<>App settings</>}
+            description={<>Preferences apply to every workspace.</>}
+            footer={<Button onClick={() => onOpenChange(false)}>Done</Button>}
+        >
+            <div>
+                <fieldset
+                    className="theme-options"
+                    aria-describedby={descriptionId}
+                >
+                    <legend>Theme</legend>
+                    {themes.map((option) => (
+                        <label key={option.value} className="theme-option">
+                            <input
+                                className="sr-only"
+                                type="radio"
+                                name={themeName}
+                                value={option.value}
+                                checked={theme === option.value}
+                                onChange={() => onThemeChange(option.value)}
+                            />
+                            <span>{option.label}</span>
+                            <ThemePreview theme={option.value} />
+                        </label>
+                    ))}
+                </fieldset>
+                <p
+                    id={descriptionId}
+                    className="mt-4 text-xs leading-relaxed text-muted-foreground"
+                >
+                    System follows your device’s appearance automatically.
+                </p>
+            </div>
         </Dialog>
     );
 }

@@ -1,17 +1,18 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
     observeOperatorFullscreen,
     usesOverlayTitlebar,
 } from "@/bridge/client";
+import { useNotifications } from "@/shared/ui/notifications";
 import { ApplicationMenu } from "./application-menu";
 import { useDeskContext } from "./desk-context";
 import { IconButton } from "./icon-button";
 import { WorkspaceSearch } from "./workspace-search";
 import { WorkspaceTabs } from "./workspace-tabs";
 export function WorkspaceBar() {
+    const toast = useNotifications();
     const integratedTitlebar = usesOverlayTitlebar();
     const [fullscreen, setFullscreen] = useState(false);
     useEffect(() => observeOperatorFullscreen(setFullscreen), []);

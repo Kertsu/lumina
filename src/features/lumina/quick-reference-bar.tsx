@@ -1,12 +1,6 @@
 import { BookOpen, CornerDownLeft, Eye, Send } from "lucide-react";
 import { Button } from "@/shared/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shared/ui/select";
+import { Select, SelectValue } from "@/shared/ui/select";
 import { useDeskContext } from "./desk-context";
 import type { TranslationId } from "./fixtures";
 export function QuickReferenceBar() {
@@ -14,8 +8,7 @@ export function QuickReferenceBar() {
         workspace,
         translations,
         installed,
-        translationOpen,
-        setTranslationOpen,
+        translationTrigger,
         reference,
         setReference,
         referenceError,
@@ -57,34 +50,36 @@ export function QuickReferenceBar() {
                         }}
                     />
                     <Select
-                        open={translationOpen}
-                        onOpenChange={setTranslationOpen}
                         value={workspace.translation}
-                        onValueChange={(id: TranslationId) =>
+                        onChange={(id: TranslationId) =>
                             patch({
                                 translation: id,
                             })
                         }
-                    >
-                        <SelectTrigger
-                            className="translation-picker"
-                            aria-label="Lookup translation"
-                            title={`Lookup translation: ${translation?.name} · F1`}
-                        >
-                            <SelectValue>
-                                Find in {translation?.shortName}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="translation-picker-menu">
-                            {translations
-                                .filter((item) => installed.includes(item.id))
-                                .map((item) => (
-                                    <SelectItem key={item.id} value={item.id}>
-                                        {item.name}
-                                    </SelectItem>
-                                ))}
-                        </SelectContent>
-                    </Select>
+                        controlClassName="translation-picker"
+                        containerClassName="translation-picker-field"
+                        variant="ghost"
+                        placement="above"
+                        size="sm"
+                        ref={translationTrigger}
+                        label={"Lookup translation"}
+                        options={translations
+                            .filter((item) => installed.includes(item.id))
+                            .map((item) => ({
+                                value: item.id,
+                                label: item.name,
+                            }))}
+                        renderValue={(option) => (
+                            <SelectValue
+                                label={option.label ?? option.value}
+                                text={
+                                    translation?.shortName ??
+                                    option.label ??
+                                    option.value
+                                }
+                            />
+                        )}
+                    />
                     {referenceError && (
                         <p
                             id={referenceErrorId}
@@ -98,17 +93,22 @@ export function QuickReferenceBar() {
                 <Button
                     type="button"
                     variant="outline"
+                    icon={<Eye aria-hidden="true" />}
                     onClick={() => submitReference(true)}
                 >
-                    <Eye />
                     Check preview
                 </Button>
-                <Button type="submit" aria-keyshortcuts="Enter">
-                    <Send />
+                <Button
+                    type="submit"
+                    aria-keyshortcuts="Enter"
+                    icon={<Send aria-hidden="true" />}
+                    endContent={
+                        <kbd aria-label="Enter">
+                            <CornerDownLeft aria-hidden="true" />
+                        </kbd>
+                    }
+                >
                     Send Live
-                    <kbd>
-                        <CornerDownLeft />
-                    </kbd>
                 </Button>
             </form>
         </footer>

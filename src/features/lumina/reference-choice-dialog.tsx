@@ -1,13 +1,6 @@
 import { BookOpen } from "lucide-react";
 import { Button } from "@/shared/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/shared/ui/dialog";
+import { Dialog } from "@/shared/ui/dialog";
 import { useDeskContext } from "./desk-context";
 
 export function ReferenceChoiceDialog() {
@@ -23,48 +16,47 @@ export function ReferenceChoiceDialog() {
                     });
                 }
             }}
+            width={420}
+            title={<>Choose the book</>}
+            description={
+                <>
+                    “{choice?.input}” matches more than one book. Choose the
+                    intended reference.
+                </>
+            }
+            footer={
+                <Button
+                    variant="ghost"
+                    onClick={() =>
+                        dispatch({
+                            type: "cancelReferenceChoice",
+                        })
+                    }
+                >
+                    Cancel
+                </Button>
+            }
         >
-            <DialogContent className="sm:max-w-[420px]">
-                <DialogHeader>
-                    <DialogTitle>Choose the book</DialogTitle>
-                    <DialogDescription>
-                        “{choice?.input}” matches more than one book. Choose the
-                        intended reference.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2">
-                    {choice?.candidates.map((book) => (
-                        <Button
-                            key={book.bookNumber}
-                            variant="outline"
-                            className="justify-start"
-                            onClick={() =>
-                                dispatch({
-                                    type: "chooseReference",
-                                    workspaceId: choice.workspaceId,
-                                    choiceToken: choice.choiceToken,
-                                    bookNumber: book.bookNumber,
-                                })
-                            }
-                        >
-                            <BookOpen />
-                            {book.name}
-                        </Button>
-                    ))}
-                </div>
-                <DialogFooter>
+            <div className="grid gap-2">
+                {choice?.candidates.map((book) => (
                     <Button
-                        variant="ghost"
+                        key={book.bookNumber}
+                        variant="outline"
+                        className="justify-start"
                         onClick={() =>
                             dispatch({
-                                type: "cancelReferenceChoice",
+                                type: "chooseReference",
+                                workspaceId: choice.workspaceId,
+                                choiceToken: choice.choiceToken,
+                                bookNumber: book.bookNumber,
                             })
                         }
                     >
-                        Cancel
+                        <BookOpen />
+                        {book.name}
                     </Button>
-                </DialogFooter>
-            </DialogContent>
+                ))}
+            </div>
         </Dialog>
     );
 }

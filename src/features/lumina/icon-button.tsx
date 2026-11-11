@@ -1,5 +1,5 @@
 import { Button } from "@/shared/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/ui/utils";
 
 export function IconButton({
@@ -16,19 +16,16 @@ export function IconButton({
     className?: string;
 }) {
     return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(active && "tool-active", className)}
-                    aria-label={label}
-                    onClick={onClick}
-                >
-                    {children}
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent>{label}</TooltipContent>
+        <Tooltip content={label}>
+            <Button
+                variant="ghost"
+                size="icon"
+                className={cn(active && "tool-active", className)}
+                aria-label={label}
+                onClick={onClick}
+            >
+                {children}
+            </Button>
         </Tooltip>
     );
 }

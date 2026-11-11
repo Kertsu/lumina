@@ -1,24 +1,27 @@
-import { Switch as SwitchPrimitive } from "radix-ui";
+import { Switch as AstryxSwitch } from "@astryxdesign/core/Switch";
 import type { ComponentProps } from "react";
-import { cn } from "@/shared/ui/utils";
+
+type SwitchProps = Omit<ComponentProps<"input">, "onChange" | "size"> & {
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
+};
 
 export function Switch({
+    checked,
+    onCheckedChange,
+    disabled,
     className,
     ...props
-}: ComponentProps<typeof SwitchPrimitive.Root>) {
+}: SwitchProps) {
     return (
-        <SwitchPrimitive.Root
-            data-slot="switch"
-            className={cn(
-                "peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-                className
-            )}
+        <AstryxSwitch
             {...props}
-        >
-            <SwitchPrimitive.Thumb
-                data-slot="switch-thumb"
-                className="pointer-events-none block size-4 rounded-full shadow-sm transition-transform data-[state=checked]:translate-x-4 data-[state=checked]:bg-primary-foreground data-[state=unchecked]:translate-x-0 data-[state=unchecked]:bg-muted-foreground"
-            />
-        </SwitchPrimitive.Root>
+            className={className}
+            label={props["aria-label"] ?? "Preference"}
+            isLabelHidden
+            value={checked}
+            onChange={onCheckedChange}
+            isDisabled={disabled}
+        />
     );
 }

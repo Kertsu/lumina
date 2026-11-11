@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { TabsContent } from "@/shared/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { Tooltip } from "@/shared/ui/tooltip";
 import { ChapterPanel } from "./chapter-panel";
 import { CurrentVerse } from "./current-verse";
 import { useDeskContext } from "./desk-context";
@@ -70,26 +70,21 @@ export function WorkspaceBody() {
                     </div>
                     <div className="stage-heading-right">
                         {workspace.status !== "closed" && (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        aria-label="Fullscreen audience output"
-                                        onClick={() =>
-                                            dispatch({
-                                                type: "fullscreen",
-                                                workspaceId: activeId,
-                                                enabled: !workspace.fullscreen,
-                                            })
-                                        }
-                                    >
-                                        <Monitor />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    View audience output
-                                </TooltipContent>
+                            <Tooltip content={<>View audience output</>}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label="Fullscreen audience output"
+                                    onClick={() =>
+                                        dispatch({
+                                            type: "fullscreen",
+                                            workspaceId: activeId,
+                                            enabled: !workspace.fullscreen,
+                                        })
+                                    }
+                                >
+                                    <Monitor />
+                                </Button>
                             </Tooltip>
                         )}
 
@@ -122,13 +117,13 @@ export function WorkspaceBody() {
                                         : "outline"
                                 }
                                 className="audience-button"
+                                icon={<Monitor aria-hidden="true" />}
                                 onClick={() =>
                                     workspace.status === "closed"
                                         ? openAudience()
                                         : closeAudience(workspace.id)
                                 }
                             >
-                                <Monitor />
                                 {workspace.status === "closed"
                                     ? "Open Audience"
                                     : "Close Audience"}
@@ -138,35 +133,37 @@ export function WorkspaceBody() {
                                 className={`blank-button ${workspace.status === "blank" ? "is-blank" : ""}`}
                                 aria-pressed={workspace.status === "blank"}
                                 disabled={workspace.status === "closed"}
+                                icon={
+                                    workspace.status === "blank" ? (
+                                        <Eye aria-hidden="true" />
+                                    ) : (
+                                        <EyeOff aria-hidden="true" />
+                                    )
+                                }
+                                endContent={
+                                    <span aria-hidden="true">
+                                        <kbd>B</kbd>
+                                    </span>
+                                }
+                                aria-keyshortcuts="B"
                                 onClick={toggleBlank}
                             >
-                                {workspace.status === "blank" ? (
-                                    <Eye />
-                                ) : (
-                                    <EyeOff />
-                                )}
                                 {workspace.status === "blank"
                                     ? "Resume"
                                     : "Blank"}
-                                <kbd>B</kbd>
                             </Button>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon-sm"
-                                        aria-label={`Audience settings for ${workspace.name}`}
-                                        aria-haspopup="dialog"
-                                        onClick={() =>
-                                            setAudienceSettingsOpen(true)
-                                        }
-                                    >
-                                        <Settings2 />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    Audience settings
-                                </TooltipContent>
+                            <Tooltip content={<>Audience settings</>}>
+                                <Button
+                                    variant="outline"
+                                    size="icon-sm"
+                                    aria-label={`Audience settings for ${workspace.name}`}
+                                    aria-haspopup="dialog"
+                                    onClick={() =>
+                                        setAudienceSettingsOpen(true)
+                                    }
+                                >
+                                    <Settings2 />
+                                </Button>
                             </Tooltip>
                         </fieldset>
                         {panelLayout.overlay && (

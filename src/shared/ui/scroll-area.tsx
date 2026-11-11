@@ -1,11 +1,5 @@
-import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
+import { ScrollableArea } from "@astryxdesign/core/ScrollableArea";
 import type { ComponentProps, Ref } from "react";
-import { cn } from "@/shared/ui/utils";
-
-type ScrollAreaProps = ComponentProps<typeof ScrollAreaPrimitive.Root> & {
-    viewportClassName?: string;
-    viewportRef?: Ref<HTMLDivElement>;
-};
 
 export function ScrollArea({
     children,
@@ -13,35 +7,21 @@ export function ScrollArea({
     viewportClassName,
     viewportRef,
     ...props
-}: ScrollAreaProps) {
+}: Omit<ComponentProps<"div">, "role" | "tabIndex" | "aria-label"> & {
+    viewportClassName?: string;
+    viewportRef?: Ref<HTMLDivElement>;
+}) {
     return (
-        <ScrollAreaPrimitive.Root
-            data-slot="scroll-area"
-            type="auto"
-            className={cn("relative overflow-hidden", className)}
-            {...props}
-        >
-            <ScrollAreaPrimitive.Viewport
+        <div className={className}>
+            <ScrollableArea
+                {...props}
+                label="Chapter verses"
                 ref={viewportRef}
-                data-slot="scroll-area-viewport"
-                className={cn(
-                    "size-full rounded-[inherit] outline-none",
-                    viewportClassName
-                )}
+                className={viewportClassName}
+                height="100%"
             >
                 {children}
-            </ScrollAreaPrimitive.Viewport>
-            <ScrollAreaPrimitive.Scrollbar
-                data-slot="scroll-area-scrollbar"
-                orientation="vertical"
-                className="scroll-area-scrollbar"
-            >
-                <ScrollAreaPrimitive.Thumb
-                    data-slot="scroll-area-thumb"
-                    className="scroll-area-thumb"
-                />
-            </ScrollAreaPrimitive.Scrollbar>
-            <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" />
-        </ScrollAreaPrimitive.Root>
+            </ScrollableArea>
+        </div>
     );
 }

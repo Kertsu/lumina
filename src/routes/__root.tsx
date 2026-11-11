@@ -1,5 +1,5 @@
+import { LayerProvider } from "@astryxdesign/core/Layer";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
-import { Toaster } from "sonner";
 import { DesktopQuitShortcut } from "@/features/desktop";
 
 export const Route = createRootRoute({
@@ -8,15 +8,13 @@ export const Route = createRootRoute({
 
 function Root() {
     return (
-        <>
+        <LayerProvider
+            toast={{
+                position: "bottomEnd",
+            }}
+        >
             <DesktopQuitShortcut />
             <Outlet />
-            <Toaster
-                position="bottom-right"
-                theme="system"
-                richColors
-                duration={4500}
-            />
-        </>
+        </LayerProvider>
     );
 }

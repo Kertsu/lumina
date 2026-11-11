@@ -7,7 +7,6 @@ import {
 } from "@testing-library/react";
 import { useId, useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { TooltipProvider } from "@/shared/ui/tooltip";
 import { PanelDivider } from "./panel-divider";
 import {
     CHAPTER_PANEL_MIN_WIDTH,
@@ -40,7 +39,7 @@ function setup(panel = panels[0]) {
         const [width, setWidth] = useState(panel.width);
         const [collapsed, setCollapsed] = useState(false);
         return (
-            <TooltipProvider>
+            <>
                 <p id={panelId} hidden={collapsed}>
                     Selectable panel text
                 </p>
@@ -66,7 +65,7 @@ function setup(panel = panels[0]) {
                     }}
                     className="test-divider"
                 />
-            </TooltipProvider>
+            </>
         );
     }
     const view = render(<Harness />);
@@ -136,7 +135,9 @@ it.each(
     expect(view.onCollapsedChange).toHaveBeenCalledExactlyOnceWith(true);
     expect(screen.queryByRole("separator")).toBeNull();
     expect(view.captures.size).toBe(0);
-    const expand = screen.getByRole("button", { name: "Expand test panel" });
+    const expand = screen.getByRole("button", {
+        name: "Expand test panel",
+    });
     expect(document.activeElement).toBe(expand);
     fireEvent.click(expand);
     expect(screen.getByRole("separator").getAttribute("aria-valuenow")).toBe(
@@ -152,8 +153,12 @@ it.each(
     view.down();
     view.moveTo(1000);
     expect(view.onResize).toHaveBeenLastCalledWith(420);
-    fireEvent.pointerUp(view.separator, { pointerId: 7 });
-    fireEvent.keyDown(view.separator, { key: "Home" });
+    fireEvent.pointerUp(view.separator, {
+        pointerId: 7,
+    });
+    fireEvent.keyDown(view.separator, {
+        key: "Home",
+    });
     expect(view.onResize).toHaveBeenLastCalledWith(panel.minWidth);
     fireEvent.keyDown(view.separator, {
         key: panel.side === "left" ? "ArrowLeft" : "ArrowRight",
@@ -169,7 +174,9 @@ it.each([
 ] as const)("ends resizing and releases capture on %s", (type) => {
     const view = setup();
     view.down();
-    fireEvent[type](view.separator, { pointerId: 7 });
+    fireEvent[type](view.separator, {
+        pointerId: 7,
+    });
     expect(view.captures.size).toBe(0);
     view.moveTo(250);
     expect(view.onResize).not.toHaveBeenCalled();
@@ -191,7 +198,9 @@ it("ignores secondary presses and events from another pointer", () => {
     expect(view.captures.size).toBe(0);
     view.down();
     view.moveTo(260, 8);
-    fireEvent.pointerUp(view.separator, { pointerId: 8 });
+    fireEvent.pointerUp(view.separator, {
+        pointerId: 8,
+    });
     expect(view.onResize).not.toHaveBeenCalled();
     expect(view.captures.has(7)).toBe(true);
     view.moveTo(240);
@@ -209,7 +218,9 @@ it.each([
         fireEvent(window, new Event("blur"));
     } else if (reason === "collapse") {
         fireEvent.click(
-            screen.getByRole("button", { name: "Hide externally" })
+            screen.getByRole("button", {
+                name: "Hide externally",
+            })
         );
     } else {
         view.unmount();

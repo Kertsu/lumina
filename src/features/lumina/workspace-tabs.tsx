@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Circle, CircleAlert, Clock3, EyeOff, Radio, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { audienceStatus, type Workspace } from "./model";
@@ -78,9 +78,9 @@ function SortableTab({
     onClose,
     onMenuError,
 }: SortableTabProps) {
-    const tab = useRef<HTMLDivElement>(null);
     const canClose = count > 1;
     const status = audienceStatus(workspace);
+    const StateIcon = stateIcons[status.className];
     const {
         attributes,
         listeners,
@@ -93,15 +93,6 @@ function SortableTab({
         id: workspace.id,
         disabled: count < 2,
     });
-
-    useEffect(() => {
-        if (workspace.id === activeId) {
-            tab.current?.scrollIntoView({
-                block: "nearest",
-                inline: "nearest",
-            });
-        }
-    }, [workspace.id, activeId]);
 
     return (
         <WorkspaceTabMenu
@@ -116,10 +107,7 @@ function SortableTab({
             onError={onMenuError}
         >
             <div
-                ref={(node) => {
-                    tab.current = node;
-                    setNodeRef(node);
-                }}
+                ref={setNodeRef}
                 className={`workspace-tab ${workspace.id === activeId ? "selected" : ""} ${isDragging ? "dragging" : ""}`}
                 style={{
                     transform: CSS.Transform.toString(transform),
@@ -130,29 +118,40 @@ function SortableTab({
                     className="workspace-tab-trigger"
                     ref={setActivatorNodeRef}
                     value={workspace.id}
+                    label={`${workspace.name}, audience ${status.label}`}
+                    isLabelHidden
+                    icon={
+                        <span
+                            className={`workspace-tab-state status-${status.className}`}
+                            aria-hidden="true"
+                        >
+                            <StateIcon />
+                        </span>
+                    }
+                    endContent={
+                        <span className="workspace-tab-name" aria-hidden="true">
+                            {workspace.name}
+                        </span>
+                    }
                     aria-describedby={attributes["aria-describedby"]}
                     aria-keyshortcuts="Shift+F10"
                     title={`${workspace.name} · ${status.label}\nDrag to reposition. Right-click for tab options.`}
                     {...listeners}
-                >
-                    <WorkspaceLabel workspace={workspace} />
-                </TabsTrigger>
-                <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="workspace-tab-close"
-                    aria-label={`Close ${workspace.name}`}
-                    title={
-                        canClose
-                            ? `Close ${workspace.name}`
-                            : "At least one workspace must stay open"
-                    }
-                    tabIndex={workspace.id === activeId ? 0 : -1}
-                    disabled={!canClose || isDragging}
-                    onClick={() => onClose(workspace.id)}
-                >
-                    <X aria-hidden="true" />
-                </Button>
+                />
+                {canClose && (
+                    <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="workspace-tab-close"
+                        aria-label={`Close ${workspace.name}`}
+                        title={`Close ${workspace.name}`}
+                        tabIndex={workspace.id === activeId ? 0 : -1}
+                        disabled={isDragging}
+                        onClick={() => onClose(workspace.id)}
+                    >
+                        <X aria-hidden="true" />
+                    </Button>
+                )}
             </div>
         </WorkspaceTabMenu>
     );

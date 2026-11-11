@@ -1,3 +1,4 @@
+import { ButtonGroup } from "@astryxdesign/core/ButtonGroup";
 import {
     Check,
     ChevronLeft,
@@ -9,15 +10,9 @@ import {
     Palette,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/shared/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/shared/ui/select";
+import { useNotifications } from "@/shared/ui/notifications";
+import { Select } from "@/shared/ui/select";
 import { useDeskContext } from "./desk-context";
 import type { TranslationId } from "./fixtures";
 import { referenceLabel } from "./fixtures";
@@ -25,6 +20,7 @@ import { IconButton } from "./icon-button";
 import { graphemeCount } from "./model";
 import { VerseSlide } from "./verse-slide";
 export function CurrentVerse() {
+    const toast = useNotifications();
     const [copied, setCopied] = useState(false);
     const translationId = useId();
     const {
@@ -164,46 +160,36 @@ export function CurrentVerse() {
                 </div>
                 <div className="current-actions">
                     <div className="display-translation">
-                        <label htmlFor={translationId}>
-                            Display translation
-                        </label>
                         <Select
                             value={
                                 current?.translation ?? workspace.translation
                             }
-                            onValueChange={(id: TranslationId) =>
+                            onChange={(id: TranslationId) =>
                                 changeTranslation(id)
                             }
-                            disabled={!current}
-                        >
-                            <SelectTrigger
-                                id={translationId}
-                                aria-label="Change current verse translation"
-                                className="current-translation"
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="translation-picker-menu">
-                                {translations
-                                    .filter((item) =>
-                                        installed.includes(item.id)
-                                    )
-                                    .map((item) => (
-                                        <SelectItem
-                                            key={item.id}
-                                            value={item.id}
-                                        >
-                                            {item.shortName}
-                                        </SelectItem>
-                                    ))}
-                            </SelectContent>
-                        </Select>
+                            isDisabled={!current}
+                            id={translationId}
+                            size="sm"
+                            label="Display translation"
+                            options={translations
+                                .filter((item) => installed.includes(item.id))
+                                .map((item) => ({
+                                    value: item.id,
+                                    label: item.shortName,
+                                }))}
+                        />
                     </div>
                     <div className="display-navigation">
                         <span>Audience navigation</span>
-                        <div className="navigation-pair">
+                        <ButtonGroup
+                            label="Audience navigation"
+                            className="navigation-pair"
+                            size="sm"
+                        >
                             <Button
                                 variant="outline"
+                                size="sm"
+                                icon={<ChevronLeft aria-hidden="true" />}
                                 disabled={
                                     !current ||
                                     !isInstalled(current) ||
@@ -211,11 +197,12 @@ export function CurrentVerse() {
                                 }
                                 onClick={() => navigate(-1)}
                             >
-                                <ChevronLeft />
                                 Show previous
                             </Button>
                             <Button
                                 variant="outline"
+                                size="sm"
+                                endContent={<ChevronRight aria-hidden="true" />}
                                 disabled={
                                     !current ||
                                     !isInstalled(current) ||
@@ -224,9 +211,8 @@ export function CurrentVerse() {
                                 onClick={() => navigate(1)}
                             >
                                 Show next
-                                <ChevronRight />
                             </Button>
-                        </div>
+                        </ButtonGroup>
                     </div>
                     <p className="display-action-note">
                         Changes audience output when open.

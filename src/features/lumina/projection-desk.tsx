@@ -1,7 +1,8 @@
+import { Theme } from "@astryxdesign/core/theme";
+import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import type { ReactNode } from "react";
 import { usesOverlayTitlebar } from "@/bridge/client";
 import { Tabs } from "@/shared/ui/tabs";
-import { TooltipProvider } from "@/shared/ui/tooltip";
 import { DeskContext, useDeskContext } from "./desk-context";
 import { DeskDialogs } from "./desk-dialogs";
 import { DeskStatus } from "./desk-status";
@@ -52,9 +53,11 @@ function ReadyDeskRoot({
 }) {
     const model = useDeskView(controller, workspace);
     return (
-        <DeskContext.Provider value={model}>
-            <TooltipProvider delayDuration={350}>{children}</TooltipProvider>
-        </DeskContext.Provider>
+        <Theme theme={neutralTheme} mode={model.theme}>
+            <DeskContext.Provider value={model}>
+                {children}
+            </DeskContext.Provider>
+        </Theme>
     );
 }
 

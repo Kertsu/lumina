@@ -1,3 +1,5 @@
+import { Theme } from "@astryxdesign/core/theme";
+import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import { useEffect, useRef, useState } from "react";
 import {
     type AudienceOutput,
@@ -11,7 +13,15 @@ import { VerseSlide } from "./verse-slide";
 
 /** Only this receiver confirms a committed verse in its authenticated native window. */
 export function AudienceReceiver() {
-    useAppTheme();
+    const { theme } = useAppTheme();
+    return (
+        <Theme theme={neutralTheme} mode={theme}>
+            <AudienceOutputReceiver />
+        </Theme>
+    );
+}
+
+function AudienceOutputReceiver() {
     const [output, setOutput] = useState<AudienceOutput | null>(null);
     const [resources, setResources] = useState<Record<string, string>>({});
     const latest = useRef<AudienceOutput | null>(null);
