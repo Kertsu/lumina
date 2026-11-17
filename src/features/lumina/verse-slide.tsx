@@ -4,6 +4,7 @@ import type { BookMetadata, Verse } from "./fixtures";
 import { referenceLabel } from "./fixtures";
 import type { Appearance } from "./model";
 import { getBand } from "./model";
+import { slideImage } from "./slide-image";
 
 type SlideProps = {
     verse: Verse | null;
@@ -23,12 +24,7 @@ export function VerseSlide({
     const background =
         (verse && appearance.backgrounds?.[verse.translation]) ||
         appearance.background;
-    const image =
-        background === "mountains" || background === "forest"
-            ? `/backgrounds/${background}.jpg`
-            : /^(data:image\/|asset:|https?:|tauri:|blob:)/.test(background)
-              ? background
-              : undefined;
+    const image = slideImage(background);
     const band = verse ? getBand(verse, appearance) : undefined;
     const style = {
         backgroundImage: image

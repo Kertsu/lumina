@@ -184,8 +184,14 @@ pub(crate) fn read_state(transaction: &Transaction<'_>) -> rusqlite::Result<Stor
       _ => Err(rusqlite::Error::InvalidQuery),
     },
   )?;
+  let auto_open_search_summary = transaction.query_row(
+    "SELECT auto_open_search_summary FROM application_settings WHERE singleton=1",
+    [],
+    |row| row.get(0),
+  )?;
   Ok(StoredState {
     application_theme,
+    auto_open_search_summary,
     translations,
     workspaces,
     active_workspace_id,

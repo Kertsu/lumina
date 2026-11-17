@@ -8,6 +8,7 @@ import {
     Copy,
     Eye,
     History,
+    ListChecks,
     Search,
     Send,
     Trash2,
@@ -29,6 +30,7 @@ import type { Translation, Verse } from "./fixtures";
 import { referenceLabel } from "./fixtures";
 import type { SearchMode, Workspace } from "./model";
 import { PanelDivider } from "./panel-divider";
+import { searchModeLabels, searchScopeLabel } from "./search-summary-labels";
 import { SEARCH_PANEL_MIN_WIDTH } from "./use-panel-layout";
 
 type Props = {
@@ -49,6 +51,7 @@ type Props = {
     onOpenChange: (open: boolean) => void;
     translations: Translation[];
     onSearch: () => void;
+    onViewSummary: () => void;
     onReference: (input: string) => void;
     onExportHistory: () => void;
     onCopyHistory: () => void;
@@ -98,6 +101,7 @@ export function SidePanel({
     onOpenChange,
     translations,
     onSearch,
+    onViewSummary,
     onReference,
     onExportHistory,
     onCopyHistory,
@@ -113,6 +117,10 @@ export function SidePanel({
     const projectedOnly = workspace.historyProjectedOnly;
     const bibleOrder = workspace.order === "bible";
     const results = workspace.searchResults;
+    const summary = workspace.searchSummary?.summary;
+    const resultTranslation = translations.find(
+        (item) => item.id === (summary?.translationId ?? workspace.translation)
+    );
     const pageCount = Math.max(1, workspace.searchPages);
     const page = Math.min(workspace.page, pageCount);
     const visibleResults = results;
@@ -226,19 +234,19 @@ export function SidePanel({
                                 options={[
                                     {
                                         value: "all",
-                                        label: "All words",
+                                        label: searchModeLabels.allWords,
                                     },
                                     {
                                         value: "phrase",
-                                        label: "Phrase",
+                                        label: searchModeLabels.phrase,
                                     },
                                     {
                                         value: "starts",
-                                        label: "Word starts",
+                                        label: searchModeLabels.wordStarts,
                                     },
                                     {
                                         value: "contains",
-                                        label: "Contains text",
+                                        label: searchModeLabels.containsText,
                                     },
                                 ]}
                             />
@@ -273,51 +281,72 @@ export function SidePanel({
                 <div className="search-results">
                     {workspace.submittedQuery ? (
                         <>
-                            <div className="results-heading">
-                                <span>
-                                    {workspace.searchTotal}{" "}
-                                    {workspace.searchTotal === 1
-                                        ? "verse"
-                                        : "verses"}{" "}
-                                    found
-                                </span>
-                                <Select
-                                    value={bibleOrder ? "bible" : "best"}
-                                    onChange={(value) => {
-                                        onChange({
-                                            order:
-                                                value === "bible"
-                                                    ? "bible"
-                                                    : "best",
-                                        });
-                                        onChange({
-                                            page: 1,
-                                        });
-                                    }}
-                                    controlClassName="sort-select"
-                                    label={"Result order"}
-                                    options={[
-                                        {
-                                            value: "best",
-                                            label: "Best match",
-                                        },
-                                        {
-                                            value: "bible",
-                                            label: "Bible order",
-                                        },
-                                    ]}
-                                />
+                            <div className="results-overview">
+                                <div className="results-heading">
+                                    <h3>
+                                        {workspace.searchTotal.toLocaleString()}{" "}
+                                        {workspace.searchTotal === 1
+                                            ? "verse"
+                                            : "verses"}{" "}
+                                        found
+                                    </h3>
+                                    {summary && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="results-summary-button"
+                                            icon={
+                                                <ListChecks aria-hidden="true" />
+                                            }
+                                            aria-haspopup="dialog"
+                                            onClick={onViewSummary}
+                                        >
+                                            Preview summary
+                                        </Button>
+                                    )}
+                                </div>
+                                <p className="query-summary">
+                                    “
+                                    {summary?.query ?? workspace.submittedQuery}
+                                    ”{" · "}
+                                    {resultTranslation?.shortName ??
+                                        summary?.translationTitle}
+                                    {" · "}
+                                    {summary
+                                        ? searchScopeLabel(summary)
+                                        : workspace.scope}
+                                </p>
                             </div>
-                            <p className="query-summary">
-                                “{workspace.submittedQuery}” in{" "}
-                                {
-                                    translations.find(
-                                        (item) =>
-                                            item.id === workspace.translation
-                                    )?.shortName
-                                }{" "}
-                                · {workspace.scope}
-                            </p>
+                            {workspace.searchTotal > 0 && (
+                                <div className="results-order">
+                                    <Select
+                                        value={bibleOrder ? "bible" : "best"}
+                                        onChange={(value) => {
+                                            onChange({
+                                                order:
+                                                    value === "bible"
+                                                        ? "bible"
+                                                        : "best",
+                                            });
+                                            onChange({
+                                                page: 1,
+                                            });
+                                        }}
+                                        controlClassName="sort-select"
+                                        label={"Result order"}
+                                        options={[
+                                            {
+                                                value: "best",
+                                                label: "Best match",
+                                            },
+                                            {
+                                                value: "bible",
+                                                label: "Bible order",
+                                            },
+                                        ]}
+                                    />
+                                </div>
+                            )}
                             {bibleOrder && workspace.ntPage && (
                                 <button
                                     type="button"

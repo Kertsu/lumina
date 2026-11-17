@@ -793,3 +793,55 @@ it("runs the first enabled filtered command after closing its modal", async () =
     );
     expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it("keeps verse tools under the slide and restores summaries from the audience controls", () => {
+    const model = controller();
+    const [workspace] = model.workspaces;
+    workspace.status = "live";
+    workspace.projectedSearchSummary = {
+        appearance: workspace.appearance,
+        summary: {
+            query: "love",
+            translationId: workspace.translation,
+            translationTitle: "World English Bible",
+            scope: "entireBible",
+            bookName: null,
+            mode: "allWords",
+            total: 1,
+            pages: 1,
+        },
+    };
+    render(<ProjectionDesk controller={model} />);
+
+    const stage = screen.getByRole("region", {
+        name: "Search summary projection",
+    });
+    expect(
+        within(stage).getByRole("button", {
+            name: "Copy current verse",
+        })
+    ).toBeDefined();
+    fireEvent.click(
+        within(stage).getByRole("button", {
+            name: "Inspect retained verse",
+        })
+    );
+    expect(model.dispatch).toHaveBeenCalledWith({
+        type: "preview",
+        workspaceId: workspace.id,
+        verse: workspace.current,
+    });
+
+    const audience = screen.getByRole("group", {
+        name: "Audience controls for Audience 1",
+    });
+    fireEvent.click(
+        within(audience).getByRole("button", {
+            name: "Restore previous output",
+        })
+    );
+    expect(model.dispatch).toHaveBeenLastCalledWith({
+        type: "returnFromSearchSummary",
+        workspaceId: workspace.id,
+    });
+});

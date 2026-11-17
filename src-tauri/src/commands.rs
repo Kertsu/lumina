@@ -9,8 +9,8 @@ use lumina_app::{
   AudienceOutput, AudienceOwner, BookInformation, EditionId, HistoryEntry, ImportResult,
   ImportReview, ManagedAsset, NavigationDirection, NavigationState, OperationError,
   PreviewCandidate, PreviewOrigin, ReferenceInputRequest, ReferenceInputResult, ResolvedVerse,
-  SearchRequest, SearchResult, TranslationId, VerseActionKind, VerseActionResult, VerseCoordinate,
-  WorkspaceId,
+  SearchRequest, SearchWithSummary, TranslationId, VerseActionKind, VerseActionResult,
+  VerseCoordinate, WorkspaceId,
 };
 use tauri::{AppHandle, WebviewWindow};
 use tauri_specta::Event;
@@ -557,9 +557,58 @@ pub(crate) async fn search_verses(
   runtime: tauri::State<'_, DesktopRuntime>,
   windows: tauri::State<'_, NativeWindows>,
   request: SearchRequest,
-) -> Result<SearchResult, ApplicationFailure> {
-  query(window, app, &runtime, &windows, move |application, _native| application.search(request))
-    .await
+  visible_candidate_id: Option<String>,
+) -> Result<SearchWithSummary, ApplicationFailure> {
+  query(window, app, &runtime, &windows, move |application, _native| {
+    application.search_with_summary(request, visible_candidate_id.as_deref())
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn project_search_summary(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  workspace_id: WorkspaceId,
+  candidate_id: String,
+) -> Result<(), ApplicationFailure> {
+  operation(window, app, &runtime, &windows, move |application, native| {
+    application.project_search_summary(&workspace_id, &candidate_id, native)
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn return_from_search_summary(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  workspace_id: WorkspaceId,
+) -> Result<(), ApplicationFailure> {
+  operation(window, app, &runtime, &windows, move |application, native| {
+    application.return_from_search_summary(&workspace_id, now_ms(), native)
+  })
+  .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn set_auto_open_search_summary(
+  window: WebviewWindow,
+  app: AppHandle,
+  runtime: tauri::State<'_, DesktopRuntime>,
+  windows: tauri::State<'_, NativeWindows>,
+  enabled: bool,
+) -> Result<(), ApplicationFailure> {
+  operation(window, app, &runtime, &windows, move |application, _native| {
+    application.set_auto_open_search_summary(enabled)
+  })
+  .await
 }
 
 #[tauri::command]

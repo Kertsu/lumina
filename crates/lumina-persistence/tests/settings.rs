@@ -40,11 +40,31 @@ fn upgrading_version_five_preserves_workspace_identity_and_uses_system_theme(
   {
     let fixture = rusqlite::Connection::open(&path)?;
     fixture.execute_batch(
-      "ALTER TABLE application_settings DROP COLUMN application_theme; PRAGMA user_version=5;",
+      "ALTER TABLE application_settings DROP COLUMN auto_open_search_summary;
+       ALTER TABLE application_settings DROP COLUMN application_theme;
+       PRAGMA user_version=5;",
     )?;
   }
   let application = Application::start(SqliteStorage::open(&path)?)?;
   assert_eq!(application.snapshot().active_workspace_id, workspace);
   assert_eq!(application.snapshot().application_theme, ApplicationTheme::System);
+  assert!(!application.snapshot().auto_open_search_summary);
+  Ok(())
+}
+
+#[test]
+fn auto_open_search_summary_defaults_off_and_persists_across_restart(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let path = directory.path().join("summary-setting.sqlite");
+  let mut application = Application::start(SqliteStorage::open(&path)?)?;
+  assert!(!application.snapshot().auto_open_search_summary);
+  application.set_auto_open_search_summary(true)?;
+  drop(application);
+  let mut application = Application::start(SqliteStorage::open(&path)?)?;
+  assert!(application.snapshot().auto_open_search_summary);
+  application.set_auto_open_search_summary(false)?;
+  drop(application);
+  assert!(!Application::start(SqliteStorage::open(&path)?)?.snapshot().auto_open_search_summary);
   Ok(())
 }

@@ -5,6 +5,7 @@ import {
     PanelLeft,
     Search,
     Settings2,
+    Undo2,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { TabsContent } from "@/shared/ui/tabs";
@@ -19,6 +20,7 @@ import { CHAPTER_PANEL_MIN_WIDTH } from "./use-panel-layout";
 export function WorkspaceBody() {
     const {
         chapterPanelId,
+        controller,
         workspace,
         activeId,
         translations,
@@ -61,7 +63,11 @@ export function WorkspaceBody() {
                             aria-hidden="true"
                             className={`stage-dot status-${audienceStatus(workspace).className}`}
                         />
-                        <h1>Current verse</h1>
+                        <h1>
+                            {workspace.projectedSearchSummary
+                                ? "Search summary"
+                                : "Current verse"}
+                        </h1>
                         {workspace.information && (
                             <span className="info-badge">
                                 Book information requested
@@ -93,18 +99,20 @@ export function WorkspaceBody() {
                                 ? "Audience closed"
                                 : workspace.status === "blank"
                                   ? "Audience is blank"
-                                  : workspace.information
-                                    ? "Book information requested"
-                                    : workspace.projectionOutcome ===
-                                        "projected"
-                                      ? "Audience is live"
+                                  : workspace.projectedSearchSummary
+                                    ? "Search summary requested"
+                                    : workspace.information
+                                      ? "Book information requested"
                                       : workspace.projectionOutcome ===
-                                          "unconfirmed"
-                                        ? "Unconfirmed projection"
+                                          "projected"
+                                        ? "Audience is live"
                                         : workspace.projectionOutcome ===
-                                            "awaitingConfirmation"
-                                          ? "Awaiting confirmation"
-                                          : "Audience output requested"}
+                                            "unconfirmed"
+                                          ? "Unconfirmed projection"
+                                          : workspace.projectionOutcome ===
+                                              "awaitingConfirmation"
+                                            ? "Awaiting confirmation"
+                                            : "Audience output requested"}
                         </span>
                         <fieldset
                             className="audience-controls"
@@ -152,6 +160,24 @@ export function WorkspaceBody() {
                                     ? "Resume"
                                     : "Blank"}
                             </Button>
+                            {workspace.projectedSearchSummary && (
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="return-search-summary"
+                                    icon={<Undo2 aria-hidden="true" />}
+                                    disabled={controller.pending}
+                                    aria-busy={controller.pending}
+                                    onClick={() =>
+                                        dispatch({
+                                            type: "returnFromSearchSummary",
+                                            workspaceId: workspace.id,
+                                        })
+                                    }
+                                >
+                                    Restore previous output
+                                </Button>
+                            )}
                             <Tooltip content={<>Audience settings</>}>
                                 <Button
                                     variant="outline"
@@ -257,6 +283,12 @@ export function WorkspaceBody() {
                 onSearch={() =>
                     dispatch({
                         type: "search",
+                        workspaceId: activeId,
+                    })
+                }
+                onViewSummary={() =>
+                    dispatch({
+                        type: "viewSearchSummary",
                         workspaceId: activeId,
                     })
                 }

@@ -109,8 +109,20 @@ export const commands = {
         __TAURI_INVOKE<ReferenceInputResult>("resolve_reference_input", {
             request,
         }),
-    searchVerses: (request: SearchRequest) =>
-        __TAURI_INVOKE<SearchResult>("search_verses", { request }),
+    searchVerses: (request: SearchRequest, visibleCandidateId: string | null) =>
+        __TAURI_INVOKE<SearchWithSummary>("search_verses", {
+            request,
+            visibleCandidateId,
+        }),
+    projectSearchSummary: (workspaceId: WorkspaceId, candidateId: string) =>
+        __TAURI_INVOKE<null>("project_search_summary", {
+            workspaceId,
+            candidateId,
+        }),
+    returnFromSearchSummary: (workspaceId: WorkspaceId) =>
+        __TAURI_INVOKE<null>("return_from_search_summary", { workspaceId }),
+    setAutoOpenSearchSummary: (enabled: boolean) =>
+        __TAURI_INVOKE<null>("set_auto_open_search_summary", { enabled }),
     reviewImport: (path: string) =>
         __TAURI_INVOKE<ImportReview>("review_import", { path }),
     commitImport: (token: string) =>
@@ -310,6 +322,7 @@ export type ApplicationFailure =
 
 export type ApplicationSnapshot = {
     applicationTheme: ApplicationTheme;
+    autoOpenSearchSummary: boolean;
     /**  Runtime-only notices survive refreshes when a rendered confirmation cannot be saved. */
     projectionFailures: ProjectionConfirmationFailure[];
     translations: Translation[];
@@ -333,7 +346,8 @@ export type AudienceAcknowledgment = {
 export type AudienceContent =
     | { kind: "blank" }
     | { kind: "verse"; verse: ResolvedVerse }
-    | { kind: "bookInformation"; information: InformationCapture };
+    | { kind: "bookInformation"; information: InformationCapture }
+    | { kind: "searchSummary"; summary: SearchSummary };
 
 export type AudienceOutput = {
     owner: AudienceOwner;
@@ -622,6 +636,27 @@ export type SearchScope =
     | "epistlesOfPaul"
     | { book: number };
 
+export type SearchSummary = {
+    translationId: TranslationId;
+    translationTitle: string;
+    query: string;
+    scope: SearchScope;
+    bookName: string | null;
+    mode: SearchMode;
+    total: number;
+    pages: number;
+};
+
+export type SearchSummaryProjection = {
+    summary: SearchSummary;
+};
+
+export type SearchWithSummary = {
+    candidateId: string;
+    result: SearchResult;
+    summary: SearchSummary;
+};
+
 export type SizeBand = {
     lower: number;
     upper: number | null;
@@ -671,7 +706,8 @@ export type VerseActionKind =
     | "recall"
     | "changeTranslation"
     | "resume"
-    | "informationReturn";
+    | "informationReturn"
+    | "searchSummaryReturn";
 
 export type VerseActionResult = {
     actionId: string;
@@ -704,6 +740,7 @@ export type Workspace = {
     currentVerse: ResolvedVerse | null;
     currentBackground: TranslationBackground | null;
     bookInformationMode: boolean;
+    searchSummaryProjection: SearchSummaryProjection | null;
     audience: AudienceState;
     owner: AudienceOwner | null;
     outputRevision: number;

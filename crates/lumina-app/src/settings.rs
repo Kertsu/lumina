@@ -17,6 +17,10 @@ pub trait SettingsStorage: Storage {
   /// # Errors
   /// Retains the storage cause and leaves the accepted preference unchanged.
   fn save_application_theme(&mut self, theme: ApplicationTheme) -> Result<(), Self::Error>;
+
+  /// # Errors
+  /// Retains the storage cause and leaves the accepted preference unchanged.
+  fn save_auto_open_search_summary(&mut self, enabled: bool) -> Result<(), Self::Error>;
 }
 
 impl<S: SettingsStorage> Application<S> {
@@ -28,6 +32,17 @@ impl<S: SettingsStorage> Application<S> {
   ) -> Result<(), OperationError<S::Error>> {
     self.storage.save_application_theme(theme).map_err(OperationError::Storage)?;
     self.state.application_theme = theme;
+    Ok(())
+  }
+
+  /// # Errors
+  /// Publishes a preference only after its durable write succeeds.
+  pub fn set_auto_open_search_summary(
+    &mut self,
+    enabled: bool,
+  ) -> Result<(), OperationError<S::Error>> {
+    self.storage.save_auto_open_search_summary(enabled).map_err(OperationError::Storage)?;
+    self.state.auto_open_search_summary = enabled;
     Ok(())
   }
 }

@@ -7,7 +7,7 @@ import {
     deskClient,
     onApplicationChanged,
     type SearchRequest,
-    type SearchResult,
+    type SearchWithSummary,
 } from "@/bridge/client";
 
 const fixture = await createBrowserClient().getApplicationState();
@@ -45,8 +45,8 @@ vi.mock("@/bridge/client", async (original) => {
 let state: ApplicationSnapshot;
 let changed: () => void;
 const id = "browser-workspace";
-function result(request: SearchRequest): SearchResult {
-    return {
+function result(request: SearchRequest): SearchWithSummary {
+    const result = {
         ...request,
         translationId: request.translationId ?? "browser-web",
         editionId:
@@ -64,6 +64,20 @@ function result(request: SearchRequest): SearchResult {
         newTestamentPage: 2,
         broaderMatch: false,
         highlightEncoding: "utf8Bytes",
+    };
+    return {
+        candidateId: `candidate-${request.requestId}`,
+        result,
+        summary: {
+            query: result.query,
+            translationId: result.translationId,
+            translationTitle: "World English Bible",
+            mode: result.mode,
+            scope: result.scope,
+            bookName: null,
+            total: 60,
+            pages: 3,
+        },
     };
 }
 beforeEach(() => {
@@ -237,13 +251,17 @@ it("clears deleted-edition results and ignores in-flight searches while preservi
         searchTotal: 0,
         submittedQuery: "",
     });
+    const stale = result(pendingRequest);
     await act(async () =>
         resolve({
             status: "ok",
             data: {
-                ...result(pendingRequest),
-                translationId: "imported",
-                editionId: "deleted-edition",
+                ...stale,
+                result: {
+                    ...stale.result,
+                    translationId: "imported",
+                    editionId: "deleted-edition",
+                },
             },
         })
     );
@@ -452,4 +470,101 @@ it("keeps cosmetic refresh separate from a pending verse intent without adding h
         expect(hook.result.current.workspaces[0].history).toHaveLength(0)
     );
     expect(hook.result.current.workspaces[0].projectionOutcome).toBeUndefined();
+});
+
+it("opens a private summary after a submitted search without reopening it when paging", async () => {
+    state.autoOpenSearchSummary = true;
+    const hook = await setup();
+    hook.patch({
+        query: "love",
+    });
+    act(() =>
+        hook.result.current.dispatch({
+            type: "search",
+            workspaceId: id,
+        })
+    );
+    await waitFor(() =>
+        expect(hook.result.current.searchSummaryOpen).toBe(true)
+    );
+    expect(
+        hook.result.current.workspaces[0].searchSummary?.summary
+    ).toMatchObject({
+        query: "love",
+        total: 60,
+        pages: 3,
+    });
+
+    act(() =>
+        hook.result.current.dispatch({
+            type: "dismissSearchSummary",
+            workspaceId: id,
+        })
+    );
+    hook.patch({
+        query: "draft",
+        page: 2,
+    });
+    await waitFor(() =>
+        expect(deskClient.searchVerses).toHaveBeenCalledTimes(2)
+    );
+    await waitFor(() => expect(hook.result.current.pending).toBe(false));
+    expect(hook.result.current.searchSummaryOpen).toBe(false);
+    expect(hook.result.current.workspaces[0].searchSummary?.summary.query).toBe(
+        "love"
+    );
+});
+
+it("serializes searches in one workspace and preserves the displayed candidate while newer results are pending", async () => {
+    const hook = await setup();
+    const submit = (query: string) => {
+        hook.patch({
+            query,
+        });
+        act(() =>
+            hook.result.current.dispatch({
+                type: "search",
+                workspaceId: id,
+            })
+        );
+    };
+
+    submit("accepted");
+    await waitFor(() =>
+        expect(hook.result.current.workspaces[0].submittedQuery).toBe(
+            "accepted"
+        )
+    );
+    const visible =
+        hook.result.current.workspaces[0].searchSummary?.candidateId;
+    expect(visible).toBeDefined();
+
+    let finishOlder = () => {};
+    const waiting = new Promise<void>((resolve) => {
+        finishOlder = resolve;
+    });
+    vi.mocked(deskClient.searchVerses).mockImplementationOnce(
+        async (request) => {
+            await waiting;
+            return {
+                status: "ok",
+                data: result(request),
+            };
+        }
+    );
+    submit("older pending");
+    submit("newest");
+    expect(deskClient.searchVerses).toHaveBeenCalledTimes(2);
+
+    await act(async () => finishOlder());
+    await waitFor(() =>
+        expect(hook.result.current.workspaces[0].submittedQuery).toBe("newest")
+    );
+    expect(deskClient.searchVerses).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+            query: "newest",
+        }),
+        visible
+    );
 });

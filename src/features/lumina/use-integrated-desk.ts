@@ -9,7 +9,7 @@ import {
     type ReferenceInputResult,
     type ResolvedVerse,
     type SearchRequest,
-    type SearchResult,
+    type SearchWithSummary,
 } from "@/bridge/client";
 import { byteHighlights, viewVerse } from "./accepted-view";
 import { rgba, viewAppearance, viewInformation } from "./appearance-view";
@@ -103,10 +103,18 @@ export function useIntegratedDeskController(): DeskController {
         Record<string, Interaction>
     >({});
     const interactionRef = useRef(interactions);
-    const [searches, setSearches] = useState<Record<string, SearchResult>>({});
+    const [searches, setSearches] = useState<Record<string, SearchWithSummary>>(
+        {}
+    );
+    const [searchSummaryWorkspace, setSearchSummaryWorkspace] = useState<
+        string | null
+    >(null);
     const searchGenerations = useRef<Record<string, number>>({});
+    const inFlightSearches = useRef<
+        Record<string, Promise<ClientResult<SearchWithSummary> | undefined>>
+    >({});
     const submittedSearches = useRef<
-        Record<string, { request: SearchRequest; editionId: string }>
+        Record<string, { request: SearchRequest; candidateId: string }>
     >({});
     const [books, setBooks] = useState<Record<string, BookInformation[]>>({});
     const [chapters, setChapters] = useState<Record<string, ResolvedVerse[]>>(
@@ -131,6 +139,9 @@ export function useIntegratedDeskController(): DeskController {
         const state = accepted(await client.getApplicationState());
         if (mounted.current && generation === refreshGeneration.current) {
             const previous = snapshotRef.current;
+            if (previous?.activeWorkspaceId !== state.activeWorkspaceId) {
+                setSearchSummaryWorkspace(null);
+            }
             for (const workspace of previous?.workspaces ?? []) {
                 const translation = previous?.translations.find(
                     (item) =>
@@ -153,6 +164,9 @@ export function useIntegratedDeskController(): DeskController {
                     searchGenerations.current[id] =
                         (searchGenerations.current[id] ?? 0) + 1;
                     delete submittedSearches.current[id];
+                    setSearchSummaryWorkspace((open) =>
+                        open === id ? null : open
+                    );
                     if (choiceRef.current?.workspaceId === id) {
                         choiceRef.current = null;
                         setReferenceChoice(null);
@@ -439,9 +453,38 @@ export function useIntegratedDeskController(): DeskController {
         if (!edition) {
             return;
         }
-        const result = accepted(await deskClient.searchVerses(request));
+        const invoke = async () => {
+            if (
+                mounted.current &&
+                searchGenerations.current[workspaceId] === generation
+            ) {
+                return deskClient.searchVerses(
+                    request,
+                    submittedSearches.current[workspaceId]?.candidateId ?? null
+                );
+            }
+        };
+        // Keep the native capture ordered with this workspace's accepted results.
+        const previousSearch = inFlightSearches.current[workspaceId];
+        const pendingSearch = previousSearch
+            ? previousSearch.then(invoke, invoke)
+            : invoke();
+        inFlightSearches.current[workspaceId] = pendingSearch;
+        const reply = await pendingSearch.finally(() => {
+            if (inFlightSearches.current[workspaceId] === pendingSearch) {
+                delete inFlightSearches.current[workspaceId];
+            }
+        });
         if (
-            searchGenerations.current[workspaceId] !== generation ||
+            !reply ||
+            !mounted.current ||
+            searchGenerations.current[workspaceId] !== generation
+        ) {
+            return;
+        }
+        const response = accepted(reply);
+        const { result } = response;
+        if (
             !snapshotRef.current?.translations.some(
                 (item) =>
                     item.editionId === result.editionId &&
@@ -455,16 +498,21 @@ export function useIntegratedDeskController(): DeskController {
         ) {
             return;
         }
-        if (submit) {
-            submittedSearches.current[workspaceId] = {
-                request,
-                editionId: edition.editionId,
-            };
-        }
+        submittedSearches.current[workspaceId] = {
+            request: submit ? request : (submitted?.request ?? request),
+            candidateId: response.candidateId,
+        };
         setSearches((previous) => ({
             ...previous,
-            [workspaceId]: result,
+            [workspaceId]: response,
         }));
+        if (
+            submit &&
+            snapshotRef.current?.autoOpenSearchSummary &&
+            snapshotRef.current.activeWorkspaceId === workspaceId
+        ) {
+            setSearchSummaryWorkspace(workspaceId);
+        }
         patch(workspaceId, {
             submittedQuery: result.query,
             page: result.page,
@@ -710,6 +758,35 @@ export function useIntegratedDeskController(): DeskController {
             case "search":
                 await search(action.workspaceId);
                 return;
+            case "viewSearchSummary":
+                setSearchSummaryWorkspace(action.workspaceId);
+                return;
+            case "dismissSearchSummary":
+                setSearchSummaryWorkspace((open) =>
+                    open === action.workspaceId ? null : open
+                );
+                return;
+            case "projectSearchSummary":
+                accepted(
+                    await deskClient.projectSearchSummary(
+                        action.workspaceId,
+                        action.candidateId
+                    )
+                );
+                setSearchSummaryWorkspace((open) =>
+                    open === action.workspaceId ? null : open
+                );
+                break;
+            case "returnFromSearchSummary":
+                accepted(
+                    await deskClient.returnFromSearchSummary(action.workspaceId)
+                );
+                break;
+            case "setAutoOpenSearchSummary":
+                accepted(
+                    await deskClient.setAutoOpenSearchSummary(action.enabled)
+                );
+                break;
             case "changeSearchTranslation":
                 delete submittedSearches.current[action.workspaceId];
                 searchGenerations.current[action.workspaceId] =
@@ -719,6 +796,9 @@ export function useIntegratedDeskController(): DeskController {
                         action.workspaceId,
                         action.translationId
                     )
+                );
+                setSearchSummaryWorkspace((open) =>
+                    open === action.workspaceId ? null : open
                 );
                 setSearches((previous) => {
                     const next = {
@@ -915,12 +995,18 @@ export function useIntegratedDeskController(): DeskController {
 
     return {
         activeId: snapshot?.activeWorkspaceId ?? "",
+        autoOpenSearchSummary: snapshot?.autoOpenSearchSummary,
+        searchSummaryOpen:
+            searchSummaryWorkspace === snapshot?.activeWorkspaceId,
         workspaces:
             snapshot?.workspaces.map((workspace): Workspace => {
                 const id = workspace.workspaceId;
                 const interaction = interactions[id] ?? initialInteraction;
                 const current = workspace.currentVerse;
-                const result = searches[id];
+                const search = searches[id];
+                const result = search?.result;
+                const projectedSummary =
+                    workspace.searchSummaryProjection?.summary;
                 const key = current
                     ? `${current.editionId}:${current.coordinate.bookNumber}:${current.coordinate.chapter}`
                     : "";
@@ -941,7 +1027,18 @@ export function useIntegratedDeskController(): DeskController {
                           })
                         : null,
                     status: workspace.audience,
-                    information: workspace.bookInformationMode,
+                    information:
+                        workspace.bookInformationMode && !projectedSummary,
+                    projectedSearchSummary: projectedSummary
+                        ? {
+                              summary: projectedSummary,
+                              appearance: viewAppearance(
+                                  workspace.appearance,
+                                  projectedSummary.translationId,
+                                  resources
+                              ),
+                          }
+                        : undefined,
                     hideCursor: workspace.settings.hideCursor,
                     fullscreen: workspace.fullscreen,
                     alwaysOnTop: workspace.alwaysOnTop,
@@ -970,10 +1067,17 @@ export function useIntegratedDeskController(): DeskController {
                                 ),
                             })
                         ) ?? [],
+                    searchSummary: search && {
+                        candidateId: search.candidateId,
+                        summary: search.summary,
+                        appearance: viewAppearance(
+                            workspace.appearance,
+                            search.summary.translationId,
+                            resources
+                        ),
+                    },
                     searchTotal: result?.total ?? 0,
-                    searchPages: result
-                        ? Math.max(1, Math.ceil(result.total / result.pageSize))
-                        : 1,
+                    searchPages: Math.max(1, search?.summary.pages ?? 0),
                     ntPage: result?.newTestamentPage,
                     chapterVerses: (chapters[key] ?? []).map((verse) =>
                         viewVerse(verse)

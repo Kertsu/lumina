@@ -18,6 +18,7 @@ import type { TranslationId } from "./fixtures";
 import { referenceLabel } from "./fixtures";
 import { IconButton } from "./icon-button";
 import { graphemeCount } from "./model";
+import { SearchSummarySlide } from "./search-summary-slide";
 import { VerseSlide } from "./verse-slide";
 export function CurrentVerse() {
     const toast = useNotifications();
@@ -37,35 +38,46 @@ export function CurrentVerse() {
         savedCopy,
         changeTranslation,
     } = useDeskContext();
+    const summaryProjection = workspace.projectedSearchSummary;
     return (
         <>
             {" "}
             <section
                 className="projection-stage"
-                aria-label="Current verse projection"
+                aria-label={
+                    summaryProjection
+                        ? "Search summary projection"
+                        : "Current verse projection"
+                }
             >
                 <div className="stage-canvas">
-                    <VerseSlide
-                        verse={current}
-                        appearance={workspace.appearance}
-                    />
+                    {summaryProjection ? (
+                        <SearchSummarySlide {...summaryProjection} />
+                    ) : (
+                        <VerseSlide
+                            verse={current}
+                            appearance={workspace.appearance}
+                        />
+                    )}
                 </div>
                 <div className="stage-bottom">
                     <span>
                         <Monitor />
-                        {workspace.information
-                            ? "Retained verse"
-                            : workspace.status === "live"
-                              ? workspace.projectionOutcome === "projected"
-                                  ? "On audience"
-                                  : workspace.projectionOutcome ===
-                                      "unconfirmed"
-                                    ? "Unconfirmed projection"
+                        {summaryProjection
+                            ? "Previous output retained"
+                            : workspace.information
+                              ? "Retained verse"
+                              : workspace.status === "live"
+                                ? workspace.projectionOutcome === "projected"
+                                    ? "On audience"
                                     : workspace.projectionOutcome ===
-                                        "awaitingConfirmation"
-                                      ? "Awaiting confirmation"
-                                      : "Audience output requested"
-                              : "Retained verse"}
+                                        "unconfirmed"
+                                      ? "Unconfirmed projection"
+                                      : workspace.projectionOutcome ===
+                                          "awaitingConfirmation"
+                                        ? "Awaiting confirmation"
+                                        : "Audience output requested"
+                                : "Retained verse"}
                         <span className="stage-aspect">16:9</span>
                     </span>
                     <div>
@@ -108,7 +120,11 @@ export function CurrentVerse() {
                             {copied ? <Check /> : <Copy />}
                         </IconButton>
                         <IconButton
-                            label="Inspect current slide"
+                            label={
+                                summaryProjection
+                                    ? "Inspect retained verse"
+                                    : "Inspect current slide"
+                            }
                             onClick={() => {
                                 if (current) {
                                     previewVerse(current);
@@ -122,6 +138,9 @@ export function CurrentVerse() {
             </section>
             <div className="current-details">
                 <div>
+                    {summaryProjection && current && (
+                        <p className="retained-verse-label">Retained verse</p>
+                    )}
                     <div className="reference-heading">
                         <h2>
                             {current
@@ -215,7 +234,9 @@ export function CurrentVerse() {
                         </ButtonGroup>
                     </div>
                     <p className="display-action-note">
-                        Changes audience output when open.
+                        {summaryProjection
+                            ? "Showing a verse replaces the summary."
+                            : "Changes audience output when open."}
                     </p>
                 </div>
             </div>

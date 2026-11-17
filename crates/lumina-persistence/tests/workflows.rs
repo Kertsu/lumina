@@ -617,6 +617,13 @@ impl lumina_app::SettingsStorage for FaultStorage {
     }
     self.storage.save_application_theme(theme).map_err(std::io::Error::other)
   }
+
+  fn save_auto_open_search_summary(&mut self, enabled: bool) -> Result<(), Self::Error> {
+    if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+      return Err(std::io::Error::other("injected preference storage failure"));
+    }
+    self.storage.save_auto_open_search_summary(enabled).map_err(std::io::Error::other)
+  }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1055,5 +1062,90 @@ fn rejected_application_theme_write_keeps_accepted_theme() -> Result<(), Box<dyn
     Err(lumina_app::OperationError::Storage(_))
   ));
   assert_eq!(application.snapshot().application_theme, lumina_app::ApplicationTheme::Light);
+  Ok(())
+}
+
+#[test]
+fn search_summary_projection_preserves_previous_output_and_survives_audience_reopening(
+) -> Result<(), Box<dyn std::error::Error>> {
+  let directory = tempfile::tempdir()?;
+  let mut app = Application::start(SqliteStorage::open(&directory.path().join("summary.sqlite"))?)?;
+  app.restore_workflows()?;
+  let id = app.snapshot().active_workspace_id.clone();
+  let translation = app.snapshot().workspaces[0].settings.selected_translation_id.clone();
+  let search =
+    |app: &mut Application<SqliteStorage>, request_id: &str, query: &str, visible: Option<&str>| {
+      app.search_with_summary(
+        lumina_app::SearchRequest {
+          workspace_id: id.clone(),
+          translation_id: translation.clone(),
+          request_id: request_id.into(),
+          query: query.into(),
+          mode: lumina_app::SearchMode::Phrase,
+          scope: lumina_app::SearchScope::NewTestament,
+          order: lumina_app::SearchOrder::BibleOrder,
+          page: 1,
+          page_size: 25,
+          library_revision: None,
+        },
+        visible,
+      )
+    };
+  let verse = app
+    .resolve_reference(ReferenceRequest {
+      workspace_id: id.clone(),
+      coordinate: VerseCoordinate {
+        book_number: 43,
+        chapter: 3,
+        verse: 16,
+      },
+    })?
+    .verse;
+  let mut audience = Audience::default();
+  let first_id = search(&mut app, "first", "loved", None)?.candidate_id;
+  assert!(app.project_search_summary(&id, &first_id, &mut audience).is_err());
+  app.open_audience(&id, &mut audience)?;
+  app.send_verse(&id, verse.clone(), VerseActionKind::SendLive, true, 1.0, &mut audience)?;
+  app.project_search_summary(&id, &first_id, &mut audience)?;
+  let first = app.audience_output(&id)?.content;
+  assert!(matches!(&first, AudienceContent::SearchSummary { summary } if summary.query == "loved"));
+  search(&mut app, "superseded", "faith", Some(&first_id))?;
+  assert_eq!(app.audience_output(&id)?.content, first);
+  app.project_search_summary(&id, &first_id, &mut audience)?;
+  let second_id = search(&mut app, "second", "no-such-match-xyzz", None)?.candidate_id;
+  assert!(app.project_search_summary(&id, &first_id, &mut audience).is_err());
+  app.project_search_summary(&id, &second_id, &mut audience)?;
+  let second = app.audience_output(&id)?.content;
+  assert!(matches!(&second, AudienceContent::SearchSummary { summary } if summary.total == 0));
+  app.close_audience(&id, &mut audience)?;
+  app.open_audience(&id, &mut audience)?;
+  assert_eq!(app.audience_output(&id)?.content, AudienceContent::Blank);
+  app.resume_audience(&id, 2.0, &mut audience)?;
+  assert_eq!(app.audience_output(&id)?.content, second);
+  app.blank_audience(&id, &mut audience)?;
+  app.return_from_search_summary(&id, 3.0, &mut audience)?;
+  assert_eq!(app.audience_output(&id)?.content, AudienceContent::Blank);
+  assert_eq!(app.history(&id, false)?.len(), 1);
+  app.resume_audience(&id, 4.0, &mut audience)?;
+  app.project_search_summary(&id, &second_id, &mut audience)?;
+  app.return_from_search_summary(&id, 5.0, &mut audience)?;
+  let restored = app.audience_output(&id)?;
+  assert_eq!(
+    restored.content,
+    AudienceContent::Verse {
+      verse
+    }
+  );
+  assert_eq!(app.history(&id, false)?.len(), 1);
+  let action_id = restored.action_id.ok_or("return must be confirmable")?;
+  app.acknowledge(
+    &restored.owner.instance_id,
+    lumina_app::AudienceAcknowledgment {
+      session_id: restored.owner.session_id,
+      revision: restored.revision,
+      action_id,
+    },
+  )?;
+  assert_eq!(app.history(&id, true)?[0].kind, VerseActionKind::SearchSummaryReturn);
   Ok(())
 }

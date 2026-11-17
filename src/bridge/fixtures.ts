@@ -39,6 +39,7 @@ export const browserBooks: BookInformation[] = [
 /** Fixed browser examples; no lookup, persistence, or application transitions. */
 export const browserState: ApplicationSnapshot = {
     applicationTheme: "system",
+    autoOpenSearchSummary: false,
     projectionFailures: [],
     translations: [
         {
@@ -71,6 +72,7 @@ export const browserState: ApplicationSnapshot = {
             currentVerse: browserReference.verse,
             currentBackground: null,
             bookInformationMode: false,
+            searchSummaryProjection: null,
             audience: "closed",
             owner: null,
             outputRevision: 0,

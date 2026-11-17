@@ -10,6 +10,7 @@ import { PreviewDialog } from "./preview-dialog";
 import { ReferenceChoiceDialog } from "./reference-choice-dialog";
 import { RemoveWorkspaceDialog } from "./remove-workspace-dialog";
 import { RenameWorkspaceDialog } from "./rename-workspace-dialog";
+import { SearchSummaryDialog } from "./search-summary-dialog";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 export function DeskDialogs() {
     const {
@@ -76,6 +77,16 @@ export function DeskDialogs() {
                 onOpenChange={setSettingsOpen}
                 theme={theme}
                 onThemeChange={setTheme}
+                autoOpenSearchSummary={
+                    controller.autoOpenSearchSummary ?? false
+                }
+                onAutoOpenSearchSummaryChange={(enabled) =>
+                    dispatch({
+                        type: "setAutoOpenSearchSummary",
+                        enabled,
+                    })
+                }
+                pending={controller.pending}
             />
             <AppearanceDialog
                 open={appearanceOpen}
@@ -125,6 +136,7 @@ export function DeskDialogs() {
                 }
             />
             <PreviewDialog />
+            <SearchSummaryDialog />
             <InformationDialog />
             <ShortcutsDialog />
             <AudienceSettingsDialog />

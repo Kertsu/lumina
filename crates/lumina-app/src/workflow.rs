@@ -80,6 +80,9 @@ pub enum AudienceContent {
   BookInformation {
     information: InformationCapture,
   },
+  SearchSummary {
+    summary: crate::SearchSummary,
+  },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -117,6 +120,7 @@ pub enum VerseActionKind {
   ChangeTranslation,
   Resume,
   InformationReturn,
+  SearchSummaryReturn,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -255,7 +259,7 @@ pub struct WorkflowData {
   pub operation: String,
 }
 
-fn rejection(id: &WorkspaceId, operation: &str, message: &str) -> ApplicationFailure {
+pub(crate) fn rejection(id: &WorkspaceId, operation: &str, message: &str) -> ApplicationFailure {
   ApplicationFailure::WorkflowRejected {
     message: message.into(),
     data: WorkflowData {
@@ -277,7 +281,7 @@ fn native_failure(id: &WorkspaceId, operation: &str, message: String) -> Applica
 
 #[allow(clippy::needless_pass_by_value)]
 impl<S: Storage> Application<S> {
-  fn identity(&mut self, prefix: &str) -> String {
+  pub(crate) fn identity(&mut self, prefix: &str) -> String {
     self.sequence = self.sequence.wrapping_add(1);
     format!("{prefix}-{}-{}", self.session_id, self.sequence)
   }
@@ -303,15 +307,18 @@ impl<S: Storage> Application<S> {
         workspace_id: id.clone(),
       },
     })?;
-    let content = match workspace.audience {
-      AudienceState::Closed | AudienceState::Blank => AudienceContent::Blank,
-      AudienceState::Live if workspace.book_information_mode => workspace
+    let content = match (&workspace.audience, &workspace.search_summary_projection) {
+      (AudienceState::Closed | AudienceState::Blank, _) => AudienceContent::Blank,
+      (AudienceState::Live, Some(projection)) => AudienceContent::SearchSummary {
+        summary: projection.summary.clone(),
+      },
+      (AudienceState::Live, None) if workspace.book_information_mode => workspace
         .information
         .clone()
         .map_or(AudienceContent::Blank, |information| AudienceContent::BookInformation {
           information,
         }),
-      AudienceState::Live => {
+      (AudienceState::Live, None) => {
         workspace.current_verse.clone().map_or(AudienceContent::Blank, |verse| {
           AudienceContent::Verse {
             verse,
@@ -330,6 +337,14 @@ impl<S: Storage> Application<S> {
         AudienceContent::BookInformation {
           information,
         } => information.background.clone(),
+        AudienceContent::SearchSummary {
+          summary,
+        } => workspace
+          .appearance
+          .backgrounds
+          .iter()
+          .find(|background| background.translation_id == summary.translation_id)
+          .cloned(),
         AudienceContent::Blank => None,
       },
       content,
@@ -665,6 +680,7 @@ impl<S: WorkspaceStorage> Application<S> {
     workspace.current_verse = Some(verse.clone());
     workspace.current_background.clone_from(&background);
     workspace.book_information_mode = false;
+    workspace.search_summary_projection = None;
     workspace.output_revision = workspace.output_revision.saturating_add(1);
     workspace.output_action_id = Some(action_id.clone());
     let outcome = if workspace.owner.is_some() {
@@ -672,8 +688,12 @@ impl<S: WorkspaceStorage> Application<S> {
     } else {
       ProjectionOutcome::Selected
     };
-    let record_on_confirmation =
-      matches!(kind, VerseActionKind::Resume | VerseActionKind::InformationReturn);
+    let record_on_confirmation = matches!(
+      kind,
+      VerseActionKind::Resume
+        | VerseActionKind::InformationReturn
+        | VerseActionKind::SearchSummaryReturn
+    );
     workspace.history.insert(
       0,
       HistoryEntry {
@@ -853,6 +873,11 @@ impl<S: WorkspaceStorage> Application<S> {
   ) -> Result<Option<VerseActionResult>, OperationError<S::Error>> {
     self.audience_output(id)?;
     let index = self.workspace_index(id)?;
+    if self.state.workspaces[index].search_summary_projection.is_some() {
+      self.state.workspaces[index].audience = AudienceState::Live;
+      self.refresh_audience(id, native)?;
+      return Ok(None);
+    }
     if self.state.workspaces[index].book_information_mode {
       if self.state.workspaces[index].information.is_none() {
         return Err(rejection(id, "resume", "No captured book information is available.").into());
@@ -936,6 +961,8 @@ impl<S: WorkspaceStorage> Application<S> {
       current_verse: None,
       current_background: None,
       book_information_mode: false,
+      search_summary_candidates: Vec::new(),
+      search_summary_projection: None,
       audience: AudienceState::Closed,
       owner: None,
       output_revision: 0,
@@ -1084,6 +1111,7 @@ impl<S: WorkspaceStorage> Application<S> {
     }
     let mut proposal = self.state.workspaces.clone();
     proposal[index].settings.selected_translation_id = translation_id;
+    proposal[index].search_summary_candidates.clear();
     let active = self.state.active_workspace_id.clone();
     self.persist_proposal(&proposal, &active)?;
     self.state.workspaces = proposal;
