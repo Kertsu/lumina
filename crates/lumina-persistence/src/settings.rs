@@ -16,4 +16,15 @@ impl SettingsStorage for SqliteStorage {
       .map_err(StorageError::SettingsSql)?;
     Ok(())
   }
+
+  fn save_auto_open_search_summary(&mut self, enabled: bool) -> Result<(), StorageError> {
+    self
+      .connection
+      .execute(
+        "UPDATE application_settings SET auto_open_search_summary=?1 WHERE singleton=1",
+        [enabled],
+      )
+      .map_err(StorageError::SettingsSql)?;
+    Ok(())
+  }
 }

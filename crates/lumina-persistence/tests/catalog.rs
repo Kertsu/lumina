@@ -609,7 +609,10 @@ fn old_compatibility_indexes_rebuild_without_collapsing_literal_whitespace(
   drop(app);
   let fixture = rusqlite::Connection::open(&managed)?;
   fixture.execute("UPDATE verse_search SET normalized=replace(normalized,char(160),' ')", [])?;
-  fixture.execute_batch("ALTER TABLE application_settings DROP COLUMN application_theme")?;
+  fixture.execute_batch(
+    "ALTER TABLE application_settings DROP COLUMN auto_open_search_summary;
+     ALTER TABLE application_settings DROP COLUMN application_theme;",
+  )?;
   fixture.pragma_update(None, "user_version", 4)?;
   drop(fixture);
   let app = Application::start(SqliteStorage::open(&managed)?)?;

@@ -304,6 +304,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
     const dialogOpen = Boolean(
         (panelLayout.overlay && activePanelSheet !== null) ||
             workspaceSearchOpen ||
+            controller.searchSummaryOpen ||
             settingsOpen ||
             appearanceOpen ||
             informationOpen ||
@@ -423,6 +424,7 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
             }
         },
         {
+            enabled: !controller.searchSummaryOpen,
             ignoreInputs: false,
         }
     );

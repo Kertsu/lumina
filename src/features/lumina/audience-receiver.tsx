@@ -8,8 +8,22 @@ import {
 } from "@/bridge/client";
 import { viewVerse } from "./accepted-view";
 import { viewAppearance, viewInformation } from "./appearance-view";
+import { SearchSummarySlide } from "./search-summary-slide";
 import { useAppTheme } from "./use-app-theme";
 import { VerseSlide } from "./verse-slide";
+
+function contentTranslation(content: AudienceOutput["content"]): string | null {
+    switch (content.kind) {
+        case "verse":
+            return content.verse.translationId;
+        case "bookInformation":
+            return content.information.translationId;
+        case "searchSummary":
+            return content.summary.translationId;
+        case "blank":
+            return null;
+    }
+}
 
 /** Only this receiver confirms a committed verse in its authenticated native window. */
 export function AudienceReceiver() {
@@ -44,12 +58,7 @@ function AudienceOutputReceiver() {
             latest.current = incoming;
             const request = ++generation;
             // Blank supersedes pending image work without waiting for any resource.
-            const translationId =
-                incoming.content.kind === "verse"
-                    ? incoming.content.verse.translationId
-                    : incoming.content.kind === "bookInformation"
-                      ? incoming.content.information.translationId
-                      : null;
+            const translationId = contentTranslation(incoming.content);
             const background =
                 incoming.content.kind === "blank"
                     ? null
@@ -173,8 +182,7 @@ function AudienceOutputReceiver() {
         output.content.kind === "bookInformation"
             ? output.content.information
             : null;
-    const translationId =
-        verse?.translationId ?? information?.translationId ?? "";
+    const translationId = contentTranslation(output.content) ?? "";
     const appearance = viewAppearance(
         output.appearance,
         translationId,
@@ -196,12 +204,19 @@ function AudienceOutputReceiver() {
                 cursor: output.hideCursor ? "none" : "auto",
             }}
         >
-            <VerseSlide
-                verse={verse ? viewVerse(verse) : null}
-                appearance={appearance}
-                information={Boolean(information)}
-                metadata={viewInformation(information)}
-            />
+            {output.content.kind === "searchSummary" ? (
+                <SearchSummarySlide
+                    summary={output.content.summary}
+                    appearance={appearance}
+                />
+            ) : (
+                <VerseSlide
+                    verse={verse ? viewVerse(verse) : null}
+                    appearance={appearance}
+                    information={Boolean(information)}
+                    metadata={viewInformation(information)}
+                />
+            )}
         </main>
     );
 }

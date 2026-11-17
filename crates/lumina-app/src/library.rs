@@ -49,6 +49,7 @@ pub struct StoredWorkspace {
 
 pub struct StoredState {
   pub application_theme: crate::ApplicationTheme,
+  pub auto_open_search_summary: bool,
   pub translations: Vec<Translation>,
   pub workspaces: Vec<StoredWorkspace>,
   pub active_workspace_id: WorkspaceId,
@@ -58,6 +59,7 @@ pub struct StoredState {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationSnapshot {
   pub application_theme: crate::ApplicationTheme,
+  pub auto_open_search_summary: bool,
   /// Runtime-only notices survive refreshes when a rendered confirmation cannot be saved.
   pub projection_failures: Vec<crate::ProjectionConfirmationFailure>,
   pub translations: Vec<Translation>,
@@ -73,6 +75,9 @@ pub struct Workspace {
   pub current_verse: Option<ResolvedVerse>,
   pub current_background: Option<TranslationBackground>,
   pub book_information_mode: bool,
+  #[serde(skip)]
+  pub(crate) search_summary_candidates: Vec<crate::search_summary::SearchSummaryCandidate>,
+  pub search_summary_projection: Option<crate::SearchSummaryProjection>,
   pub audience: AudienceState,
   pub owner: Option<AudienceOwner>,
   pub output_revision: u32,

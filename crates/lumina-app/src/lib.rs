@@ -3,6 +3,7 @@
 mod catalog;
 mod failure;
 mod library;
+mod search_summary;
 mod settings;
 mod workflow;
 mod workflow_catalog;
@@ -11,6 +12,7 @@ pub use catalog::*;
 pub use failure::*;
 pub use library::*;
 pub use lumina_core::{CoordinateField, EditionId, TranslationId, VerseCoordinate, WorkspaceId};
+pub use search_summary::*;
 pub use settings::*;
 pub use workflow::*;
 pub use workflow_catalog::*;
@@ -90,6 +92,7 @@ impl<S: Storage> Application<S> {
       state: ApplicationSnapshot {
         projection_failures: Vec::new(),
         application_theme: stored.application_theme,
+        auto_open_search_summary: stored.auto_open_search_summary,
         translations: stored.translations,
         active_workspace_id: stored.active_workspace_id,
         workspaces: stored
@@ -101,6 +104,8 @@ impl<S: Storage> Application<S> {
             current_verse: None,
             current_background: None,
             book_information_mode: false,
+            search_summary_candidates: Vec::new(),
+            search_summary_projection: None,
             audience: AudienceState::Closed,
             owner: None,
             output_revision: 0,
@@ -200,6 +205,7 @@ mod tests {
       self.0.set(true);
       Ok(StoredState {
         application_theme: super::ApplicationTheme::System,
+        auto_open_search_summary: false,
         translations: Vec::new(),
         workspaces: Vec::new(),
         active_workspace_id: WorkspaceId("greeting-fixture".into()),

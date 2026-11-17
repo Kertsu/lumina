@@ -1,3 +1,4 @@
+import type { SearchSummary } from "@/bridge/client";
 import type {
     BookMetadata,
     Translation,
@@ -52,6 +53,12 @@ export type Workspace = {
     historyProjectedOnly: boolean;
     searchResults: Verse[];
     searchTotal: number;
+    searchSummary?: {
+        candidateId: string;
+        summary: SearchSummary;
+        appearance: Appearance;
+    };
+    projectedSearchSummary?: { summary: SearchSummary; appearance: Appearance };
     searchPages: number;
     ntPage?: number | null;
     chapterVerses: Verse[];
@@ -89,10 +96,15 @@ export type DeskAction =
           | "resume"
           | "clearPreview"
           | "search"
+          | "viewSearchSummary"
+          | "dismissSearchSummary"
+          | "returnFromSearchSummary"
           | "clearHistory"
           | "copyHistory"
           | "exportHistory"
       >
+    | (ScopedAction<"projectSearchSummary"> & { candidateId: string })
+    | { type: "setAutoOpenSearchSummary"; enabled: boolean }
     | (ScopedAction<"rename"> & { name: string })
     | { type: "reorder"; workspaceIds: string[] }
     | (ScopedAction<"select" | "preview" | "send"> & {
@@ -131,6 +143,8 @@ export type DeskController = {
     activeId: string;
     translations: Translation[];
     pending?: boolean;
+    autoOpenSearchSummary?: boolean;
+    searchSummaryOpen?: boolean;
     error?: string;
     dismissError: () => void;
     importReview?: ImportReview | null;

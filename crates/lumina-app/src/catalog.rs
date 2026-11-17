@@ -424,6 +424,7 @@ impl<S: LibraryStorage> Application<S> {
       for workspace in &mut self.state.workspaces {
         if workspace.settings.selected_translation_id == translation_id {
           workspace.settings.selected_translation_id = web.translation_id.clone();
+          workspace.search_summary_candidates.clear();
         }
       }
     }

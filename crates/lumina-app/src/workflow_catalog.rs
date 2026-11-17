@@ -256,6 +256,7 @@ impl<S: LibraryStorage + WorkspaceStorage> Application<S> {
     };
     self.state.workspaces[index].information = Some(information);
     self.state.workspaces[index].book_information_mode = true;
+    self.state.workspaces[index].search_summary_projection = None;
     self.refresh_audience(id, native)?;
     Ok(None)
   }

@@ -17,6 +17,8 @@ export type {
     Greeting,
     ReferenceRequest,
     ReferenceResult,
+    SearchSummary,
+    SearchWithSummary,
 } from "./bindings.gen";
 export {
     type ContextMenuPosition,
@@ -349,6 +351,18 @@ export const deskClient = {
         commands.resolveReferenceInput
     ),
     searchVerses: bind("search_verses", commands.searchVerses),
+    projectSearchSummary: bind(
+        "project_search_summary",
+        commands.projectSearchSummary
+    ),
+    returnFromSearchSummary: bind(
+        "return_from_search_summary",
+        commands.returnFromSearchSummary
+    ),
+    setAutoOpenSearchSummary: bind(
+        "set_auto_open_search_summary",
+        commands.setAutoOpenSearchSummary
+    ),
     reviewImport: bind("review_import", commands.reviewImport),
     commitImport: bind("commit_import", commands.commitImport),
     cancelImport: bind("cancel_import", commands.cancelImport),

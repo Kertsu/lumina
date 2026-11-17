@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Button } from "@/shared/ui/button";
 import { Dialog } from "@/shared/ui/dialog";
+import { Switch } from "@/shared/ui/switch";
 import type { AppTheme } from "./use-app-theme";
 
 const themes = [
@@ -207,14 +208,22 @@ export function AppSettingsDialog({
     onOpenChange,
     theme,
     onThemeChange,
+    autoOpenSearchSummary,
+    onAutoOpenSearchSummaryChange,
+    pending,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     theme: AppTheme;
     onThemeChange: (theme: AppTheme) => void;
+    autoOpenSearchSummary: boolean;
+    onAutoOpenSearchSummaryChange: (enabled: boolean) => void;
+    pending?: boolean;
 }) {
     const themeName = useId();
     const descriptionId = useId();
+    const summaryPreferenceLabel = useId();
+    const summaryPreferenceHint = useId();
 
     return (
         <Dialog
@@ -253,6 +262,29 @@ export function AppSettingsDialog({
                     System follows your device’s appearance automatically.
                 </p>
             </div>
+            <fieldset className="mt-5 border-t border-border">
+                <legend className="pr-3 text-sm font-semibold">Search</legend>
+                <div className="mt-3 flex items-center justify-between gap-4">
+                    <div className="grid gap-1">
+                        <span id={summaryPreferenceLabel}>
+                            Preview search summaries automatically
+                        </span>
+                        <p
+                            id={summaryPreferenceHint}
+                            className="text-xs leading-relaxed text-muted-foreground"
+                        >
+                            Open a private summary after each word search.
+                        </p>
+                    </div>
+                    <Switch
+                        aria-labelledby={summaryPreferenceLabel}
+                        aria-describedby={summaryPreferenceHint}
+                        checked={autoOpenSearchSummary}
+                        onCheckedChange={onAutoOpenSearchSummaryChange}
+                        disabled={pending}
+                    />
+                </div>
+            </fieldset>
         </Dialog>
     );
 }

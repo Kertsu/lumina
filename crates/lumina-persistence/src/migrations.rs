@@ -1,7 +1,7 @@
 use crate::StorageError;
 use rusqlite::Transaction;
 
-pub(crate) const CURRENT_VERSION: u32 = 6;
+pub(crate) const CURRENT_VERSION: u32 = 7;
 const MIGRATIONS: &[(u32, &str)] = &[
   (1, include_str!("../migrations/V20261021161209_foundation.sql")),
   (2, include_str!("../migrations/V20261024060038_library_and_workspaces.sql")),
@@ -9,6 +9,7 @@ const MIGRATIONS: &[(u32, &str)] = &[
   (4, include_str!("../migrations/V20261026060000_workspace_history.sql")),
   (5, include_str!("../migrations/V20261026122610_preserve_literal_whitespace.sql")),
   (6, include_str!("../migrations/V20261028135826_application_theme.sql")),
+  (7, include_str!("../migrations/V20261117091653_search_summary_preference.sql")),
 ];
 
 pub(crate) fn apply(transaction: &Transaction<'_>) -> Result<(), StorageError> {
