@@ -8,6 +8,7 @@ import {
     popupNativeContextMenu,
 } from "@/bridge/client";
 import { ContextMenu } from "@/shared/ui/context-menu";
+import { keyboardMenuPosition } from "./keyboard-shortcuts";
 
 export function WorkspaceTabMenu({
     children,
@@ -93,11 +94,7 @@ export function WorkspaceTabMenu({
                     return;
                 }
                 event.preventDefault();
-                const bounds = event.currentTarget.getBoundingClientRect();
-                openNative({
-                    x: bounds.left + 16,
-                    y: bounds.bottom,
-                });
+                openNative(keyboardMenuPosition(event.currentTarget));
             },
             onContextMenu: (event) => {
                 event.preventDefault();

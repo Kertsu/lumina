@@ -794,6 +794,74 @@ it("runs the first enabled filtered command after closing its modal", async () =
     expect(screen.queryByRole("dialog")).toBeNull();
 });
 
+it.each([
+    "Shift+F10",
+    "Keyboard shortcuts",
+])("opens the active workspace's tab options via %s while focus is elsewhere", async (entryPoint) => {
+    const model = controller();
+    model.workspaces.push({
+        ...model.workspaces[0],
+        id: "workspace-b",
+        name: "Side screen",
+    });
+    model.activeId = "workspace-b";
+    render(<ProjectionDesk controller={model} />);
+    const reference = screen.getByRole("textbox", {
+        name: "Quick reference",
+    });
+    reference.focus();
+
+    if (entryPoint === "Shift+F10") {
+        fireEvent.keyDown(reference, {
+            key: "F10",
+            code: "F10",
+            shiftKey: true,
+        });
+        fireEvent.keyUp(reference, {
+            key: "F10",
+            code: "F10",
+            shiftKey: true,
+        });
+    } else {
+        fireEvent.keyDown(reference, {
+            key: "/",
+            code: "Slash",
+            ctrlKey: true,
+        });
+        fireEvent.keyUp(reference, {
+            key: "/",
+            code: "Slash",
+            ctrlKey: true,
+        });
+        const shortcuts = await screen.findByRole("dialog", {
+            name: "Keyboard shortcuts",
+        });
+        const search = within(shortcuts).getByRole("combobox");
+        fireEvent.change(search, {
+            target: {
+                value: "Workspace tab options",
+            },
+        });
+        fireEvent.keyDown(search, {
+            key: "Enter",
+        });
+    }
+
+    fireEvent.click(
+        await screen.findByRole("menuitem", {
+            name: "Rename workspace",
+        })
+    );
+    const rename = await screen.findByRole("dialog", {
+        name: "Name this workspace",
+    });
+    expect(
+        within(rename).getByRole<HTMLInputElement>("textbox", {
+            name: "Workspace name",
+        }).value
+    ).toBe("Side screen");
+});
+
 it("keeps verse tools under the slide and restores summaries from the audience controls", () => {
     const model = controller();
     const [workspace] = model.workspaces;

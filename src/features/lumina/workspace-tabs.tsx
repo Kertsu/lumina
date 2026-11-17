@@ -19,6 +19,7 @@ import { Circle, CircleAlert, Clock3, EyeOff, Radio, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { workspaceTabOptionsHotkey } from "./keyboard-shortcuts";
 import { audienceStatus, type Workspace } from "./model";
 import { WorkspaceTabMenu } from "./workspace-tab-menu";
 
@@ -134,7 +135,7 @@ function SortableTab({
                         </span>
                     }
                     aria-describedby={attributes["aria-describedby"]}
-                    aria-keyshortcuts="Shift+F10"
+                    aria-keyshortcuts={workspaceTabOptionsHotkey}
                     title={`${workspace.name} · ${status.label}\nDrag to reposition. Right-click for tab options.`}
                     {...listeners}
                 />

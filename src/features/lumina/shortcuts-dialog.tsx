@@ -20,7 +20,11 @@ import { isDesktopHost, requestQuitConfirmation } from "@/bridge/client";
 import { CommandMenu } from "@/shared/ui/command";
 import { Dialog } from "@/shared/ui/dialog";
 import { useDeskContext } from "./desk-context";
-import { showShortcutsHotkey } from "./keyboard-shortcuts";
+import {
+    openActiveWorkspaceTabMenu,
+    showShortcutsHotkey,
+    workspaceTabOptionsHotkey,
+} from "./keyboard-shortcuts";
 
 export function ShortcutsDialog() {
     const {
@@ -156,26 +160,9 @@ export function ShortcutsDialog() {
                 },
                 {
                     label: "Workspace tab options",
-                    hotkey: "Shift+F10",
+                    hotkey: workspaceTabOptionsHotkey,
                     icon: ListFilter,
-                    run: () => {
-                        const tab = document.querySelector<HTMLElement>(
-                            '[role="tab"][data-state="active"]'
-                        );
-                        if (!tab) {
-                            return;
-                        }
-                        tab.focus();
-                        const bounds = tab.getBoundingClientRect();
-                        tab.dispatchEvent(
-                            new MouseEvent("contextmenu", {
-                                bubbles: true,
-                                cancelable: true,
-                                clientX: bounds.left + 16,
-                                clientY: bounds.bottom,
-                            })
-                        );
-                    },
+                    run: openActiveWorkspaceTabMenu,
                 },
                 {
                     label: "Close current workspace",
