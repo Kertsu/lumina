@@ -4,7 +4,11 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useNotifications } from "@/shared/ui/notifications";
 import { hasOpenInteractionLayer } from "@/shared/ui/open-interaction-layer";
 import type { TranslationId, Verse } from "./fixtures";
-import { showShortcutsHotkey } from "./keyboard-shortcuts";
+import {
+    openActiveWorkspaceTabMenu,
+    showShortcutsHotkey,
+    workspaceTabOptionsHotkey,
+} from "./keyboard-shortcuts";
 import type { DeskController, Workspace } from "./model";
 import { getBand } from "./model";
 import { useAppTheme } from "./use-app-theme";
@@ -390,6 +394,25 @@ export function useDeskView(controller: DeskController, workspace: Workspace) {
         requireReset: true,
         capture: true,
     });
+    useHotkey(
+        workspaceTabOptionsHotkey,
+        (event) => {
+            if (
+                !event.defaultPrevented &&
+                !hasOpenInteractionLayer() &&
+                openActiveWorkspaceTabMenu()
+            ) {
+                event.preventDefault();
+            }
+        },
+        {
+            enabled: !dialogOpen,
+            ignoreInputs: false,
+            preventDefault: false,
+            stopPropagation: false,
+            requireReset: true,
+        }
+    );
     useHotkey("F1", openTranslationPicker, {
         enabled: !dialogOpen,
         ignoreInputs: false,
